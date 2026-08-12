@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
@@ -291,7 +292,9 @@ class _CommunityPageState extends State<CommunityPage> {
       if (payload.visibility == 'private' && result.joinCode != null) {
         await _showGroupCodeDialog(
           context,
-          title: 'Private group code',
+          title: AppLocalizations.of(
+            context,
+          ).translate('community_private_group_code'),
           code: result.joinCode!,
           message: 'Share this 6-digit code with anyone you want to invite.',
         );
@@ -363,14 +366,14 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Future<void> _openChallenges() async {
+    final t = AppLocalizations.of(context);
     final canPlatformAdminManage = _bootstrap?.hasPlatformAdminAccess ?? false;
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CommunityChallengesPage(
-          title: 'Global Challenges',
-          emptyMessage:
-              'Global community challenges will appear here automatically when launched.',
+          title: t.translate('community_global_challenges'),
+          emptyMessage: t.translate('community_global_challenges_coming'),
           canManageGlobalChallenges: canPlatformAdminManage,
         ),
       ),
@@ -396,6 +399,7 @@ class _CommunityPageState extends State<CommunityPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return SafeArea(
       child: Stack(
         children: [
@@ -422,16 +426,15 @@ class _CommunityPageState extends State<CommunityPage> {
                     const TaqaCommunityLoadingCard()
                   else if (_error != null)
                     _CommunityEmptyCard(
-                      title: 'Community unavailable',
+                      title: t.translate('community_unavailable'),
                       message: _error!,
-                      actionLabel: 'Retry',
+                      actionLabel: t.translate('community_retry'),
                       onPressed: _loadInitial,
                     )
                   else if (_feed.isEmpty)
-                    const _CommunityEmptyCard(
-                      title: 'Your feed is quiet',
-                      message:
-                          'Join groups, share your data, and your real activity will start populating the feed.',
+                    _CommunityEmptyCard(
+                      title: t.translate('community_feed_quiet'),
+                      message: t.translate('community_feed_quiet_body'),
                     )
                   else
                     ..._feed.map(_buildFeedCard),
@@ -452,7 +455,7 @@ class _CommunityPageState extends State<CommunityPage> {
                               width: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Load more'),
+                          : Text(t.translate('community_load_more')),
                     ),
                   ],
                 ],
@@ -462,7 +465,7 @@ class _CommunityPageState extends State<CommunityPage> {
           Positioned(
             top: TaqaUiScale.h(12),
             left: TaqaUiScale.w(16),
-            child: const TaqaPageHeader(title: 'Community'),
+            child: TaqaPageHeader(title: t.translate('community_title')),
           ),
         ],
       ),
@@ -470,16 +473,17 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildHeroCard() {
+    final t = AppLocalizations.of(context);
     final bootstrap = _bootstrap;
     final resolvedName =
         bootstrap?.currentUser.primaryLabel.trim().isNotEmpty == true
         ? bootstrap!.currentUser.primaryLabel.trim()
         : (_cachedCommunityName?.trim().isNotEmpty == true
               ? _cachedCommunityName!.trim()
-              : 'Athlete');
+              : t.translate('community_default_member'));
     return TaqaCommunityHeroCard(
-      welcomeText: 'Welcome back, $resolvedName',
-      greetingText: 'Welcome back,',
+      welcomeText: '${t.translate('community_welcome_back')} $resolvedName',
+      greetingText: t.translate('community_welcome_back'),
       userNameText: resolvedName,
       badgeCount: _myEarnedBadges.length,
       groupCount: bootstrap?.joinedGroups.length ?? 0,
@@ -501,20 +505,21 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildJoinedGroupsSection() {
+    final t = AppLocalizations.of(context);
     final groups = _bootstrap?.joinedGroups ?? const <CommunityGroupSummary>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TaqaCommunitySectionHeader(
-          title: 'Your Groups',
-          actionLabel: 'Open all',
+          title: t.translate('community_your_groups'),
+          actionLabel: t.translate('community_open_all'),
           onActionTap: () => _openMyGroups(groups),
         ),
         const SizedBox(height: 12),
         if (groups.isEmpty)
-          const _CommunityEmptyCard(
-            title: 'No groups yet',
-            message: 'Create a private group or discover a public community.',
+          _CommunityEmptyCard(
+            title: t.translate('community_no_groups'),
+            message: t.translate('community_no_groups_body'),
           )
         else
           SizedBox(
@@ -532,8 +537,10 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildJoinedGroupCard(CommunityGroupSummary group) {
+    final t = AppLocalizations.of(context);
     return TaqaCommunityGroupCard(
-      tag: group.groupKind ?? group.visibility ?? 'Group',
+      tag:
+          group.groupKind ?? group.visibility ?? t.translate('community_group'),
       name: group.name,
       description: group.description ?? '',
       memberCount: group.memberCount,
@@ -550,22 +557,22 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildChallengePreview() {
+    final t = AppLocalizations.of(context);
     final challenges =
         _bootstrap?.activeChallenges ?? const <CommunityChallenge>[];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TaqaCommunitySectionHeader(
-          title: 'Active Challenges',
-          actionLabel: 'Open all',
+          title: t.translate('community_active_challenges'),
+          actionLabel: t.translate('community_open_all'),
           onActionTap: _openChallenges,
         ),
         const SizedBox(height: 24),
         if (challenges.isEmpty)
-          const _CommunityEmptyCard(
-            title: 'No active challenges',
-            message:
-                'Global community challenges will appear here when launched.',
+          _CommunityEmptyCard(
+            title: t.translate('community_no_active_challenges'),
+            message: t.translate('community_global_challenges_coming'),
           )
         else
           ...challenges
@@ -585,6 +592,7 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildFeedFilterBar() {
+    final t = AppLocalizations.of(context);
     final groups = _bootstrap?.joinedGroups ?? const <CommunityGroupSummary>[];
     final gap = TaqaUiScale.w(15);
     CommunityGroupSummary? pickedGroup;
@@ -598,7 +606,7 @@ class _CommunityPageState extends State<CommunityPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const TaqaCommunitySectionHeader(title: 'Feed'),
+        TaqaCommunitySectionHeader(title: t.translate('community_feed')),
         const SizedBox(height: 24),
         SizedBox(
           height: TaqaUiStyles.actionButtonHeight,
@@ -606,7 +614,7 @@ class _CommunityPageState extends State<CommunityPage> {
             children: [
               Expanded(
                 child: TaqaRangeTab(
-                  label: 'All groups',
+                  label: t.translate('community_all_groups'),
                   selected: _selectedGroupId == null,
                   onTap: () async {
                     setState(() => _selectedGroupId = null);
@@ -652,6 +660,7 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildFeedCard(CommunityFeedItem item) {
+    final t = AppLocalizations.of(context);
     final isAdmin = _isAdminForGroup(item.group.id);
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
@@ -686,11 +695,14 @@ class _CommunityPageState extends State<CommunityPage> {
             }
           },
           itemBuilder: (_) => [
-            const PopupMenuItem<String>(value: 'report', child: Text('Report')),
+            PopupMenuItem<String>(
+              value: 'report',
+              child: Text(t.translate('community_report')),
+            ),
             if (isAdmin)
-              const PopupMenuItem<String>(
+              PopupMenuItem<String>(
                 value: 'hide',
-                child: Text('Hide from group'),
+                child: Text(t.translate('community_hide_from_group')),
               ),
           ],
         ),
@@ -824,10 +836,11 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
-        title: 'Discover Communities',
+      appBar: TaqaPageAppBar(
+        title: t.translate('community_discover_title'),
         backgroundColor: AppColors.appBackground,
       ),
       body: SafeArea(
@@ -849,13 +862,13 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
               ),
               SizedBox(height: TaqaUiScale.h(15)),
               TaqaCommunityFilterGrid(
-                labels: const [
-                  'General',
-                  'Gym',
-                  'Coach',
-                  'City',
-                  'Country',
-                  'Sport',
+                labels: [
+                  t.translate('community_general'),
+                  t.translate('community_gym'),
+                  t.translate('community_coach'),
+                  t.translate('community_city'),
+                  t.translate('community_country'),
+                  t.translate('community_sport'),
                 ],
                 selectedIndexes: {
                   for (var i = 0; i < _groupKindOptions.length; i++)
@@ -873,10 +886,12 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
               ),
               SizedBox(height: TaqaUiScale.h(16)),
               if (_loading)
-                const TaqaCommunityLoadingCard(label: 'Loading communities...')
+                TaqaCommunityLoadingCard(
+                  label: t.translate('community_loading'),
+                )
               else if (_error != null) ...[
                 TaqaEmptyCard(
-                  title: 'Could not load public groups',
+                  title: t.translate('community_public_groups_error'),
                   subtitle: _error,
                 ),
                 SizedBox(height: TaqaUiScale.h(12)),
@@ -889,25 +904,28 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Retry'),
+                  child: Text(t.translate('community_retry')),
                 ),
               ] else if (_groups.isEmpty)
-                const TaqaEmptyCard(
-                  title: 'No public groups found',
-                  subtitle: 'Try a broader search or create your own community',
+                TaqaEmptyCard(
+                  title: t.translate('community_no_public_groups'),
+                  subtitle: t.translate('community_search_broader'),
                 )
               else
                 ..._groups.map(
                   (group) => Padding(
                     padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                     child: TaqaCommunityGroupListCard(
-                      tag: group.groupKind ?? group.visibility ?? 'Group',
+                      tag:
+                          group.groupKind ??
+                          group.visibility ??
+                          t.translate('community_group'),
                       name: group.name,
                       description: group.description ?? '',
                       memberCount: group.memberCount,
                       trailing: group.isJoined
                           ? TaqaOutlineTagButton(
-                              label: 'Joined',
+                              label: t.translate('community_joined'),
                               width: TaqaUiStyles.communitySectionTagWidth,
                             )
                           : null,
@@ -1060,9 +1078,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   Future<void> _leaveGroup() async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Leave group',
+      title: t.translate('community_leave_group'),
       message:
           'You can rejoin later if the group is public or if you still have the private code.',
       confirmLabel: 'Leave',
@@ -1149,9 +1168,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   Future<void> _resetCode() async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Reset join code',
+      title: t.translate('community_reset_join_code'),
       message: 'Anyone using the old 6-digit code will lose access to join.',
       confirmLabel: 'Reset',
     );
@@ -1161,7 +1181,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       if (!mounted) return;
       await _showGroupCodeDialog(
         context,
-        title: 'New group code',
+        title: t.translate('community_new_group_code'),
         code: newCode,
         message:
             'The previous invite code no longer works. Share this new code with members you want to invite.',
@@ -1177,12 +1197,13 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   }
 
   Future<void> _viewCode() async {
+    final t = AppLocalizations.of(context);
     try {
       final code = await CommunityService.fetchGroupJoinCode(widget.groupId);
       if (!mounted) return;
       await _showGroupCodeDialog(
         context,
-        title: 'Current group code',
+        title: t.translate('community_current_group_code'),
         code: code,
         message: 'Share this 6-digit code with anyone you want to invite.',
       );
@@ -1209,7 +1230,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        'Leaderboard metric updated.',
+        AppLocalizations.of(context).translate('community_metric_updated'),
         type: AppToastType.success,
       );
       await _load();
@@ -1243,14 +1264,14 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   Future<void> _openGroupChallenges() async {
     final detail = _detail;
     if (detail == null) return;
+    final t = AppLocalizations.of(context);
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CommunityChallengesPage(
           groupId: detail.id,
-          title: '${detail.name} Challenges',
-          emptyMessage:
-              'Group challenges will appear here when created by this group admin.',
+          title: '${detail.name} ${t.translate('community_challenges')}',
+          emptyMessage: t.translate('community_group_challenges_coming'),
           canManageGroupChallenges: detail.isAdmin,
         ),
       ),
@@ -1304,7 +1325,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       setState(() => _groupNotificationsMuted = value);
       AppToast.show(
         context,
-        'Notification preference saved.',
+        AppLocalizations.of(context).translate('community_notification_saved'),
         type: AppToastType.success,
       );
     } catch (e) {
@@ -1319,15 +1340,16 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final detail = _detail;
     final scaffold = Scaffold(
       backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: detail?.name ?? 'Community',
+        title: detail?.name ?? t.translate('community_title'),
         trailing: detail?.isAdmin == true
             ? IconButton(
-                tooltip: 'Group management',
+                tooltip: t.translate('community_group_management'),
                 icon: Icon(
                   Icons.settings_outlined,
                   size: TaqaUiScale.w(22),
@@ -1364,14 +1386,17 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               const TaqaCommunityLoadingCard()
             else if (_error != null)
               _CommunityEmptyCard(
-                title: 'Could not load group',
+                title: t.translate('community_group_load_error'),
                 message: _error!,
-                actionLabel: 'Retry',
+                actionLabel: t.translate('community_retry'),
                 onPressed: () => _load(),
               )
             else if (detail != null) ...[
               TaqaCommunityGroupHeroCard(
-                tag: detail.groupKind ?? detail.visibility ?? 'Group',
+                tag:
+                    detail.groupKind ??
+                    detail.visibility ??
+                    t.translate('community_group'),
                 name: detail.name,
                 description: detail.description ?? '',
                 membersValue: '${detail.memberCount}',
@@ -1394,9 +1419,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               const SizedBox(height: 16),
               if (detail.shareSettings != null)
                 TaqaSettingsRowCard(
-                  title: 'Shared Metrics',
-                  description:
-                      'Choose exactly what this group can see from your real activity.',
+                  title: t.translate('community_shared_metrics'),
+                  description: t.translate('community_shared_metrics_body'),
                   onTap: () async {
                     await Navigator.push(
                       context,
@@ -1412,19 +1436,19 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 ),
               if (detail.shareSettings != null) const SizedBox(height: 16),
               TaqaSettingsRowCard(
-                title: 'Pinned Items',
+                title: t.translate('community_pinned_items'),
                 description: detail.pinnedItems.isEmpty
-                    ? 'No pins yet.'
+                    ? t.translate('community_no_pins')
                     : '${detail.pinnedItems.length} pinned item${detail.pinnedItems.length == 1 ? '' : 's'}.',
                 onTap: _openPinnedItems,
               ),
               const SizedBox(height: 15),
               TaqaSettingsRowCard(
-                title: 'Challenges',
+                title: t.translate('community_challenges'),
                 description: !detail.isJoined
-                    ? 'Join this group to view its group-specific challenges.'
+                    ? t.translate('community_join_for_challenges')
                     : _groupChallenges.isEmpty
-                    ? 'No group challenges yet.'
+                    ? t.translate('community_no_group_challenges')
                     : '${_groupChallenges.length} active challenge${_groupChallenges.length == 1 ? '' : 's'}.',
                 onTap: detail.isJoined ? _openGroupChallenges : null,
               ),
@@ -1447,16 +1471,17 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               ),
               const SizedBox(height: 16),
               _InlineSectionHeader(
-                title: 'Group feed',
-                actionLabel: detail.isAdmin ? 'Members' : null,
+                title: t.translate('community_group_feed'),
+                actionLabel: detail.isAdmin
+                    ? t.translate('community_members')
+                    : null,
                 onTap: detail.isAdmin ? _openMembers : null,
               ),
               const SizedBox(height: 12),
               if (_feed.isEmpty)
-                const _CommunityEmptyCard(
-                  title: 'No activity yet',
-                  message:
-                      'This group feed will populate from real workouts, badges, score improvements, movement, and challenges.',
+                _CommunityEmptyCard(
+                  title: t.translate('community_no_activity'),
+                  message: t.translate('community_no_activity_body'),
                 )
               else
                 ..._feed.map(
@@ -1524,12 +1549,13 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   Future<void> _openGroupReports() async {
     final detail = _detail;
     if (detail == null) return;
+    final t = AppLocalizations.of(context);
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CommunityAdminReportsPage(
           groupId: detail.id,
-          title: '${detail.name} Reports',
+          title: '${detail.name} ${t.translate('community_reports')}',
         ),
       ),
     );
@@ -1539,9 +1565,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
   Future<void> _archiveGroup() async {
     final detail = _detail;
     if (detail == null) return;
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Archive group',
+      title: t.translate('community_archive_group'),
       message:
           'This will archive the group and remove it from normal community use.',
       confirmLabel: 'Archive',
@@ -1570,20 +1597,20 @@ class CommunityMyGroupsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: 'Your Groups',
+        title: t.translate('community_your_groups'),
       ),
       body: SafeArea(
         child: groups.isEmpty
-            ? const Padding(
+            ? Padding(
                 padding: EdgeInsets.all(20),
                 child: _CommunityEmptyCard(
-                  title: 'No groups yet',
-                  message:
-                      'Create a private group or discover a public community.',
+                  title: t.translate('community_no_groups'),
+                  message: t.translate('community_no_groups_body'),
                 ),
               )
             : ListView.separated(
@@ -1594,7 +1621,10 @@ class CommunityMyGroupsPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final group = groups[index];
                   return TaqaCommunityGroupHeroCard(
-                    tag: group.groupKind ?? group.visibility ?? 'Group',
+                    tag:
+                        group.groupKind ??
+                        group.visibility ??
+                        t.translate('community_group'),
                     name: group.name,
                     description: group.description ?? '',
                     membersValue: '${group.memberCount}',
@@ -1627,10 +1657,11 @@ class CommunityGroupManagementPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
-        title: 'Group Management',
+      appBar: TaqaPageAppBar(
+        title: t.translate('community_group_management_title'),
         backgroundColor: AppColors.appBackground,
       ),
       body: SafeArea(
@@ -1684,7 +1715,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
       _isGroupTab ? _groupChallenges : _globalChallenges;
   String get _currentEmptyMessage {
     if (_isGroupTab) {
-      return 'Group challenges will appear here when created by this group admin.';
+      return AppLocalizations.of(
+        context,
+      ).translate('community_group_challenges_coming');
     }
     return widget.emptyMessage;
   }
@@ -1782,7 +1815,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         );
       }
       if (!mounted) return;
-      AppToast.show(context, 'Challenge created.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_challenge_created'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1795,25 +1832,32 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   }
 
   Future<void> _openChallengeActions(CommunityChallenge challenge) async {
+    final t = AppLocalizations.of(context);
     final canManage = _canManageChallenge(challenge);
     final action = await showTaqaOptionDialog<String>(
       context: context,
       title: challenge.name,
       options: [
-        const TaqaDialogOption(
+        TaqaDialogOption(
           value: 'details',
-          title: 'View progress details',
+          title: t.translate('community_view_progress'),
         ),
         TaqaDialogOption(
           value: 'mute',
           title: challenge.mutedNotifications
-              ? 'Unmute notifications'
-              : 'Mute notifications',
+              ? t.translate('community_unmute_notifications')
+              : t.translate('community_mute_notifications'),
         ),
         if (canManage)
-          const TaqaDialogOption(value: 'edit', title: 'Edit challenge'),
+          TaqaDialogOption(
+            value: 'edit',
+            title: t.translate('community_edit_challenge'),
+          ),
         if (canManage)
-          const TaqaDialogOption(value: 'delete', title: 'Delete challenge'),
+          TaqaDialogOption(
+            value: 'delete',
+            title: t.translate('community_delete_challenge'),
+          ),
       ],
     );
     if (action == null) return;
@@ -1857,7 +1901,11 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         isActive: payload.isActive,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Challenge updated.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_challenge_updated'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1870,19 +1918,23 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
   }
 
   Future<void> _deleteChallenge(CommunityChallenge challenge) async {
+    final t = AppLocalizations.of(context);
     final confirm = await showConfirmDialog(
       context: context,
-      title: 'Delete challenge',
-      message:
-          'This will permanently remove the challenge and its progress records.',
-      confirmText: 'Delete',
+      title: t.translate('community_delete_challenge'),
+      message: t.translate('community_delete_challenge_body'),
+      confirmText: t.translate('community_delete'),
       borderColor: Colors.redAccent,
     );
     if (confirm != true) return;
     try {
       await CommunityService.deleteChallenge(challenge.challengeId);
       if (!mounted) return;
-      AppToast.show(context, 'Challenge deleted.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_challenge_deleted'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1896,7 +1948,10 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final sectionTitle = _isGroupTab ? 'Group challenges' : 'Global challenges';
+    final t = AppLocalizations.of(context);
+    final sectionTitle = _isGroupTab
+        ? t.translate('community_group_challenges')
+        : t.translate('community_global_challenges');
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
@@ -1913,7 +1968,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                 children: [
                   Expanded(
                     child: TaqaRangeTab(
-                      label: 'Global',
+                      label: t.translate('community_global'),
                       selected: !_isGroupTab,
                       onTap: () => setState(() => _selectedTabIndex = 0),
                     ),
@@ -1921,7 +1976,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                   SizedBox(width: TaqaUiScale.w(15)),
                   Expanded(
                     child: TaqaRangeTab(
-                      label: 'Group',
+                      label: t.translate('community_group_tab'),
                       selected: _isGroupTab,
                       onTap: () => setState(() => _selectedTabIndex = 1),
                     ),
@@ -1932,7 +1987,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
             ],
             TaqaCommunitySectionHeader(
               title: sectionTitle,
-              actionLabel: _canCreateForCurrentTab ? 'Create' : null,
+              actionLabel: _canCreateForCurrentTab
+                  ? t.translate('community_create')
+                  : null,
               onActionTap: _canCreateForCurrentTab ? _createChallenge : null,
             ),
             SizedBox(height: TaqaUiScale.h(24)),
@@ -1942,7 +1999,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
               Column(
                 children: [
                   TaqaEmptyCard(
-                    title: 'Could not load challenges',
+                    title: t.translate('community_challenges_load_error'),
                     subtitle: _error!,
                     icon: Icons.error_outline_rounded,
                   ),
@@ -1950,7 +2007,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TaqaOutlineTagButton(
-                      label: 'Retry',
+                      label: t.translate('community_retry'),
                       width: TaqaUiScale.w(92),
                       onTap: _load,
                     ),
@@ -1959,7 +2016,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
               )
             else if (_visibleChallenges.isEmpty)
               TaqaEmptyCard(
-                title: 'No challenges right now',
+                title: t.translate('community_no_challenges'),
                 subtitle: _currentEmptyMessage,
                 icon: Icons.flag_outlined,
               )
@@ -2040,14 +2097,15 @@ class _CommunityChallengeProgressPageState
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final challenge = _challenge;
     final progress = (challenge.progressPercent / 100)
         .clamp(0.0, 1.0)
         .toDouble();
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
-        title: 'Challenge Details',
+      appBar: TaqaPageAppBar(
+        title: t.translate('community_challenge_details'),
         backgroundColor: AppColors.appBackground,
       ),
       body: TaqaRefreshIndicator(
@@ -2059,9 +2117,9 @@ class _CommunityChallengeProgressPageState
               const TaqaCommunityLoadingCard()
             else if (_error != null)
               _CommunityEmptyCard(
-                title: 'Could not load challenge',
+                title: t.translate('community_challenge_load_error'),
                 message: _error!,
-                actionLabel: 'Retry',
+                actionLabel: t.translate('community_retry'),
                 onPressed: _load,
               )
             else ...[
@@ -2112,7 +2170,12 @@ class _CommunityChallengeProgressPageState
                     if (challenge.goalValue != null) ...[
                       SizedBox(height: TaqaUiScale.h(6)),
                       Text(
-                        'Goal: ${_valueLabel(challenge.goalValue!)}',
+                        t
+                            .translate('community_goal')
+                            .replaceAll(
+                              '{value}',
+                              _valueLabel(challenge.goalValue!),
+                            ),
                         style: TaqaUiStyles.dailyOutlookDescription,
                       ),
                     ],
@@ -2133,11 +2196,13 @@ class _CommunityChallengeProgressPageState
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(16)),
-              _InlineSectionHeader(title: 'Progress details'),
+              _InlineSectionHeader(
+                title: t.translate('community_progress_details'),
+              ),
               SizedBox(height: TaqaUiScale.h(10)),
               if (challenge.segments.isEmpty)
-                const _CommunityEmptyCard(
-                  title: 'No weekly breakdown',
+                _CommunityEmptyCard(
+                  title: t.translate('community_no_weekly_breakdown'),
                   message:
                       'Your overall challenge progress is shown above. Detailed periods will appear when this challenge records them.',
                 )
@@ -2173,6 +2238,7 @@ class _ChallengeSegmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final target = segment.targetValue;
     return _LightCard(
       child: Row(
@@ -2192,7 +2258,9 @@ class _ChallengeSegmentCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Week ${segment.segmentIndex + 1}',
+                  t
+                      .translate('community_week')
+                      .replaceAll('{number}', '${segment.segmentIndex + 1}'),
                   style: TaqaUiStyles.dailyOutlookTitle,
                 ),
                 SizedBox(height: TaqaUiScale.h(4)),
@@ -2264,12 +2332,13 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final items = _showEarnedOnly ? _earnedBadges : _allBadges;
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: 'Badges',
+        title: t.translate('community_badges'),
       ),
       body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
@@ -2280,7 +2349,7 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
               children: [
                 Expanded(
                   child: TaqaRangeTab(
-                    label: 'All badges',
+                    label: t.translate('community_all_badges'),
                     selected: !_showEarnedOnly,
                     onTap: () => setState(() => _showEarnedOnly = false),
                   ),
@@ -2288,7 +2357,7 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: TaqaRangeTab(
-                    label: 'Earned badges',
+                    label: t.translate('community_earned_badges'),
                     selected: _showEarnedOnly,
                     onTap: () => setState(() => _showEarnedOnly = true),
                   ),
@@ -2300,14 +2369,14 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
               const TaqaCommunityLoadingCard()
             else if (_error != null)
               _CommunityEmptyCard(
-                title: 'Could not load badges',
+                title: t.translate('community_badges_load_error'),
                 message: _error!,
                 actionLabel: 'Retry',
                 onPressed: () => _load(),
               )
             else if (items.isEmpty)
-              const _CommunityEmptyCard(
-                title: 'No badges yet',
+              _CommunityEmptyCard(
+                title: t.translate('community_no_badges'),
                 message:
                     'Your earned community milestones will appear here automatically.',
               )
@@ -2540,6 +2609,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
@@ -2571,9 +2641,9 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
               const TaqaCommunityLoadingCard()
             else if (_error != null)
               _CommunityEmptyCard(
-                title: 'Could not load moderation queue',
+                title: t.translate('community_moderation_load_error'),
                 message: _error!,
-                actionLabel: 'Retry',
+                actionLabel: t.translate('community_retry'),
                 onPressed: () => _load(),
               )
             else if (_visibleReports.isEmpty)
@@ -2597,31 +2667,31 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
                     details: report.details,
                     actions: [
                       TaqaCommunityReportAction(
-                        label: 'Review',
+                        label: t.translate('community_review'),
                         onTap: () => _review(report, 'reviewing'),
                       ),
                       TaqaCommunityReportAction(
-                        label: 'Dismiss',
+                        label: t.translate('community_dismiss'),
                         onTap: () => _review(report, 'dismissed'),
                       ),
                       TaqaCommunityReportAction(
-                        label: 'Resolve',
+                        label: t.translate('community_resolve'),
                         isPrimary: true,
                         onTap: () => _review(report, 'resolved'),
                       ),
                       if (report.targetType == 'feed_item')
                         TaqaCommunityReportAction(
-                          label: 'Hide item',
+                          label: t.translate('community_hide_item'),
                           onTap: () => _moderate(report, 'hidden'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
-                          label: 'Block comment',
+                          label: t.translate('community_block_comment'),
                           onTap: () => _moderate(report, 'blocked'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
-                          label: 'Delete comment',
+                          label: t.translate('community_delete_comment'),
                           onTap: () => _moderate(report, 'deleted'),
                         ),
                     ],
@@ -2719,7 +2789,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         details: result['details'] as String?,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Comment reported.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_comment_reported'),
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -2738,6 +2812,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
@@ -2764,7 +2839,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Comments',
+                  t.translate('community_comments'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal,
@@ -2794,7 +2869,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       : _comments.isEmpty
                       ? Center(
                           child: Text(
-                            'No comments yet. Start the conversation.',
+                            t.translate('community_no_comments'),
                             style: TaqaUiStyles.dailyOutlookDescription,
                             textAlign: TextAlign.center,
                           ),
@@ -2887,15 +2962,15 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                           style: const TextStyle(color: TaqaUiColors.charcoal),
                           minLines: 1,
                           maxLines: 4,
-                          decoration: const InputDecoration(
-                            hintText: 'Add a comment',
-                            enabledBorder: UnderlineInputBorder(
+                          decoration: InputDecoration(
+                            hintText: t.translate('community_add_comment'),
+                            enabledBorder: const UnderlineInputBorder(
                               borderSide: BorderSide(
                                 color: TaqaUiColors.charcoal,
                                 width: 0.5,
                               ),
                             ),
-                            focusedBorder: UnderlineInputBorder(
+                            focusedBorder: const UnderlineInputBorder(
                               borderSide: BorderSide(
                                 color: TaqaUiColors.charcoal,
                                 width: 0.5,
@@ -2908,7 +2983,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       SizedBox(
                         width: TaqaUiScale.w(88),
                         child: TaqaFilledButton(
-                          label: 'Send',
+                          label: t.translate('community_send'),
                           onTap: _submitting ? null : _submit,
                           loading: _submitting,
                           height: 45,
@@ -2976,11 +3051,12 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   }
 
   Future<void> _remove(CommunityMembership member) async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Remove member',
+      title: t.translate('community_remove_member'),
       message: 'This will remove ${member.displayName} from the group.',
-      confirmLabel: 'Remove',
+      confirmLabel: t.translate('community_remove'),
     );
     if (!confirm) return;
     try {
@@ -3000,9 +3076,12 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   }
 
   Future<void> _setRole(CommunityMembership member, String role) async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: role == 'admin' ? 'Make admin' : 'Make member',
+      title: role == 'admin'
+          ? t.translate('community_make_admin')
+          : t.translate('community_make_member'),
       message: role == 'admin'
           ? 'Give ${member.displayName} admin access for this community.'
           : 'Remove admin access from ${member.displayName}.',
@@ -3034,9 +3113,10 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   }
 
   Future<void> _transferAdmin(CommunityMembership member) async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Transfer ownership',
+      title: t.translate('community_transfer_ownership'),
       message: 'Make ${member.displayName} the new group admin.',
       confirmLabel: 'Transfer',
     );
@@ -3059,6 +3139,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
       minChildSize: 0.45,
@@ -3094,7 +3175,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
               ),
               SizedBox(height: TaqaUiScale.h(4)),
               Text(
-                'MEMBERS',
+                t.translate('community_members').toUpperCase(),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                   fontSize: TaqaUiScale.sp(8),
@@ -3149,22 +3230,28 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                                       member.status == 'active'
                                   ? [
                                       if (member.role != 'admin')
-                                        const TaqaCommunityMemberAction(
+                                        TaqaCommunityMemberAction(
                                           id: 'promote',
-                                          label: 'Make admin',
+                                          label: t.translate(
+                                            'community_make_admin',
+                                          ),
                                         ),
                                       if (member.role == 'admin')
-                                        const TaqaCommunityMemberAction(
+                                        TaqaCommunityMemberAction(
                                           id: 'demote',
-                                          label: 'Make member',
+                                          label: t.translate(
+                                            'community_make_member',
+                                          ),
                                         ),
-                                      const TaqaCommunityMemberAction(
+                                      TaqaCommunityMemberAction(
                                         id: 'transfer',
-                                        label: 'Transfer admin',
+                                        label: t.translate(
+                                          'community_transfer_admin',
+                                        ),
                                       ),
-                                      const TaqaCommunityMemberAction(
+                                      TaqaCommunityMemberAction(
                                         id: 'remove',
-                                        label: 'Remove',
+                                        label: t.translate('community_remove'),
                                       ),
                                     ]
                                   : const [],
@@ -3209,6 +3296,7 @@ class _GroupFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return _LightCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3243,9 +3331,15 @@ class _GroupFeedCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'report', child: Text('Report')),
+                  PopupMenuItem(
+                    value: 'report',
+                    child: Text(t.translate('community_report')),
+                  ),
                   if (canAdminManage)
-                    const PopupMenuItem(value: 'hide', child: Text('Hide')),
+                    PopupMenuItem(
+                      value: 'hide',
+                      child: Text(t.translate('community_hide')),
+                    ),
                 ],
               ),
             ],
@@ -3595,15 +3689,16 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: 'Leaderboard',
+        title: t.translate('community_leaderboard'),
         trailing: widget.isAdmin
             ? TextButton(
                 onPressed: _changeMetric,
-                child: const Text('Change metric'),
+                child: Text(t.translate('community_change_metric')),
               )
             : null,
       ),
@@ -3612,16 +3707,18 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
           padding: const EdgeInsets.all(20),
           children: [
             Text(
-              'Metric: ${_summary.metric.replaceAll('_', ' ')}',
+              t
+                  .translate('community_metric')
+                  .replaceAll('{metric}', _summary.metric.replaceAll('_', ' ')),
               style: TextStyle(
                 color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 16),
             if (_summary.items.isEmpty)
-              const _CommunityEmptyCard(
-                title: 'No leaderboard data yet',
-                message: 'Rankings will appear here once activity is recorded.',
+              _CommunityEmptyCard(
+                title: t.translate('community_no_leaderboard'),
+                message: t.translate('community_rankings_coming'),
               )
             else
               _LightCard(
@@ -3747,11 +3844,12 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
   }
 
   Future<void> _deletePin(CommunityPin pin) async {
+    final t = AppLocalizations.of(context);
     final confirm = await showTaqaConfirmDialog(
       context: context,
-      title: 'Delete pin',
+      title: t.translate('community_delete_pin'),
       message: 'This will remove the pinned item from the group.',
-      confirmLabel: 'Delete',
+      confirmLabel: t.translate('community_delete'),
     );
     if (!confirm) return;
     try {
@@ -3771,11 +3869,12 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: 'Pinned Items',
+        title: t.translate('community_pinned_items'),
         trailing: widget.isAdmin
             ? IconButton(
                 onPressed: () => _createOrEditPin(),
@@ -3785,12 +3884,11 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       ),
       body: SafeArea(
         child: _pins.isEmpty
-            ? const Padding(
+            ? Padding(
                 padding: EdgeInsets.all(20),
                 child: _CommunityEmptyCard(
-                  title: 'No pins yet',
-                  message:
-                      'Pinned announcements and resources will appear here.',
+                  title: t.translate('community_no_pins'),
+                  message: t.translate('community_pins_coming'),
                 ),
               )
             : ListView.separated(
@@ -3827,6 +3925,7 @@ class _PinCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -3857,9 +3956,15 @@ class _PinCard extends StatelessWidget {
                       onDelete();
                     }
                   },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(
+                      value: 'edit',
+                      child: Text(t.translate('community_edit')),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(t.translate('community_delete')),
+                    ),
                   ],
                 ),
             ],
@@ -3926,19 +4031,20 @@ class _CommunitySharedMetricsPageState
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.appBackground,
-      appBar: const TaqaPageAppBar(
+      appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: 'Shared Metrics',
+        title: t.translate('community_shared_metrics'),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
             TaqaMuteNotificationsCard(
-              title: 'Training Progress',
-              description: 'Share your training progress with this group.',
+              title: t.translate('community_training_progress'),
+              description: t.translate('community_share_training_progress'),
               value: _settings.shareTrainingProgress,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareTrainingProgress: value),
@@ -3946,7 +4052,7 @@ class _CommunitySharedMetricsPageState
             ),
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
-              title: 'Taqa Fitness Score',
+              title: t.translate('community_taqa_score'),
               description: 'Share your Taqa Fitness Score with this group.',
               value: _settings.shareTaqaScore,
               onChanged: (value) => _toggle(
@@ -3955,7 +4061,7 @@ class _CommunitySharedMetricsPageState
             ),
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
-              title: 'Daily Movement',
+              title: t.translate('community_daily_movement'),
               description: 'Share your daily movement with this group.',
               value: _settings.shareDailyMovement,
               onChanged: (value) => _toggle(
@@ -3964,7 +4070,7 @@ class _CommunitySharedMetricsPageState
             ),
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
-              title: 'Wearable Data',
+              title: t.translate('community_wearable_data'),
               description: 'Share your wearable data with this group.',
               value: _settings.shareWearableData,
               onChanged: (value) => _toggle(
@@ -3973,7 +4079,7 @@ class _CommunitySharedMetricsPageState
             ),
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
-              title: 'Wellness',
+              title: t.translate('community_wellness'),
               description: 'Share your wellness data with this group.',
               value: _settings.shareWellness,
               onChanged: (value) => _toggle(
@@ -4040,13 +4146,14 @@ class _ChallengeEditorResult {
 }
 
 Future<String?> _showJoinCodeDialog(BuildContext context) async {
+  final t = AppLocalizations.of(context);
   final result = await showTaqaTextValueDialog(
     context: context,
-    title: 'Join by code',
+    title: t.translate('community_join_by_code'),
     initialValue: '',
     keyboardType: TextInputType.number,
-    confirmLabel: 'Join',
-    hintText: '6-Digit Code',
+    confirmLabel: t.translate('community_join'),
+    hintText: t.translate('community_code_hint'),
     maxLength: 6,
   );
   final trimmed = result?.trim();
@@ -4312,6 +4419,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
   String initialKind = 'general',
   bool initialDiscoverable = true,
 }) async {
+  final t = AppLocalizations.of(context);
   final nameController = TextEditingController(text: initialName);
   final descriptionController = TextEditingController(text: initialDescription);
   String visibility = initialVisibility;
@@ -4353,13 +4461,13 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                   SizedBox(height: TaqaUiScale.h(28)),
                   _taqaDialogField(
                     controller: nameController,
-                    hint: 'Group Name',
+                    hint: t.translate('community_group_name'),
                     errorText: nameError,
                   ),
                   SizedBox(height: TaqaUiScale.h(20)),
                   _taqaDialogField(
                     controller: descriptionController,
-                    hint: 'Description',
+                    hint: t.translate('community_description'),
                     maxLines: 3,
                   ),
                   SizedBox(height: TaqaUiScale.h(20)),
@@ -4369,14 +4477,14 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                       Expanded(
                         child: _taqaDialogDropdown<String>(
                           value: visibility,
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'private',
-                              child: Text('Private'),
+                              child: Text(t.translate('community_private')),
                             ),
                             DropdownMenuItem(
                               value: 'public',
-                              child: Text('Public'),
+                              child: Text(t.translate('community_public')),
                             ),
                           ],
                           onChanged: (value) {
@@ -4389,27 +4497,30 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                       Expanded(
                         child: _taqaDialogDropdown<String>(
                           value: kind,
-                          items: const [
+                          items: [
                             DropdownMenuItem(
                               value: 'general',
-                              child: Text('General'),
+                              child: Text(t.translate('community_general')),
                             ),
-                            DropdownMenuItem(value: 'gym', child: Text('Gym')),
+                            DropdownMenuItem(
+                              value: 'gym',
+                              child: Text(t.translate('community_gym')),
+                            ),
                             DropdownMenuItem(
                               value: 'coach',
-                              child: Text('Coach'),
+                              child: Text(t.translate('community_coach')),
                             ),
                             DropdownMenuItem(
                               value: 'city',
-                              child: Text('City'),
+                              child: Text(t.translate('community_city')),
                             ),
                             DropdownMenuItem(
                               value: 'country',
-                              child: Text('Country'),
+                              child: Text(t.translate('community_country')),
                             ),
                             DropdownMenuItem(
                               value: 'sport',
-                              child: Text('Sport'),
+                              child: Text(t.translate('community_sport')),
                             ),
                           ],
                           onChanged: (value) {
@@ -4425,7 +4536,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                     children: [
                       Expanded(
                         child: Text(
-                          'Discoverable',
+                          t.translate('community_discoverable'),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(16),
@@ -4454,7 +4565,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                             onTap: () => Navigator.pop(ctx),
                             child: Center(
                               child: Text(
-                                "CANCEL",
+                                t.translate('common_cancel').toUpperCase(),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(13),
@@ -4534,10 +4645,11 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
 }
 
 Future<_CreateGroupPayload?> _showCreateGroupDialog(BuildContext context) {
+  final t = AppLocalizations.of(context);
   return _showGroupFormDialog(
     context,
-    title: 'Create community',
-    confirmLabel: 'Create',
+    title: t.translate('community_create_title'),
+    confirmLabel: t.translate('community_create'),
   );
 }
 
@@ -4545,10 +4657,11 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
   BuildContext context,
   CommunityGroupDetail detail,
 ) {
+  final t = AppLocalizations.of(context);
   return _showGroupFormDialog(
     context,
-    title: 'Edit group',
-    confirmLabel: 'Save',
+    title: t.translate('community_edit_group'),
+    confirmLabel: t.translate('common_save'),
     initialName: detail.name,
     initialDescription: detail.description ?? '',
     initialVisibility: detail.visibility ?? 'private',
@@ -4558,6 +4671,7 @@ Future<_CreateGroupPayload?> _showEditGroupDialog(
 }
 
 Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
+  final t = AppLocalizations.of(context);
   final detailsController = TextEditingController();
   String reason = 'other';
   final result = await showDialog<Map<String, String?>>(
@@ -4567,9 +4681,9 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
         builder: (context, setState) {
           return AlertDialog(
             backgroundColor: AppColors.cardDark,
-            title: const Text(
-              'Report content',
-              style: TextStyle(color: Colors.white),
+            title: Text(
+              t.translate('community_report_content'),
+              style: const TextStyle(color: Colors.white),
             ),
             content: SingleChildScrollView(
               child: Column(
@@ -4579,18 +4693,27 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                     value: reason,
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'harassment',
-                        child: Text('Harassment'),
+                        child: Text(t.translate('community_harassment')),
                       ),
-                      DropdownMenuItem(value: 'spam', child: Text('Spam')),
+                      DropdownMenuItem(
+                        value: 'spam',
+                        child: Text(t.translate('community_spam')),
+                      ),
                       DropdownMenuItem(
                         value: 'contact_info',
-                        child: Text('Contact info'),
+                        child: Text(t.translate('community_contact_info')),
                       ),
-                      DropdownMenuItem(value: 'abuse', child: Text('Abuse')),
-                      DropdownMenuItem(value: 'other', child: Text('Other')),
+                      DropdownMenuItem(
+                        value: 'abuse',
+                        child: Text(t.translate('community_abuse')),
+                      ),
+                      DropdownMenuItem(
+                        value: 'other',
+                        child: Text(t.translate('community_other')),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
@@ -4602,8 +4725,8 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                     controller: detailsController,
                     style: const TextStyle(color: Colors.white),
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Optional details',
+                    decoration: InputDecoration(
+                      hintText: t.translate('community_optional_details'),
                     ),
                   ),
                 ],
@@ -4612,7 +4735,7 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(t.translate('common_cancel')),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, {
@@ -4621,7 +4744,7 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                       ? null
                       : detailsController.text.trim(),
                 }),
-                child: const Text('Submit'),
+                child: Text(t.translate('community_submit')),
               ),
             ],
           );
@@ -4659,6 +4782,7 @@ Future<int?> _showGroupPicker(
 }
 
 Future<String?> _showMetricPicker(BuildContext context, String current) async {
+  final t = AppLocalizations.of(context);
   final metrics = const [
     'workout_streak',
     'activity_streak',
@@ -4671,7 +4795,7 @@ Future<String?> _showMetricPicker(BuildContext context, String current) async {
     context: context,
     backgroundColor: Colors.transparent,
     builder: (sheetContext) => TaqaCommunityOptionPickerSheet(
-      title: 'Choose leaderboard metric',
+      title: t.translate('community_choose_metric'),
       options: metrics,
       selectedValue: current,
       onSelected: (metric) => Navigator.pop(sheetContext, metric),
@@ -4683,6 +4807,7 @@ Future<_PinEditorResult?> _showPinEditor(
   BuildContext context,
   CommunityPin? existing,
 ) async {
+  final t = AppLocalizations.of(context);
   final titleController = TextEditingController(text: existing?.title ?? '');
   final bodyController = TextEditingController(text: existing?.body ?? '');
   final sortOrderController = TextEditingController(
@@ -4708,14 +4833,14 @@ Future<_PinEditorResult?> _showPinEditor(
                     value: pinType,
                     dropdownColor: AppColors.cardDark,
                     style: const TextStyle(color: Colors.white),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 'expert_tip',
-                        child: Text('Expert tip'),
+                        child: Text(t.translate('community_expert_tip')),
                       ),
                       DropdownMenuItem(
                         value: 'challenge_rule',
-                        child: Text('Challenge rule'),
+                        child: Text(t.translate('community_challenge_rule')),
                       ),
                     ],
                     onChanged: (value) {
@@ -4727,15 +4852,17 @@ Future<_PinEditorResult?> _showPinEditor(
                   TextField(
                     controller: titleController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Title'),
+                    decoration: InputDecoration(
+                      hintText: t.translate('community_pin_title'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: bodyController,
                     style: const TextStyle(color: Colors.white),
                     maxLines: 4,
-                    decoration: const InputDecoration(
-                      hintText: 'Pinned content',
+                    decoration: InputDecoration(
+                      hintText: t.translate('community_pinned_content'),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -4743,7 +4870,9 @@ Future<_PinEditorResult?> _showPinEditor(
                     controller: sortOrderController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(hintText: 'Sort order'),
+                    decoration: InputDecoration(
+                      hintText: t.translate('community_sort_order'),
+                    ),
                   ),
                 ],
               ),
@@ -4751,7 +4880,7 @@ Future<_PinEditorResult?> _showPinEditor(
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
+                child: Text(t.translate('common_cancel')),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -4769,7 +4898,7 @@ Future<_PinEditorResult?> _showPinEditor(
                     ),
                   );
                 },
-                child: const Text('Save'),
+                child: Text(t.translate('common_save')),
               ),
             ],
           );
@@ -4787,6 +4916,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
   BuildContext context,
   CommunityChallenge? existing,
 ) async {
+  final t = AppLocalizations.of(context);
   final nameController = TextEditingController(text: existing?.name ?? '');
   final descriptionController = TextEditingController(
     text: existing?.description ?? '',
@@ -4855,8 +4985,8 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                         children: [
                           Text(
                             existing == null
-                                ? 'Create Challenge'
-                                : 'Edit Challenge',
+                                ? t.translate('community_create_challenge')
+                                : t.translate('community_edit_challenge_title'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
@@ -4869,37 +4999,45 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                           SizedBox(height: TaqaUiScale.h(28)),
                           _taqaDialogField(
                             controller: nameController,
-                            hint: 'Challenge Name',
+                            hint: t.translate('community_challenge_name'),
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
                             controller: descriptionController,
-                            hint: 'Description',
+                            hint: t.translate('community_description'),
                             maxLines: 3,
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogDropdown<String>(
                             value: type,
-                            items: const [
+                            items: [
                               DropdownMenuItem(
                                 value: 'workout_days',
-                                child: Text('Workout days'),
+                                child: Text(
+                                  t.translate('community_workout_days'),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: 'movement_total',
-                                child: Text('Movement total'),
+                                child: Text(
+                                  t.translate('community_movement_total'),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: 'cardio_sessions',
-                                child: Text('Cardio sessions'),
+                                child: Text(
+                                  t.translate('community_cardio_sessions'),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: 'score_threshold_days',
-                                child: Text('Score threshold days'),
+                                child: Text(
+                                  t.translate('community_score_threshold_days'),
+                                ),
                               ),
                               DropdownMenuItem(
                                 value: 'custom',
-                                child: Text('Custom'),
+                                child: Text(t.translate('community_custom')),
                               ),
                             ],
                             onChanged: (value) {
@@ -4913,7 +5051,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                             children: [
                               Expanded(
                                 child: _taqaDialogDateField(
-                                  label: 'Start',
+                                  label: t.translate('community_start'),
                                   value: DateFormat('MMM d').format(startDate),
                                   onTap: pickStart,
                                 ),
@@ -4921,7 +5059,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                               SizedBox(width: TaqaUiScale.w(20)),
                               Expanded(
                                 child: _taqaDialogDateField(
-                                  label: 'End',
+                                  label: t.translate('community_end'),
                                   value: DateFormat('MMM d').format(endDate),
                                   onTap: pickEnd,
                                 ),
@@ -4931,19 +5069,19 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
                             controller: goalController,
-                            hint: 'Goal Value',
+                            hint: t.translate('community_goal_value'),
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
                             controller: unitController,
-                            hint: 'Progress Unit',
+                            hint: t.translate('community_progress_unit'),
                           ),
                           SizedBox(height: TaqaUiScale.h(24)),
                           Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Active',
+                                  t.translate('community_active'),
                                   style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     fontSize: TaqaUiScale.sp(16),

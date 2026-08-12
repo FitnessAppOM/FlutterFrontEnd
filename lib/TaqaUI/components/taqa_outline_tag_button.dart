@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
 
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
@@ -33,7 +34,7 @@ class TaqaOutlineTagButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = icon == null
         ? Text(
-            label.toUpperCase(),
+            taqaUppercase(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: textStyle ?? TaqaUiStyles.streakTag,
@@ -44,7 +45,7 @@ class TaqaOutlineTagButton extends StatelessWidget {
               icon!,
               const SizedBox(width: 4),
               Text(
-                label.toUpperCase(),
+                taqaUppercase(label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: textStyle ?? TaqaUiStyles.streakTag,

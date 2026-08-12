@@ -184,19 +184,19 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         .toString()
         .trim();
     final replacementExerciseName = (newExerciseName ?? '').trim().isEmpty
-        ? 'Unnamed exercise'
+        ? t.translate("training_unnamed_exercise")
         : newExerciseName!.trim();
     final currentLabel = currentExerciseName.isEmpty
-        ? 'Unnamed exercise'
+        ? t.translate("training_unnamed_exercise")
         : currentExerciseName;
 
     final confirmed = await showTaqaConfirmDialog(
       context: context,
-      title: "Replace Exercise",
+      title: t.translate("training_replace_exercise"),
       message:
           "Are you sure you want to replace this exercise?\n\n\"$currentLabel\" -> \"$replacementExerciseName\"",
       cancelLabel: (t.translate("common_cancel")).toUpperCase(),
-      confirmLabel: "REPLACE",
+      confirmLabel: t.translate("training_replace_exercise").toUpperCase(),
     );
 
     if (!confirmed) return; // User cancelled
@@ -242,7 +242,11 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       if (e is TrainingApiException && !e.isRetryable) {
         if (!mounted) return;
         setState(() => submitting = false);
-        AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+        AppToast.show(
+          context,
+          userFriendlyErrorMessage(e),
+          type: AppToastType.error,
+        );
         return;
       }
 
@@ -593,6 +597,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final tabIndex = _tab.index;
     final topInset = MediaQueryData.fromView(View.of(context)).padding.top;
 
@@ -613,7 +618,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                 ),
                 Expanded(
                   child: Text(
-                    "Replace Exercise",
+                    t.translate("training_replace_exercise"),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
@@ -643,24 +648,24 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                   fontSize: 14,
                   color: Colors.white,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   disabledBorder: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
-                  hintText: "Search Exercise",
-                  hintStyle: TextStyle(
+                  hintText: t.translate("training_replace_search"),
+                  hintStyle: const TextStyle(
                     fontFamily: 'InterTight',
                     fontSize: 14,
                     color: Color(0xFFB9B9B9),
                   ),
-                  prefixIcon: Icon(
+                  prefixIcon: const Icon(
                     Icons.search,
                     color: Color(0xFFB9B9B9),
                     size: 20,
                   ),
-                  prefixIconConstraints: BoxConstraints(minWidth: 26),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 26),
                 ),
                 onChanged: (v) => setState(() => search = v),
               ),
@@ -670,7 +675,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               children: [
                 Expanded(
                   child: TaqaSegmentTabButton(
-                    label: "RECOMMENDED",
+                    label: t.translate("training_recommended").toUpperCase(),
                     active: tabIndex == 0,
                     onTap: () {
                       if (_tab.index != 0) {
@@ -683,7 +688,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                 const SizedBox(width: 12),
                 Expanded(
                   child: TaqaSegmentTabButton(
-                    label: "ALL",
+                    label: t.translate("training_all").toUpperCase(),
                     active: tabIndex == 1,
                     onTap: () {
                       if (_tab.index != 1) {
@@ -742,7 +747,11 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
     final items = filteredSuggestions;
     if (items.isEmpty) {
-      return const Center(child: Text("No suggestions available"));
+      return Center(
+        child: Text(
+          AppLocalizations.of(context).translate("training_no_suggestions"),
+        ),
+      );
     }
 
     return ListView.separated(
@@ -760,7 +769,11 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         final replaceId = id ?? 0;
 
         return _exerciseCard(
-          title: name.isEmpty ? "Unnamed exercise" : name,
+          title: name.isEmpty
+              ? AppLocalizations.of(
+                  context,
+                ).translate("training_unnamed_exercise")
+              : name,
           animationUrl: animUrl,
           loading: submitting,
           enabled: canTap,
@@ -804,7 +817,13 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     final items = filteredAll;
 
     return items.isEmpty
-        ? const Center(child: Text("No exercises found"))
+        ? Center(
+            child: Text(
+              AppLocalizations.of(
+                context,
+              ).translate("training_no_search_results"),
+            ),
+          )
         : ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -822,7 +841,11 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               final replaceId = id ?? 0;
 
               return _exerciseCard(
-                title: name.isEmpty ? "Unnamed exercise" : name,
+                title: name.isEmpty
+                    ? AppLocalizations.of(
+                        context,
+                      ).translate("training_unnamed_exercise")
+                    : name,
                 animationUrl: animUrl,
                 loading: submitting,
                 enabled: canTap,

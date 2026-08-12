@@ -47,7 +47,7 @@ class TaqaFilledButton extends StatelessWidget {
                     ),
                   )
                 : Text(
-                    label.toUpperCase(),
+                    taqaUppercase(label),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(fontSize),
@@ -87,7 +87,7 @@ class TaqaTextActionButton extends StatelessWidget {
           height: TaqaUiScale.h(45),
           child: Center(
             child: Text(
-              label.toUpperCase(),
+              taqaUppercase(label),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(10),

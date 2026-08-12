@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../widgets/cardio/cardio_map.dart';
 import '../../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../../localization/app_localizations.dart';
 
 class ModelMapCard extends StatelessWidget {
   const ModelMapCard({
@@ -74,15 +75,25 @@ class ModelMetricsColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        ModelMetricPill(label: "Duration", value: durationLabel),
+        ModelMetricPill(
+          label: t.translate("training_duration"),
+          value: durationLabel,
+        ),
         if (showDistance)
-          ModelMetricPill(label: "Distance", value: distanceLabel),
-        ModelMetricPill(label: "Pace", value: paceLabel),
+          ModelMetricPill(
+            label: t.translate("training_distance"),
+            value: distanceLabel,
+          ),
+        ModelMetricPill(label: t.translate("training_pace"), value: paceLabel),
         if (elevationLabel != null && elevationLabel!.trim().isNotEmpty)
-          ModelMetricPill(label: "Elevation", value: elevationLabel!),
+          ModelMetricPill(
+            label: t.translate("training_elevation"),
+            value: elevationLabel!,
+          ),
       ],
     );
   }

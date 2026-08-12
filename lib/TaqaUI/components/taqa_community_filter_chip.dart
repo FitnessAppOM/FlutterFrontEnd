@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
@@ -46,7 +47,7 @@ class TaqaCommunityFilterChip extends StatelessWidget {
             children: [
               Center(
                 child: Text(
-                  label.toUpperCase(),
+                  taqaUppercase(label),
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

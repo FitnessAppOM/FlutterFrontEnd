@@ -40,7 +40,7 @@ class TaqaPillTab extends StatelessWidget {
                 ),
         ),
         child: Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,

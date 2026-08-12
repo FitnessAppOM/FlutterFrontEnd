@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../localization/app_localizations.dart';
 import 'taqa_progress_widget_card.dart';
 
 class TaqaDietProgressWidget extends StatelessWidget {
@@ -19,23 +20,25 @@ class TaqaDietProgressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+    final numberFormat = NumberFormat.decimalPattern(
+      Localizations.localeOf(context).toLanguageTag(),
+    );
     final consumed = consumedCalories ?? 0;
     final target = targetCalories ?? 0;
     final progress = target > 0 ? (consumed / target).clamp(0.0, 1.0) : 0.0;
-    final targetText = target > 0 ? '${_fmt(target)} kcal' : 'No target';
+    final targetText = target > 0
+        ? '${numberFormat.format(target)} ${t("diet_kcal_label")}'
+        : t('diet_progress_no_target');
 
     return TaqaProgressWidgetCard(
-      title: 'Diet Progress',
-      valueText: '$consumed',
-      goalText: loading ? 'Loading' : targetText,
+      title: t('diet_progress_title'),
+      valueText: numberFormat.format(consumed),
+      goalText: loading ? t('common_loading') : targetText,
       progress: progress,
       loading: loading,
       lightSurface: false,
       onTap: onTap,
     );
-  }
-
-  String _fmt(int value) {
-    return NumberFormat.decimalPattern().format(value);
   }
 }

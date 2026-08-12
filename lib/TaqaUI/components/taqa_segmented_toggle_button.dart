@@ -33,7 +33,7 @@ class TaqaSegmentedToggleButton extends StatelessWidget {
           border: selected ? null : Border.all(color: TaqaUiColors.charcoal),
         ),
         child: Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,

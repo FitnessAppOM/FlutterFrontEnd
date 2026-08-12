@@ -200,6 +200,8 @@ class DashboardPageState extends State<DashboardPage>
   Widget? _dragChild;
 
   List<NewsItem> _news = const [];
+  String _newsLanguageCode = 'en';
+  int _newsRequestId = 0;
   bool _loading = true;
   String? _error;
   final _mockSteps = [8200, 9100, 10400, 7600, 8800, 9900, 11200];
@@ -674,6 +676,17 @@ class DashboardPageState extends State<DashboardPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showUpdateAndReleaseNotes();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final languageCode = Localizations.localeOf(context).languageCode == 'ar'
+        ? 'ar'
+        : 'en';
+    if (_newsLanguageCode == languageCode) return;
+    _newsLanguageCode = languageCode;
+    unawaited(_loadNews(languageCode: languageCode));
   }
 
   Future<void> _showUpdateAndReleaseNotes() async {
@@ -5162,13 +5175,15 @@ class DashboardPageState extends State<DashboardPage>
     return items.where((n) => !NewsTagActions.isExpertApplyTag(n.tag)).toList();
   }
 
-  Future<void> _loadNews() async {
+  Future<void> _loadNews({String? languageCode}) async {
+    final lang = languageCode ?? _newsLanguageCode;
+    final requestId = ++_newsRequestId;
     try {
       // Try to fetch from server first
       final items = await _filterNewsForUser(
-        await NewsApi.fetchNews(limit: 10),
+        await NewsApi.fetchNews(limit: 10, languageCode: lang),
       );
-      if (!mounted) return;
+      if (!mounted || requestId != _newsRequestId) return;
       setState(() {
         _news = items;
         _loading = false;
@@ -5178,9 +5193,9 @@ class DashboardPageState extends State<DashboardPage>
       // Network failed, try loading from cache
       try {
         final cached = await _filterNewsForUser(
-          await NewsApi.fetchNewsFromCache(),
+          await NewsApi.fetchNewsFromCache(languageCode: lang),
         );
-        if (!mounted) return;
+        if (!mounted || requestId != _newsRequestId) return;
         setState(() {
           _news = cached;
           _loading = false;
@@ -5188,7 +5203,7 @@ class DashboardPageState extends State<DashboardPage>
         });
       } catch (_) {
         // No cache available
-        if (!mounted) return;
+        if (!mounted || requestId != _newsRequestId) return;
         setState(() {
           _error = null; // Don't show error, just show empty state
           _loading = false;

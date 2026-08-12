@@ -8,6 +8,7 @@ import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_service.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
@@ -53,7 +54,9 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = "Please log in to view cardio history.";
+        _error = AppLocalizations.of(
+          context,
+        ).translate("training_cardio_history_login");
       });
       return;
     }
@@ -76,7 +79,9 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = "Couldn't load cardio history.";
+        _error = AppLocalizations.of(
+          context,
+        ).translate("training_cardio_history_load_error");
       });
     } finally {
       if (mounted) {
@@ -170,10 +175,11 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: const TaqaPageAppBar(
-        title: "Cardio History",
+      appBar: TaqaPageAppBar(
+        title: t.translate("training_cardio_history"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       ),
       body: RefreshIndicator(
@@ -183,7 +189,7 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
           padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
           children: [
             Text(
-              "Completed Cardio Sessions",
+              t.translate("training_completed_cardio_sessions"),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(25),
@@ -217,7 +223,7 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
               )
             else if (_items.isEmpty)
               Text(
-                "No cardio sessions yet.",
+                t.translate("training_no_cardio_sessions"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
@@ -264,7 +270,13 @@ class _CardioHistoryPageState extends State<CardioHistoryPage> {
       onTap: () {
         if (sessionId <= 0) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Couldn't open this session.")),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(
+                  context,
+                ).translate("training_session_open_error"),
+              ),
+            ),
           );
           return;
         }

@@ -116,7 +116,7 @@ class TaqaCommunityReportTag extends StatelessWidget {
         borderRadius: TaqaUiScale.radius(5),
       ),
       child: Text(
-        label.replaceAll('_', ' ').toUpperCase(),
+        taqaUppercase(label.replaceAll('_', ' ')),
         style: TextStyle(
           fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
           fontSize: TaqaUiScale.sp(8),
@@ -153,7 +153,7 @@ class _TaqaCommunityReportButton extends StatelessWidget {
             border: Border.all(color: TaqaUiColors.charcoal, width: 0.5),
           ),
           child: Text(
-            action.label.toUpperCase(),
+            taqaUppercase(action.label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),

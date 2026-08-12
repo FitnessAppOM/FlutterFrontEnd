@@ -128,9 +128,7 @@ class TaqaUnderlineTextField extends StatelessWidget {
               ),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
+              borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
             ),
             errorBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: TaqaUiColors.unnamedColorE93b3b),
@@ -258,9 +256,7 @@ class TaqaPillChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? TaqaUiColors.unnamedColor1c1d17
-          : TaqaUiColors.white,
+      color: selected ? TaqaUiColors.unnamedColor1c1d17 : TaqaUiColors.white,
       borderRadius: TaqaUiScale.radius(20),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(20),
@@ -346,7 +342,7 @@ class TaqaUploadRow extends StatelessWidget {
                   ),
                   SizedBox(width: TaqaUiScale.w(4)),
                   Text(
-                    actionLabel.toUpperCase(),
+                    taqaUppercase(actionLabel),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
@@ -367,11 +363,7 @@ class TaqaUploadRow extends StatelessWidget {
 /// Tappable summary row (e.g. Affiliation / Certification) with a value
 /// on the left and a chevron affordance on the right.
 class TaqaSummaryRow extends StatelessWidget {
-  const TaqaSummaryRow({
-    super.key,
-    required this.value,
-    this.onTap,
-  });
+  const TaqaSummaryRow({super.key, required this.value, this.onTap});
 
   final String value;
   final VoidCallback? onTap;
@@ -402,9 +394,7 @@ class TaqaSummaryRow extends StatelessWidget {
               if (onTap != null)
                 Icon(
                   Icons.chevron_right,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.4,
-                  ),
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
                   size: TaqaUiScale.w(20),
                 ),
             ],

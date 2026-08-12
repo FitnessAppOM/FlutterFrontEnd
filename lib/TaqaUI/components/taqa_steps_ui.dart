@@ -39,7 +39,7 @@ class TaqaRangeTab extends StatelessWidget {
                 ),
         ),
         child: Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
@@ -93,7 +93,7 @@ class TaqaTagButton extends StatelessWidget {
             ),
             SizedBox(width: TaqaUiScale.w(4)),
             Text(
-              label.toUpperCase(),
+              taqaUppercase(label),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                 fontSize: TaqaUiScale.sp(8),

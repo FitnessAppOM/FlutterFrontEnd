@@ -221,7 +221,7 @@ class TaqaClientAlertText extends StatelessWidget {
         SizedBox(width: TaqaUiScale.w(4)),
         Expanded(
           child: Text(
-            text.toUpperCase(),
+            taqaUppercase(text),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -284,7 +284,7 @@ class TaqaClientDashboardAction extends StatelessWidget {
                 Icon(icon, size: TaqaUiScale.w(16), color: Colors.white),
               SizedBox(width: TaqaUiScale.w(6)),
               Text(
-                label.toUpperCase(),
+                taqaUppercase(label),
                 style: TextStyle(
                   color: Colors.white,
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
@@ -365,7 +365,7 @@ class TaqaClientActivityStatus extends StatelessWidget {
         ),
         SizedBox(width: TaqaUiScale.w(4)),
         Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(

@@ -11,6 +11,7 @@ import '../../services/training/cardio_exercises_storage.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import 'cardio_history_page.dart';
 
 class CardioTab extends StatefulWidget {
@@ -393,13 +394,15 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     List<Map<String, dynamic>> items,
   ) {
     return items
-        .map((item) => {
-              ...item,
-              'animation_url': resolvedCardioAnimationUrl(
-                item['exercise_name']?.toString(),
-                item['animation_url']?.toString(),
-              ),
-            })
+        .map(
+          (item) => {
+            ...item,
+            'animation_url': resolvedCardioAnimationUrl(
+              item['exercise_name']?.toString(),
+              item['animation_url']?.toString(),
+            ),
+          },
+        )
         .toList();
   }
 
@@ -418,7 +421,13 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     final targetName = _normalizeName(_sessionExerciseName);
     if (targetName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't find the cardio session.")),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(
+              context,
+            ).translate("training_cardio_session_not_found"),
+          ),
+        ),
       );
       return;
     }
@@ -432,8 +441,12 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
     }
     if (match == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Paused cardio not found. Cancel to start a new one."),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(
+              context,
+            ).translate("training_paused_cardio_not_found"),
+          ),
         ),
       );
       return;
@@ -453,6 +466,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
     final bool locationGateActive =
         _locationPermissionLoaded && !_hasAlwaysLocationPermission;
@@ -473,7 +487,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
               children: [
                 Expanded(
                   child: Text(
-                    "Cardio session",
+                    t.translate("training_cardio_session"),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
@@ -489,7 +503,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                     );
                   },
                   icon: const Icon(Icons.history, size: 18),
-                  label: const Text("History"),
+                  label: Text(t.translate("training_history")),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.white.withOpacity(0.08),
@@ -508,7 +522,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 4),
             Text(
-              "Heart-rate focused work",
+              t.translate("training_cardio_focus"),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.white.withOpacity(0.7),
               ),
@@ -526,9 +540,9 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                     color: Colors.orange.withValues(alpha: 0.4),
                   ),
                 ),
-                child: const Text(
-                  "Account is deactivated. Cardio actions are disabled until you reactivate.",
-                  style: TextStyle(color: Colors.white),
+                child: Text(
+                  t.translate("training_cardio_account_deactivated"),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             if (locationGateActive)
@@ -555,7 +569,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: Text(
-                          "No cardio planned for this day",
+                          t.translate("training_no_cardio_planned"),
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(color: Colors.white),
                         ),
@@ -581,9 +595,11 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                               if (!hasProgramCardio &&
                                   ex['program_exercise_id'] == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      "This cardio item is not in today's plan.",
+                                      t.translate(
+                                        "training_cardio_not_in_plan",
+                                      ),
                                     ),
                                   ),
                                 );
@@ -623,6 +639,7 @@ class _CardioAlwaysLocationGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
@@ -654,34 +671,36 @@ class _CardioAlwaysLocationGate extends StatelessWidget {
             child: const Icon(Icons.location_on, color: Colors.white70),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Location access required",
-                  style: TextStyle(
+                  t.translate("training_location_required"),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  "Allow 'Always' location before starting cardio sessions.",
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  t.translate("training_location_required_body"),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
           _LocationGateActionChip(
-            label: requesting ? "Checking..." : "Allow",
+            label: requesting
+                ? t.translate("training_checking")
+                : t.translate("training_allow"),
             filled: true,
             onTap: requesting ? null : onAllow,
           ),
           const SizedBox(width: 8),
           _LocationGateActionChip(
-            label: "Settings",
+            label: t.translate("training_settings"),
             filled: false,
             onTap: requesting ? null : onSettings,
           ),

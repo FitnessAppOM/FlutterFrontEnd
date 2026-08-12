@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/share/cardio_share_service.dart';
 import '../../services/strava/strava_service.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
@@ -127,7 +128,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       if (!ok) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Photo permission denied')),
+            SnackBar(
+              content: Text(
+                AppLocalizations.of(
+                  context,
+                ).translate("training_photo_permission_denied"),
+              ),
+            ),
           );
         }
         return;
@@ -140,9 +147,15 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       if (output == null) return;
       await CardioShareService.savePngBytes(output);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Saved to Photos')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(
+                context,
+              ).translate("training_saved_to_photos"),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -290,6 +303,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final snapshotUrl = _buildSnapshotUrl();
     if (snapshotUrl.isEmpty && !_snapshotReady) {
       _snapshotReady = true;
@@ -477,22 +491,22 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                         TaqaCardioStatPanel(
                           metrics: [
                             TaqaCardioStatMetric(
-                              label: 'Time',
+                              label: t.translate("training_time"),
                               value: _formatTime(widget.durationSeconds),
                               accent: true,
                             ),
                             if (_showDistance)
                               TaqaCardioStatMetric(
-                                label: 'Distance',
+                                label: t.translate("training_distance"),
                                 value:
                                     '${widget.distanceKm.toStringAsFixed(2)} km',
                               ),
                             TaqaCardioStatMetric(
-                              label: 'Pace',
+                              label: t.translate("training_pace"),
                               value: _avgPaceLabel(),
                             ),
                             TaqaCardioStatMetric(
-                              label: 'Steps',
+                              label: t.translate("training_steps"),
                               value: '${widget.steps}',
                             ),
                           ],
@@ -523,10 +537,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                 ),
                 child: Text(
                   _saving
-                      ? 'Saving...'
+                      ? t.translate("training_saving")
                       : _snapshotReady
-                      ? 'Save to Photos'
-                      : 'Preparing...',
+                      ? t.translate("training_save_to_photos")
+                      : t.translate("training_preparing"),
                   style: actionTextStyle,
                 ),
               ),
@@ -554,10 +568,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                       ),
                       child: Text(
                         _sharing
-                            ? 'Sharing...'
+                            ? t.translate("training_sharing")
                             : _snapshotReady
-                            ? 'Share'
-                            : 'Preparing...',
+                            ? t.translate("training_share")
+                            : t.translate("training_preparing"),
                         style: actionTextStyle,
                       ),
                     ),
@@ -602,7 +616,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                           borderRadius: TaqaUiScale.radius(5),
                         ),
                       ),
-                      child: Text('Other models', style: actionTextStyle),
+                      child: Text(
+                        t.translate("training_other_models"),
+                        style: actionTextStyle,
+                      ),
                     ),
                   ),
                 ),
@@ -625,8 +642,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                   ),
                   label: Text(
                     _stravaUploading
-                        ? 'Uploading to Strava...'
-                        : 'Upload to Strava',
+                        ? t.translate("training_uploading_strava")
+                        : t.translate("training_upload_strava"),
                     style: actionTextStyle.copyWith(
                       color: const Color(0xFFFC4C02),
                     ),
@@ -640,7 +657,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
               height: TaqaUiScale.h(36),
               child: TextButton(
                 onPressed: () => Navigator.of(context).maybePop(),
-                child: Text('Cancel', style: actionTextStyle),
+                child: Text(
+                  t.translate("common_cancel"),
+                  style: actionTextStyle,
+                ),
               ),
             ),
             SizedBox(height: TaqaUiScale.h(4)),

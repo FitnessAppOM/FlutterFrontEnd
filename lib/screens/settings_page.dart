@@ -2035,26 +2035,32 @@ class _CoachPinTileState extends State<_CoachPinTile> {
     if (pin.isEmpty) return;
     await Clipboard.setData(ClipboardData(text: pin));
     if (!mounted) return;
-    AppToast.show(context, 'Coach PIN copied', type: AppToastType.success);
+    final t = AppLocalizations.of(context);
+    AppToast.show(
+      context,
+      t.translate('settings_coach_pin_copied'),
+      type: AppToastType.success,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final pin = (_pin ?? '').trim();
     return TaqaLogEntryCard(
-      title: 'Coach PIN',
+      title: t.translate('settings_coach_pin'),
       badgeText: '',
       badge: pin.isEmpty
           ? null
           : TaqaOutlineTagButton(
-              label: 'Copy',
+              label: t.translate('settings_copy'),
               width: TaqaUiScale.w(29),
               height: TaqaUiScale.h(16),
             ),
       subtitle: _loading
-          ? 'Loading...'
+          ? t.translate('settings_loading')
           : pin.isEmpty
-          ? 'Coach PIN unavailable.'
+          ? t.translate('settings_coach_pin_unavailable')
           : pin,
       onTap: pin.isEmpty ? null : _copy,
     );

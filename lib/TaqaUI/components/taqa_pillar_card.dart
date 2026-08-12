@@ -239,50 +239,48 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                 width: double.infinity,
                 padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                 decoration: BoxDecoration(
-                  color: isDarkCard ? TaqaUiColors.charcoal : TaqaUiColors.white,
+                  color: isDarkCard
+                      ? TaqaUiColors.charcoal
+                      : TaqaUiColors.white,
                   borderRadius: TaqaUiScale.radius(15),
                 ),
                 child: Column(
-                  children: widget.detailLabels.entries
-                      .map((entry) {
-                        final rawVal = widget.details[entry.key];
-                        if (rawVal == null) return const SizedBox.shrink();
-                        final val = _formatDetailValue(entry.key, rawVal);
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            bottom: TaqaUiScale.h(4),
+                  children: widget.detailLabels.entries.map((entry) {
+                    final rawVal = widget.details[entry.key];
+                    if (rawVal == null) return const SizedBox.shrink();
+                    final val = _formatDetailValue(entry.key, rawVal);
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: TaqaUiScale.h(4)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _capitalize(entry.value),
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w400,
+                              color: textColor,
+                              letterSpacing: 0,
+                              height: 25 / 15,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _capitalize(entry.value),
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: TaqaUiScale.sp(15),
-                                  fontWeight: FontWeight.w400,
-                                  color: textColor,
-                                  letterSpacing: 0,
-                                  height: 25 / 15,
-                                ),
-                              ),
-                              Text(
-                                _capitalize(val),
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontFamily: TaqaUiFontFamilies.interTight,
-                                  fontSize: TaqaUiScale.sp(15),
-                                  fontWeight: FontWeight.w400,
-                                  color: textColor,
-                                  letterSpacing: 0,
-                                  height: 25 / 15,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            _capitalize(val),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontFamily: TaqaUiFontFamilies.interTight,
+                              fontSize: TaqaUiScale.sp(15),
+                              fontWeight: FontWeight.w400,
+                              color: textColor,
+                              letterSpacing: 0,
+                              height: 25 / 15,
+                            ),
                           ),
-                        );
-                      })
-                      .toList(),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
@@ -295,10 +293,26 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
   String? _statusMessage() {
     if (widget.metricKey == 'training_load') {
       final note = widget.details['note']?.toString();
-      if (note != null && note.isNotEmpty) return note;
+      if (note != null && note.isNotEmpty) {
+        final remaining = widget.details['progress_remaining'];
+        final unit = widget.details['progress_unit']?.toString() ?? 'days';
+        if (remaining is num) {
+          return t('taqa_training_unlock_remaining')
+              .replaceAll('{count}', '$remaining')
+              .replaceAll('{unit}', _localizedProgressUnit(unit));
+        }
+        switch (note.trim()) {
+          case 'Using the cardio-only fallback until weighted exercise data is available.':
+            return t('taqa_training_cardio_fallback');
+          case 'Score maturing as more training history accumulates.':
+            return t('taqa_training_score_maturing_note');
+          default:
+            return note;
+        }
+      }
 
       if (widget.path == 'coming_soon') {
-        return 'Training Load support for this provider is coming soon.';
+        return t('taqa_training_provider_coming_soon');
       }
 
       if (widget.score == null) {
@@ -307,16 +321,20 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
           final remaining = widget.details['progress_remaining'];
           final unit = widget.details['progress_unit']?.toString() ?? 'days';
           if (remaining is num) {
-            return '$remaining more $unit needed to unlock Training Load.';
+            return t('taqa_training_unlock_remaining')
+                .replaceAll('{count}', '$remaining')
+                .replaceAll('{unit}', _localizedProgressUnit(unit));
           }
-          return 'Training Load is calibrating.';
+          return t('taqa_training_calibrating');
         }
         return t("taqa_training_no_data");
       }
 
       final status = widget.details['status_label']?.toString();
       if (status != null && status.isNotEmpty) {
-        return 'Load status: $status';
+        return t(
+          'taqa_training_load_status',
+        ).replaceAll('{status}', _localizedDetailValue(status));
       }
     }
     if (widget.metricKey == 'nutrition' && widget.score == null) {
@@ -327,7 +345,7 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
 
   String _formatDetailValue(String key, dynamic rawVal) {
     if (rawVal is bool) {
-      return rawVal ? 'Yes' : 'No';
+      return rawVal ? t('yes') : t('no');
     }
     if (rawVal is num) {
       if (key == 'hrv_ratio' || key == 'rhr_ratio') {
@@ -344,7 +362,45 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
       }
       return rawVal.toStringAsFixed(1);
     }
-    return rawVal.toString();
+    return _localizedDetailValue(rawVal.toString());
+  }
+
+  String _localizedProgressUnit(String unit) {
+    switch (unit.trim().toLowerCase()) {
+      case 'day':
+        return t('taqa_unit_day');
+      case 'days':
+        return t('taqa_unit_days');
+      case 'session':
+        return t('taqa_unit_session');
+      case 'sessions':
+        return t('taqa_unit_sessions');
+      default:
+        return unit;
+    }
+  }
+
+  String _localizedDetailValue(String value) {
+    final key = switch (value.trim().toLowerCase()) {
+      'calibrating' => 'taqa_value_calibrating',
+      'early score' => 'taqa_value_early_score',
+      'maturing' => 'taqa_value_maturing',
+      'full score' => 'taqa_value_full_score',
+      'score maturing' => 'taqa_value_score_maturing',
+      'peak performance' => 'taqa_value_peak_performance',
+      'optimal load' => 'taqa_value_optimal_load',
+      'good progress' => 'taqa_value_good_progress',
+      'monitor closely' => 'taqa_value_monitor_closely',
+      'below optimal' => 'taqa_value_below_optimal',
+      'needs attention' => 'taqa_value_needs_attention',
+      'detraining risk' => 'taqa_value_detraining_risk',
+      'optimal' => 'taqa_value_optimal',
+      'monitor' => 'taqa_value_monitor',
+      'caution' => 'taqa_value_caution',
+      'high risk' => 'taqa_value_high_risk',
+      _ => null,
+    };
+    return key == null ? value : t(key);
   }
 
   String _capitalize(String s) {
@@ -352,9 +408,8 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
     return s
         .split(' ')
         .map(
-          (word) => word.isEmpty
-              ? word
-              : word[0].toUpperCase() + word.substring(1),
+          (word) =>
+              word.isEmpty ? word : word[0].toUpperCase() + word.substring(1),
         )
         .join(' ');
   }
@@ -372,30 +427,39 @@ class _PathChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String t(String key) => AppLocalizations.of(context).translate(key);
     final isWhoop = path == 'whoop_direct';
     final isFitbit = path == 'fitbit_direct';
     final label = path == 'wearable'
-        ? 'WEARABLE'
+        ? t('taqa_source_smart_watch')
         : path == 'journal'
-        ? 'JOURNAL'
+        ? t('taqa_source_journal')
         : path == 'tflu_v1'
         ? 'TFLU'
         : path == 'coming_soon'
-        ? 'COMING SOON'
+        ? t('coming_soon')
         : path == 'diet_data'
-        ? 'DIET'
+        ? t('taqa_source_diet')
         : path == 'journal_nutrition'
-        ? 'JOURNAL'
+        ? t('taqa_source_journal')
         : path == 'whoop_direct'
-        ? 'WHOOP DIRECT'
+        ? 'WHOOP ${t('taqa_source_direct')}'
         : path == 'fitbit_direct'
-        ? 'FITBIT DIRECT'
+        ? 'FITBIT ${t('taqa_source_direct')}'
         : path == 'samsung_direct'
-        ? 'SAMSUNG DIRECT'
+        ? 'SAMSUNG ${t('taqa_source_direct')}'
         : path == 'samsung_direct_inverted'
-        ? 'SAMSUNG DIRECT'
+        ? 'SAMSUNG ${t('taqa_source_direct')}'
         : path == 'prom_aware_composite'
-        ? 'COMPOSITE'
+        ? t('taqa_source_composite')
+        : path == 'insufficient_data'
+        ? t('taqa_source_insufficient_data')
+        : path == 'screening_latest'
+        ? t('taqa_source_screening')
+        : path == 'no_screening'
+        ? t('taqa_source_no_screening')
+        : path == 'no_wearable'
+        ? t('taqa_source_no_smart_watch')
         : path.toUpperCase();
     final chipTextColor = isDark
         ? TaqaUiColors.white
@@ -423,7 +487,7 @@ class _PathChip extends StatelessWidget {
             const SizedBox(width: 4),
           ],
           Text(
-            label,
+            taqaUppercase(label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               color: chipTextColor,

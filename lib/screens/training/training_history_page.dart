@@ -10,6 +10,7 @@ import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_service.dart';
@@ -431,7 +432,8 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   String _displayStatusForEntry(_TrainingHistoryEntry entry) {
-    if (entry.isCompletedDay) return "Completed";
+    final t = AppLocalizations.of(context);
+    if (entry.isCompletedDay) return t.translate("training_completed");
     final currentProgramId = _parseInt(
       widget.program['program_id'] ?? widget.program['id'],
     );
@@ -444,7 +446,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         entry.programId != null &&
         entry.programId == currentProgramId &&
         entryWeekStart == currentWeekStart;
-    return isCurrentPlanThisWeek ? "In progress" : "Old plan";
+    return isCurrentPlanThisWeek
+        ? t.translate("training_in_progress")
+        : t.translate("training_old_plan");
   }
 
   List<_TrainingHistoryEntry> _buildEntriesFromProgram(
@@ -1054,6 +1058,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   Widget _buildProgressLogsContent(List<_TrainingHistoryPlanGroup> grouped) {
+    final t = AppLocalizations.of(context);
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(
@@ -1065,7 +1070,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
       children: [
         Text(
-          "Completed Training Days",
+          t.translate("training_completed_days"),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(25),
@@ -1078,7 +1083,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         if (_entries.isEmpty) ...[
           SizedBox(height: TaqaUiScale.h(25)),
           Text(
-            "No training history yet.",
+            t.translate("training_no_history"),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
@@ -1120,6 +1125,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   Widget _buildPlanLogsContent() {
+    final t = AppLocalizations.of(context);
     if (_loadingPlanLogs) {
       return const Center(
         child: CircularProgressIndicator(
@@ -1131,7 +1137,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       padding: TaqaUiScale.insetsLTRB(16, 19, 16, 24),
       children: [
         Text(
-          "Plan Logs",
+          t.translate("training_plan_logs"),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(25),
@@ -1144,7 +1150,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
         if (_planLogItems.isEmpty) ...[
           SizedBox(height: TaqaUiScale.h(25)),
           Text(
-            "No training plan updates yet.",
+            t.translate("training_no_plan_updates"),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
@@ -1174,11 +1180,12 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final groupedEntries = _groupEntriesByPlan(_entries);
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: const TaqaPageAppBar(
-        title: "Training History",
+      appBar: TaqaPageAppBar(
+        title: t.translate("training_history_title"),
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       ),
       body: Column(
@@ -1189,7 +1196,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
               children: [
                 Expanded(
                   child: TaqaRangeTab(
-                    label: "Process Logs",
+                    label: t.translate("training_process_logs"),
                     selected: _tabIndex == 0,
                     onTap: _openProgressLogsTab,
                   ),
@@ -1198,8 +1205,8 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
                 Expanded(
                   child: TaqaRangeTab(
                     label: _unseenPlanLogCount > 0
-                        ? "Plan Logs ($_unseenPlanLogCount)"
-                        : "Plan Logs",
+                        ? "${t.translate("training_plan_logs")} ($_unseenPlanLogCount)"
+                        : t.translate("training_plan_logs"),
                     selected: _tabIndex == 1,
                     onTap: _openPlanLogsTab,
                   ),

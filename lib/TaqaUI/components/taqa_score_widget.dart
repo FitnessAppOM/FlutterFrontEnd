@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
 
 import '../../localization/app_localizations.dart';
 import '../../services/scores/taqa_score_api.dart';
@@ -15,7 +16,7 @@ class TaqaScoreWidget extends StatelessWidget {
     required this.onTap,
     this.provider,
     this.scoreDayLabel,
-    this.emptyMessage = "No data",
+    this.emptyMessage,
   });
 
   final TaqaDailyScore? score;
@@ -23,13 +24,13 @@ class TaqaScoreWidget extends StatelessWidget {
   final VoidCallback? onTap;
   final String? provider;
   final String? scoreDayLabel;
-  final String emptyMessage;
+  final String? emptyMessage;
 
   @override
   Widget build(BuildContext context) {
-    final taqaTitle = AppLocalizations.of(
-      context,
-    ).translate('taqa_label_taqa_value');
+    final localizations = AppLocalizations.of(context);
+    String t(String key) => localizations.translate(key);
+    final taqaTitle = t('taqa_label_taqa_value');
     final taqaValue = score?.taqaValueScore ?? 0;
     final displayValue = taqaValue.round();
     final progress = (taqaValue / 100).clamp(0.0, 1.0);
@@ -39,8 +40,8 @@ class TaqaScoreWidget extends StatelessWidget {
     final displayProvider = score?.scoringPath == 'wearable'
         ? (provider ?? score?.provider)
         : null;
-    final providerLabel = _scoreSourceLabel(score, displayProvider);
-    final tags = _buildTags(score, displayProvider);
+    final providerLabel = _scoreSourceLabel(score, displayProvider, t);
+    final tags = _buildTags(score, displayProvider, t);
 
     return TaqaScoreCard(
       title: taqaTitle,
@@ -49,7 +50,7 @@ class TaqaScoreWidget extends StatelessWidget {
       loading: loading,
       metaText: '$dateLabel\n$providerLabel',
       tags: tags,
-      emptyMessage: emptyMessage,
+      emptyMessage: emptyMessage ?? t('taqa_no_data'),
       onTap: onTap,
     );
   }
@@ -71,7 +72,11 @@ class TaqaScoreWidget extends StatelessWidget {
     }
   }
 
-  String _scoreSourceLabel(TaqaDailyScore? value, String? displayProvider) {
+  String _scoreSourceLabel(
+    TaqaDailyScore? value,
+    String? displayProvider,
+    String Function(String) t,
+  ) {
     if (displayProvider != null && displayProvider.trim().isNotEmpty) {
       return _providerLabel(displayProvider);
     }
@@ -79,19 +84,25 @@ class TaqaScoreWidget extends StatelessWidget {
     if (scoringPath == null || scoringPath.trim().isEmpty) return '--';
     switch (scoringPath) {
       case 'wearable':
-        return 'Smart Watch';
+        return t('taqa_source_smart_watch');
       case 'proms':
-        return 'Screening';
+        return t('taqa_source_screening');
+      case 'journal':
+        return t('taqa_source_journal');
       default:
         return _humanizeLabel(scoringPath);
     }
   }
 
-  List<String> _buildTags(TaqaDailyScore? value, String? displayProvider) {
+  List<String> _buildTags(
+    TaqaDailyScore? value,
+    String? displayProvider,
+    String Function(String) t,
+  ) {
     if (value == null) return const [];
     final out = <String>[];
 
-    final sourceLabel = _chipSourceLabel(value, displayProvider);
+    final sourceLabel = _chipSourceLabel(value, displayProvider, t);
     if (sourceLabel != null) {
       out.add(sourceLabel);
     }
@@ -101,27 +112,33 @@ class TaqaScoreWidget extends StatelessWidget {
       out.add('${score.round()} $label');
     }
 
-    addIf('Sleep', value.sleep.score);
-    addIf('Recovery', value.recovery.score);
-    addIf('Stress', value.stress.score);
-    addIf('Load', value.trainingLoad.score);
-    addIf('Nutrition', value.nutrition.score);
+    addIf(t('taqa_label_sleep'), value.sleep.score);
+    addIf(t('taqa_label_recovery'), value.recovery.score);
+    addIf(t('taqa_label_stress'), value.stress.score);
+    addIf(t('taqa_tag_load'), value.trainingLoad.score);
+    addIf(t('taqa_label_nutrition'), value.nutrition.score);
     return out.take(4).toList(growable: false);
   }
 
-  String? _chipSourceLabel(TaqaDailyScore value, String? displayProvider) {
+  String? _chipSourceLabel(
+    TaqaDailyScore value,
+    String? displayProvider,
+    String Function(String) t,
+  ) {
     if (displayProvider != null && displayProvider.trim().isNotEmpty) {
-      return _providerLabel(displayProvider).toUpperCase();
+      return taqaUppercase(_providerLabel(displayProvider));
     }
     final scoringPath = value.scoringPath;
     if (scoringPath == null || scoringPath.trim().isEmpty) return null;
     switch (scoringPath) {
       case 'proms':
-        return 'SCREENING';
+        return taqaUppercase(t('taqa_source_screening'));
       case 'wearable':
-        return 'SMART WATCH';
+        return taqaUppercase(t('taqa_source_smart_watch'));
+      case 'journal':
+        return taqaUppercase(t('taqa_source_journal'));
       default:
-        return _humanizeLabel(scoringPath).toUpperCase();
+        return taqaUppercase(_humanizeLabel(scoringPath));
     }
   }
 

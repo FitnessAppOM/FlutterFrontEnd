@@ -204,6 +204,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final live = widget.readLiveState();
     final isDisabled = widget.readDisabledState();
     final dayNote = widget.readDayNoteState();
@@ -217,7 +218,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
         if (didPop || !blockLeave) return;
         AppToast.show(
           context,
-          "Finishing workout — one moment.",
+          t.translate("training_finishing_workout"),
           type: AppToastType.info,
         );
       },
@@ -260,8 +261,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Workout",
+                          Text(
+                            t.translate("training_workout"),
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 11,
@@ -285,7 +286,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       width: TaqaUiScale.w(100),
                       height: TaqaUiScale.h(40),
                       child: TaqaFilledButton(
-                        label: "Finish",
+                        label: t.translate("training_finish"),
                         loading: live.finishingWorkout,
                         onTap: live.finishingWorkout
                             ? null
@@ -324,8 +325,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "Between exercises",
+                          Text(
+                            t.translate("training_between_exercises"),
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 11,
@@ -352,12 +353,12 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                           foregroundColor: TaqaUiColors.unnamedColor1c1d17,
                           side: const BorderSide(color: Color(0x4D1C1D17)),
                         ),
-                        child: const Text("Skip"),
+                        child: Text(t.translate("training_skip")),
                       )
                     else ...[
                       IconButton(
                         onPressed: widget.onSetCustomRest,
-                        tooltip: "Custom rest",
+                        tooltip: t.translate("training_custom_rest"),
                         icon: const Icon(Icons.tune, color: Color(0xFF1C1D17)),
                       ),
                       ElevatedButton(
@@ -366,7 +367,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                           backgroundColor: TaqaUiColors.white,
                           foregroundColor: TaqaUiColors.unnamedColor1c1d17,
                         ),
-                        child: const Text("Start"),
+                        child: Text(t.translate("training_start")),
                       ),
                     ],
                   ],
@@ -1284,6 +1285,7 @@ class _WorkoutLauncherExerciseCardState
 
   Future<void> _changeRestSeconds() async {
     if (_restCountdownActive) return;
+    final t = AppLocalizations.of(context);
     final options = <int>[10, 15, 30, 45, 60, 90];
     final selected = await showModalBottomSheet<int>(
       context: context,
@@ -1298,8 +1300,8 @@ class _WorkoutLauncherExerciseCardState
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Set rest timer",
+                Text(
+                  t.translate("training_set_rest_timer"),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: 16,
@@ -1345,7 +1347,7 @@ class _WorkoutLauncherExerciseCardState
                   onPressed: () async {
                     final txt = await showTaqaTextValueDialog(
                       context: context,
-                      title: "Custom rest (seconds)",
+                      title: t.translate("training_custom_rest_seconds"),
                       initialValue: _restSeconds.toString(),
                       keyboardType: TextInputType.number,
                     );
@@ -1354,7 +1356,7 @@ class _WorkoutLauncherExerciseCardState
                     Navigator.of(sheetContext).pop(parsed);
                   },
                   icon: const Icon(Icons.tune),
-                  label: const Text("Custom"),
+                  label: Text(t.translate("training_custom")),
                 ),
               ],
             ),
@@ -1722,6 +1724,7 @@ class _WorkoutLauncherExerciseCardState
   }
 
   Future<void> _showExerciseActionsSheet() async {
+    final t = AppLocalizations.of(context);
     final media = MediaQuery.of(context);
     final lift = (media.size.height * 0.012).clamp(6.0, 12.0).toDouble();
 
@@ -1763,7 +1766,7 @@ class _WorkoutLauncherExerciseCardState
                         ),
                         const SizedBox(height: 12),
                         TaqaSheetActionButton(
-                          label: "HOW TO",
+                          label: t.translate("training_how_to").toUpperCase(),
                           filled: true,
                           onTap: () async {
                             Navigator.of(context).pop();
@@ -1774,7 +1777,7 @@ class _WorkoutLauncherExerciseCardState
                             if (instructions.isEmpty) {
                               AppToast.show(
                                 context,
-                                "No instructions available.",
+                                t.translate("training_no_instructions"),
                                 type: AppToastType.info,
                               );
                               return;
@@ -1793,14 +1796,16 @@ class _WorkoutLauncherExerciseCardState
                         ),
                         const SizedBox(height: 12),
                         TaqaSheetActionButton(
-                          label: "REPLACE EXERCISE",
+                          label: t
+                              .translate("training_replace_exercise")
+                              .toUpperCase(),
                           filled: true,
                           onTap: () {
                             Navigator.of(context).pop();
                             if (widget.isActive) {
                               AppToast.show(
                                 context,
-                                "Finish the current exercise before replacing it.",
+                                t.translate("training_finish_before_replace"),
                                 type: AppToastType.info,
                               );
                               return;
@@ -2051,8 +2056,10 @@ class _WorkoutLauncherExerciseCardState
                             borderRadius: BorderRadius.circular(6),
                           ),
                         ),
-                        child: const Text(
-                          "SKIP REST",
+                        child: Text(
+                          AppLocalizations.of(
+                            context,
+                          ).translate("training_skip").toUpperCase(),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: 11,
@@ -2074,10 +2081,21 @@ class _WorkoutLauncherExerciseCardState
             if (i != _rows.length - 1) const SizedBox(height: 2),
           ],
           const SizedBox(height: 10),
-          _ghostButton(label: "ADD SET", onTap: _addSet),
+          _ghostButton(
+            label: AppLocalizations.of(
+              context,
+            ).translate("training_add_set").toUpperCase(),
+            onTap: _addSet,
+          ),
           const SizedBox(height: 10),
           TaqaFilledButton(
-            label: widget.isActive ? "Finish Exercise" : "Start Exercise",
+            label: widget.isActive
+                ? AppLocalizations.of(
+                    context,
+                  ).translate("training_finish_exercise")
+                : AppLocalizations.of(
+                    context,
+                  ).translate("training_start_exercise"),
             loading: _starting || _finishingExercise,
             onTap: (_starting || _finishingExercise)
                 ? null
@@ -2103,14 +2121,15 @@ class _WorkoutLauncherExerciseCardState
   }
 
   Widget _tableHeader() {
+    final t = AppLocalizations.of(context);
     return Row(
       children: [
-        const Expanded(flex: 2, child: _HeaderText("SET")),
-        const Expanded(flex: 3, child: _HeaderText("PREV.")),
-        const Expanded(flex: 2, child: _HeaderText("KG")),
-        const Expanded(flex: 2, child: _HeaderText("REPS")),
+        Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
+        Expanded(flex: 3, child: _HeaderText(t.translate("training_previous"))),
+        Expanded(flex: 2, child: _HeaderText(t.translate("training_kg"))),
+        Expanded(flex: 2, child: _HeaderText(t.translate("training_reps"))),
         const Expanded(flex: 2, child: _HeaderText("RIR")),
-        const Expanded(flex: 2, child: _HeaderText("DONE")),
+        Expanded(flex: 2, child: _HeaderText(t.translate("training_done"))),
         SizedBox(width: TaqaUiScale.w(26)),
       ],
     );
@@ -2308,8 +2327,8 @@ class _WorkoutFloatingTimerBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Workout",
+                  Text(
+                    AppLocalizations.of(context).translate("training_workout"),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
@@ -2582,10 +2601,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     if (currentProgram == null || !mounted) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => TrainingHistoryPage(
-          program: currentProgram,
-          initialTabIndex: 1,
-        ),
+        builder: (_) =>
+            TrainingHistoryPage(program: currentProgram, initialTabIndex: 1),
       ),
     );
     if (!mounted) return;
@@ -2971,7 +2988,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             .writeWorkoutSession(
               start: DateTime.fromMillisecondsSinceEpoch(sessionStartMs),
               end: now,
-              title: "Taqa Workout Session",
+              title: AppLocalizations.of(
+                context,
+              ).translate("training_health_session_title"),
               isCardio: false,
               workoutBrandName: workoutBrandName,
               isIndoorWorkout: true,
@@ -3035,8 +3054,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         AppToast.show(
           context,
           hasCompletedExerciseInSession
-              ? "Workout finished!"
-              : "No exercises done. Session discarded.",
+              ? AppLocalizations.of(
+                  context,
+                ).translate("training_workout_finished")
+              : AppLocalizations.of(
+                  context,
+                ).translate("training_session_discarded"),
           type: hasCompletedExerciseInSession
               ? AppToastType.success
               : AppToastType.info,
@@ -3063,6 +3086,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   }
 
   Future<void> _setCustomExRestPreset() async {
+    final t = AppLocalizations.of(context);
     final ctrl = TextEditingController(
       text: _exRestPresetSeconds > 0 ? _exRestPresetSeconds.toString() : '',
     );
@@ -3070,8 +3094,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF121727),
-        title: const Text(
-          "Custom rest (seconds)",
+        title: Text(
+          t.translate("training_custom_rest_seconds"),
           style: TextStyle(color: Colors.white),
         ),
         content: TextField(
@@ -3080,7 +3104,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
           autofocus: true,
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
-            labelText: "Seconds",
+            labelText: t.translate("training_seconds"),
             labelStyle: const TextStyle(color: Colors.white70),
             filled: true,
             fillColor: Colors.white.withOpacity(0.05),
@@ -3097,11 +3121,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text("Cancel"),
+            child: Text(t.translate("common_cancel")),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text("Save"),
+            child: Text(t.translate("common_save")),
           ),
         ],
       ),
@@ -3936,6 +3960,32 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         .join(' ');
   }
 
+  String _localizedTrainingDayLabel(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final t = AppLocalizations.of(context);
+    final dayMatch = RegExp(
+      r'^(?:training\s+)?day\s+(\d+)$',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (dayMatch != null) {
+      return t
+          .translate("training_day_number")
+          .replaceAll("{number}", dayMatch.group(1)!);
+    }
+    const weekdayKeys = <String, String>{
+      "monday": "weekday_monday",
+      "tuesday": "weekday_tuesday",
+      "wednesday": "weekday_wednesday",
+      "thursday": "weekday_thursday",
+      "friday": "weekday_friday",
+      "saturday": "weekday_saturday",
+      "sunday": "weekday_sunday",
+    };
+    final weekdayKey = weekdayKeys[trimmed.toLowerCase()];
+    return weekdayKey == null ? trimmed : t.translate(weekdayKey);
+  }
+
   List<Map<String, dynamic>> _trainingExercisesForDay({
     required List days,
     required int dayIndex,
@@ -3971,11 +4021,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       final day = days[dayIndex];
       final exercises = day is Map ? day['exercises'] : null;
       if (exercises is! List) continue;
-      final dayLabel =
+      final rawDayLabel =
           (day is Map
                   ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
                   : 'Day ${dayIndex + 1}')
               .toString();
+      final dayLabel = _localizedTrainingDayLabel(rawDayLabel);
       for (final rawEx in exercises) {
         Map<String, dynamic>? ex;
         if (rawEx is Map<String, dynamic>) {
@@ -4005,11 +4056,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         (selectedDay >= 0 && selectedDay < days.length ? selectedDay : 0);
     if (dayIndex < 0 || dayIndex >= days.length) dayIndex = 0;
     final day = days[dayIndex];
-    final dayLabel =
+    final rawDayLabel =
         (day is Map
                 ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
                 : 'Day ${dayIndex + 1}')
             .toString();
+    final dayLabel = _localizedTrainingDayLabel(rawDayLabel);
     await _openTrainingDayExercisesPage(
       days: days,
       dayIndex: dayIndex,
@@ -4128,7 +4180,10 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   }
 
   String? _dayNoteForWorkoutLock(int dayIndex) {
-    if (_isDeactivated) return "Account is deactivated";
+    final t = AppLocalizations.of(context);
+    if (_isDeactivated) {
+      return t.translate("training_account_deactivated_short");
+    }
     final workoutLockDayIndex =
         (_workoutStartMs != null && _workoutDayIndex != null)
         ? _workoutDayIndex
@@ -4136,10 +4191,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     if (workoutLockDayIndex == null || dayIndex == workoutLockDayIndex) {
       return null;
     }
-    return "Workout in progress";
+    return t.translate("training_workout_in_progress");
   }
 
   Widget _buildResumeWorkoutBanner() {
+    final t = AppLocalizations.of(context);
     final startedAt = _parseDateTime(_resumableSession?['started_at']);
     final elapsed = startedAt == null
         ? null
@@ -4167,8 +4223,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Workout in progress",
+                Text(
+                  t.translate("training_workout_in_progress"),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: 13,
@@ -4178,8 +4234,10 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                 ),
                 Text(
                   elapsed != null
-                      ? "Started $elapsed ago — resume or discard"
-                      : "Resume or discard your last session",
+                      ? t
+                            .translate("training_started_ago")
+                            .replaceAll("{time}", elapsed)
+                      : t.translate("training_resume_or_discard"),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: 11,
@@ -4205,7 +4263,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text("Discard"),
+                : Text(t.translate("training_discard")),
           ),
           const SizedBox(width: 4),
           ElevatedButton(
@@ -4220,9 +4278,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text(
-              "Resume",
-              style: TextStyle(fontWeight: FontWeight.w700),
+            child: Text(
+              t.translate("training_resume"),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -5005,7 +5063,13 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     await sp.setBool(key, true);
 
     if (!mounted) return;
-    final label = (day['day_label'] ?? 'Training day').toString();
+    final label = _localizedTrainingDayLabel(
+      (day['day_label'] ??
+              AppLocalizations.of(context)
+                  .translate("training_day_number")
+                  .replaceAll("{number}", "${index + 1}"))
+          .toString(),
+    );
     await showModalBottomSheet(
       context: context,
       useRootNavigator: true,
@@ -5123,11 +5187,13 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         ? _workoutDayIndex
         : null;
     final notesInOrder = List<String?>.generate(dayOrder.length, (i) {
-      if (_isDeactivated) return "Account is deactivated";
+      if (_isDeactivated) {
+        return t.translate("training_account_deactivated_short");
+      }
       if (workoutLockDayIndex == null) return null;
       final actualDayIndex = dayOrder[i];
       if (actualDayIndex == workoutLockDayIndex) return null;
-      return "Workout in progress";
+      return t.translate("training_workout_in_progress");
     });
 
     if (days.isEmpty) {
@@ -5193,9 +5259,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                               color: Colors.orange.withValues(alpha: 0.4),
                             ),
                           ),
-                          child: const Text(
-                            "Account is deactivated. Training actions are disabled until you reactivate.",
-                            style: TextStyle(
+                          child: Text(
+                            t.translate("training_account_deactivated"),
+                            style: const TextStyle(
                               color: TaqaUiColors.unnamedColor1c1d17,
                             ),
                           ),
@@ -5206,7 +5272,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                         children: [
                           Expanded(
                             child: TaqaRangeTab(
-                              label: "Train",
+                              label: t.translate("training_tab_train"),
                               selected: _tabIndex == 0,
                               onTap: _openTrainTab,
                             ),
@@ -5214,7 +5280,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                           SizedBox(width: TaqaUiScale.w(15)),
                           Expanded(
                             child: TaqaRangeTab(
-                              label: "Cardio",
+                              label: t.translate("training_tab_cardio"),
                               selected: _tabIndex == 1,
                               onTap: _openCardioTab,
                             ),
@@ -5239,7 +5305,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    "Workout List",
+                                    t.translate("training_workout_list"),
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(25),
@@ -5270,14 +5336,14 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                   },
                                   icon: Icons.history,
                                   label: _unseenPlanChangeCount > 0
-                                      ? "HISTORY $_unseenPlanChangeCount"
-                                      : "HISTORY",
+                                      ? "${t.translate("training_history")} $_unseenPlanChangeCount"
+                                      : t.translate("training_history"),
                                 ),
                               ],
                             ),
                             SizedBox(height: TaqaUiScale.h(5)),
                             Text(
-                              "Follow the sets & reps shown for each exercise",
+                              t.translate("training_follow_sets_reps"),
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(15),
@@ -5298,11 +5364,19 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                               } else if (rawDay is Map) {
                                 dayMap = Map<String, dynamic>.from(rawDay);
                               }
-                              final dayLabel =
+                              final rawDayLabel =
                                   (dayMap?['day_label'] ??
                                           dayMap?['label'] ??
-                                          'Day ${dayIndex + 1}')
+                                          t
+                                              .translate("training_day_number")
+                                              .replaceAll(
+                                                "{number}",
+                                                "${dayIndex + 1}",
+                                              ))
                                       .toString();
+                              final dayLabel = _localizedTrainingDayLabel(
+                                rawDayLabel,
+                              );
                               final dayNote = displayIndex < notesInOrder.length
                                   ? notesInOrder[displayIndex]
                                   : null;
@@ -5330,7 +5404,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                   .where((name) => name.isNotEmpty)
                                   .toList();
                               final exercisePreview = exerciseNames.isEmpty
-                                  ? "No Exercises"
+                                  ? t.translate("training_no_exercises")
                                   : exerciseNames.join(", ");
 
                               final isLockedOut =
@@ -5349,7 +5423,9 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                       if (isLockedOut) {
                                         AppToast.show(
                                           context,
-                                          "Finish your in-progress workout before viewing other days.",
+                                          t.translate(
+                                            "training_finish_before_other_days",
+                                          ),
                                           type: AppToastType.info,
                                         );
                                         return;
@@ -5493,7 +5569,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          "Cardio List",
+                                          t.translate("training_cardio_list"),
                                           style: const TextStyle(
                                             fontFamily:
                                                 TaqaUiFontFamilies.interTight,
@@ -5514,14 +5590,14 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                           );
                                         },
                                         icon: Icons.history,
-                                        label: "HISTORY",
+                                        label: t.translate("training_history"),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  const Text(
-                                    "Follow the plan shown for each cardio exercise",
-                                    style: TextStyle(
+                                  Text(
+                                    t.translate("training_follow_cardio_plan"),
+                                    style: const TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w400,

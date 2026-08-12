@@ -30,7 +30,7 @@ class TaqaValueBox extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              label.toUpperCase(),
+              taqaUppercase(label),
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.visible,
@@ -45,7 +45,7 @@ class TaqaValueBox extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              value.toUpperCase(),
+              taqaUppercase(value),
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.visible,

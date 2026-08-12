@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../localization/app_localizations.dart';
 import 'package:flutter/rendering.dart';
 import '../../../services/share/cardio_share_service.dart';
 import '../../../widgets/cardio/cardio_map.dart';
@@ -199,11 +200,12 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final bool mapReadyForCurrent = _index != 0 || _mapReady;
     return Scaffold(
       backgroundColor: const Color(0xFF0B0F1A),
       appBar: TaqaPageAppBar(
-        title: 'Models',
+        title: t.translate("training_models"),
         backgroundColor: const Color(0xFF0B0F1A),
         titleColor: Colors.white,
       ),

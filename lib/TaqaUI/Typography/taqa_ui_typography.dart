@@ -15,3 +15,11 @@ class TaqaUiTypography {
     fontWeight: FontWeight.w400,
   );
 }
+
+/// Uppercases UI copy without changing the protected Taqa brand casing.
+String taqaUppercase(String value) {
+  return value.toUpperCase().replaceAllMapped(
+    RegExp(r'\bTAQA\b'),
+    (_) => 'Taqa',
+  );
+}

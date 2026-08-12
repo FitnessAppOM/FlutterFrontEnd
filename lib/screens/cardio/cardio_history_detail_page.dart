@@ -9,6 +9,7 @@ import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import 'package:taqaproject/theme/app_theme.dart';
 
 import '../../core/account_storage.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../widgets/cardio/cardio_map.dart';
 import '../../widgets/cardio/cardio_exercise_utils.dart';
@@ -50,7 +51,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _error = "Please log in to view details.";
+          _error = AppLocalizations.of(
+            context,
+          ).translate("training_details_login");
         });
         return;
       }
@@ -68,14 +71,19 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = "Couldn't load route.";
+        _error = AppLocalizations.of(
+          context,
+        ).translate("training_route_load_error");
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final name = (_item['exercise_name'] ?? 'Cardio session').toString();
+    final t = AppLocalizations.of(context);
+    final name =
+        (_item['exercise_name'] ?? t.translate("training_cardio_session"))
+            .toString();
     final entryDate = _item['entry_date']?.toString();
     final distanceKm = _toDouble(_item['distance_km']);
     final pace = _toDouble(_item['avg_pace_min_km']);
@@ -139,10 +147,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             ),
             const SizedBox(height: 16),
             if (_error != null)
-              Text(
-                _error!,
-                style: const TextStyle(color: Colors.redAccent),
-              ),
+              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
             if (_loading)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
@@ -181,7 +186,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
         ),
         child: Center(
           child: Text(
-            "Route not available",
+            AppLocalizations.of(
+              context,
+            ).translate("training_route_unavailable"),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
@@ -206,7 +213,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                   color: TaqaUiColors.white,
                   child: Center(
                     child: Text(
-                      "Map unavailable",
+                      AppLocalizations.of(
+                        context,
+                      ).translate("training_map_unavailable"),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
@@ -231,13 +240,18 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     required int steps,
     required double inclinePercent,
   }) {
+    final t = AppLocalizations.of(context);
     final tiles = <MapEntry<String, String>>[
-      if (showDistance) MapEntry('Distance', _formatDistance(distanceKm)),
-      MapEntry('Pace', _formatPace(pace)),
-      MapEntry('Duration', _formatDuration(duration)),
-      if (steps > 0) MapEntry('Steps', steps.toString()),
+      if (showDistance)
+        MapEntry(t.translate("training_distance"), _formatDistance(distanceKm)),
+      MapEntry(t.translate("training_pace"), _formatPace(pace)),
+      MapEntry(t.translate("training_duration"), _formatDuration(duration)),
+      if (steps > 0) MapEntry(t.translate("training_steps"), steps.toString()),
       if (showIncline)
-        MapEntry('Incline', "${inclinePercent.toStringAsFixed(1)}%"),
+        MapEntry(
+          t.translate("training_incline"),
+          "${inclinePercent.toStringAsFixed(1)}%",
+        ),
     ];
 
     final rows = <Widget>[];
@@ -268,7 +282,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     return TaqaLinearMetricCard(
       title: entry.key,
       valueText: entry.value,
-      subtitle: 'Cardio session',
+      subtitle: AppLocalizations.of(
+        context,
+      ).translate("training_cardio_session"),
       progress: 0,
       showBar: false,
       keepBarSpaceWhenHidden: false,

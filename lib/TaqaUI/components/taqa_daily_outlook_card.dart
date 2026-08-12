@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
 
 import '../../services/daily_outlook/daily_outlook_service.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -80,10 +81,7 @@ class DailyOutlookCard extends StatelessWidget {
           0.0,
           cardWidth - (leftInset * 2) - busyIndicatorWidth,
         );
-        final titleWidth = math.max(
-          0.0,
-          cardWidth - (leftInset * 2),
-        );
+        final titleWidth = math.max(0.0, cardWidth - (leftInset * 2));
         final descriptionBottomGap = TaqaUiScale.h(8) * layoutScale;
         final descriptionHeight = math.max(
           0.0,
@@ -110,7 +108,7 @@ class DailyOutlookCard extends StatelessWidget {
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        tagText.toUpperCase(),
+                        taqaUppercase(tagText),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TaqaUiStyles.dailyOutlookTag,
@@ -209,7 +207,7 @@ class _DailyOutlookActionButton extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                label.toUpperCase(),
+                taqaUppercase(label),
                 style: TaqaUiStyles.dailyOutlookButton,
                 textAlign: TextAlign.center,
               ),

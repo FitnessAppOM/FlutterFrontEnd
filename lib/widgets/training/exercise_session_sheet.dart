@@ -1410,6 +1410,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Future<void> _setCustomRestPreset() async {
+    final t = AppLocalizations.of(context);
     final ctrl = TextEditingController(
       text: _restPresetSeconds > 0 ? _restPresetSeconds.toString() : '',
     );
@@ -1417,8 +1418,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF121727),
-        title: const Text(
-          "Custom rest (seconds)",
+        title: Text(
+          t.translate("training_custom_rest_seconds"),
           style: TextStyle(color: Colors.white),
         ),
         content: TextField(
@@ -1426,16 +1427,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           keyboardType: TextInputType.number,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
-          decoration: _inputStyle("Seconds"),
+          decoration: _inputStyle(t.translate("training_seconds")),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text("Cancel"),
+            child: Text(t.translate("common_cancel")),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text("Save"),
+            child: Text(t.translate("common_save")),
           ),
         ],
       ),
@@ -1637,6 +1638,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Future<void> _openSetEditDialog(Map<String, dynamic> row) async {
+    final t = AppLocalizations.of(context);
     final isTimer = _isTimerBased();
     bool done = _toBool(row['completed']);
     final setIndex = _toInt(row['set_index']);
@@ -1648,7 +1650,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       );
       bool timerDone = done;
       final saved = await _showSetEditDialog(
-        title: "SET $setIndex",
+        title: "${t.translate("training_set")} $setIndex",
         contentBuilder: (ctx, setLocalState) {
           return Column(
             mainAxisSize: MainAxisSize.min,
@@ -1718,7 +1720,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
     bool fieldDone = done;
     final saved = await _showSetEditDialog(
-      title: "SET $setIndex",
+      title: "${t.translate("training_set")} $setIndex",
       contentBuilder: (ctx, setLocalState) {
         return Column(
           mainAxisSize: MainAxisSize.min,
@@ -1727,7 +1729,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildSetEditField(
-                  label: "KG",
+                  label: t.translate("training_kg"),
                   controller: weightCtrl,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
@@ -1735,7 +1737,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 ),
                 SizedBox(width: TaqaUiScale.w(17)),
                 _buildSetEditField(
-                  label: "REPS",
+                  label: t.translate("training_reps"),
                   controller: repsCtrl,
                   keyboardType: TextInputType.number,
                 ),
@@ -2249,6 +2251,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   List<Widget> _buildSetRowsSection(bool isTimer) {
+    final t = AppLocalizations.of(context);
     final rows = _setRows;
     final showRestPreset =
         _activeSetIndex != null &&
@@ -2262,7 +2265,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         child: SizedBox(
           width: TaqaUiScale.w(91),
           child: Text(
-            isTimer ? "SET   TIME" : "SET   KG   REPS",
+            isTimer
+                ? "${t.translate("training_set")}   ${t.translate("training_time")}"
+                : "${t.translate("training_set")}   ${t.translate("training_kg")}   ${t.translate("training_reps")}",
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
@@ -2295,7 +2300,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ),
               SizedBox(width: TaqaUiScale.w(8)),
               Text(
-                "Set $_activeSetIndex",
+                "${t.translate("training_set")} $_activeSetIndex",
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
@@ -2313,7 +2318,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               ),
               const Spacer(),
               _CompactButton(
-                label: "Finish Set",
+                label: t.translate("training_finish_set"),
                 color: Colors.greenAccent,
                 onTap: _finishActiveSet,
               ),
@@ -2383,7 +2388,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                             ),
                           ),
                           _CompactButton(
-                            label: "Skip",
+                            label: t.translate("training_skip"),
                             color: const Color(0xFF2D7CFF),
                             onTap: _skipRest,
                           ),
@@ -2434,7 +2439,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                         ),
                                         SizedBox(width: TaqaUiScale.w(6)),
                                         Text(
-                                          "Rest",
+                                          t.translate("training_rest"),
                                           style: TextStyle(
                                             color: Colors.white.withValues(
                                               alpha: 0.6,
@@ -2456,7 +2461,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                               ),
                                               SizedBox(width: TaqaUiScale.w(3)),
                                               Text(
-                                                "Custom",
+                                                t.translate("training_custom"),
                                                 style: TextStyle(
                                                   color: Colors.white
                                                       .withValues(alpha: 0.5),
@@ -2519,7 +2524,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                           size: TaqaUiScale.w(18),
                                         ),
                                         label: Text(
-                                          "Start Rest  ${_formatSeconds(_restPresetSeconds)}",
+                                          "${t.translate("training_start_rest")}  ${_formatSeconds(_restPresetSeconds)}",
                                           style: TextStyle(
                                             fontSize: TaqaUiScale.sp(14),
                                           ),
@@ -2563,7 +2568,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         Padding(
           padding: EdgeInsets.only(top: TaqaUiScale.h(8)),
           child: Text(
-            "No sets yet.",
+            t.translate("training_no_sets"),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
@@ -2709,6 +2714,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   }
 
   Widget _buildAddSetButton() {
+    final t = AppLocalizations.of(context);
     return SizedBox(
       width: double.infinity,
       height: TaqaUiScale.h(30),
@@ -2722,7 +2728,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           padding: EdgeInsets.zero,
         ),
         child: Text(
-          "ADD SET",
+          t.translate("training_add_set").toUpperCase(),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(10),
@@ -3533,6 +3539,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     required String exerciseName,
     required IconData icon,
   }) {
+    final t = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3564,7 +3571,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         ),
         SizedBox(height: TaqaUiScale.h(compact ? 6 : 8)),
         Text(
-          "Timer-based cardio session",
+          t.translate("training_timer_cardio_session"),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: Colors.white.withValues(alpha: 0.54),
@@ -3575,13 +3582,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         const Spacer(),
         _IndoorReadout(
           value: _indoorActiveCaloriesKcal.toString(),
-          label: "ACTIVE CAL",
+          label: t.translate("training_active_calories").toUpperCase(),
         ),
       ],
     );
   }
 
   Widget _buildTreadmillIndoorOverview({required bool compact}) {
+    final t = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3626,13 +3634,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         Row(
           children: [
             Expanded(
-              child: _IndoorReadout(value: _time, label: "SESSION TIME"),
+              child: _IndoorReadout(
+                value: _time,
+                label: t.translate("training_session_time").toUpperCase(),
+              ),
             ),
             SizedBox(width: TaqaUiScale.w(18)),
             Expanded(
               child: _IndoorReadout(
                 value: '${_cardioSpeedKmh.toStringAsFixed(1)} km/h',
-                label: "CURRENT SPEED",
+                label: t.translate("training_current_speed").toUpperCase(),
               ),
             ),
           ],
@@ -3643,14 +3654,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             Expanded(
               child: _IndoorReadout(
                 value: '${_treadmillIncline.toStringAsFixed(1)}%',
-                label: "INCLINE",
+                label: t.translate("training_incline").toUpperCase(),
               ),
             ),
             SizedBox(width: TaqaUiScale.w(18)),
             Expanded(
               child: _IndoorReadout(
                 value: _indoorActiveCaloriesKcal.toString(),
-                label: "ACTIVE CAL",
+                label: t.translate("training_active_calories").toUpperCase(),
               ),
             ),
           ],
@@ -3661,7 +3672,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           children: [
             Expanded(
               child: _TreadmillControlCard(
-                label: 'Speed',
+                label: t.translate("training_speed"),
                 value: '${_cardioSpeedKmh.toStringAsFixed(1)} km/h',
                 sliderValue: _cardioSpeedKmh,
                 min: 0,
@@ -3676,7 +3687,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             SizedBox(width: TaqaUiScale.w(12)),
             Expanded(
               child: _TreadmillControlCard(
-                label: 'Incline',
+                label: t.translate("training_incline"),
                 value: '${_treadmillIncline.toStringAsFixed(1)}%',
                 sliderValue: _treadmillIncline,
                 min: 0,
@@ -4215,8 +4226,8 @@ class _FloatingWorkoutTimerBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    "Workout",
+                  Text(
+                    AppLocalizations.of(context).translate("training_workout"),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,

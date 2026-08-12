@@ -127,7 +127,7 @@ Future<bool> showTaqaConfirmDialog({
                             onTap: () => Navigator.pop(ctx, false),
                             child: Center(
                               child: Text(
-                                (cancelLabel ?? "CANCEL").toUpperCase(),
+                                taqaUppercase(cancelLabel ?? "CANCEL"),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(10),
@@ -151,7 +151,7 @@ Future<bool> showTaqaConfirmDialog({
                               height: TaqaUiScale.h(45),
                               child: Center(
                                 child: Text(
-                                  confirmLabel.toUpperCase(),
+                                  taqaUppercase(confirmLabel),
                                   style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     fontSize: TaqaUiScale.sp(10),
@@ -246,7 +246,7 @@ Future<void> showTaqaInfoDialog({
                         height: TaqaUiScale.h(45),
                         child: Center(
                           child: Text(
-                            confirmLabel.toUpperCase(),
+                            taqaUppercase(confirmLabel),
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(10),
@@ -382,7 +382,7 @@ Future<T?> showTaqaOptionDialog<T>({
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
                       child: Text(
-                        (cancelLabel ?? "CANCEL").toUpperCase(),
+                        taqaUppercase(cancelLabel ?? "CANCEL"),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(10),
@@ -611,7 +611,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                       onTap: () => Navigator.of(context).pop(),
                       child: Center(
                         child: Text(
-                          widget.cancelLabel.toUpperCase(),
+                          taqaUppercase(widget.cancelLabel),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(10),
@@ -631,7 +631,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                         onTap: _submit,
                         child: Center(
                           child: Text(
-                            widget.confirmLabel.toUpperCase(),
+                            taqaUppercase(widget.confirmLabel),
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(10),

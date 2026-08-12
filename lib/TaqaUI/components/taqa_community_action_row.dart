@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
+import '../../localization/app_localizations.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
@@ -20,6 +22,7 @@ class TaqaCommunityActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final rowWidth = math.min(
@@ -30,7 +33,8 @@ class TaqaCommunityActionRow extends StatelessWidget {
           1.0,
           rowWidth / TaqaUiStyles.communityActionRowWidth,
         );
-        final buttonWidth = TaqaUiStyles.communityActionButtonWidth * layoutScale;
+        final buttonWidth =
+            TaqaUiStyles.communityActionButtonWidth * layoutScale;
         final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;
         final gap = TaqaUiScale.w(15) * layoutScale;
 
@@ -40,21 +44,21 @@ class TaqaCommunityActionRow extends StatelessWidget {
           child: Row(
             children: [
               _TaqaCommunityActionButton(
-                label: 'Discover',
+                label: t.translate('community_discover'),
                 width: buttonWidth,
                 height: buttonHeight,
                 onTap: onDiscoverTap,
               ),
               SizedBox(width: gap),
               _TaqaCommunityActionButton(
-                label: 'Join by Code',
+                label: t.translate('community_join_by_code'),
                 width: buttonWidth,
                 height: buttonHeight,
                 onTap: onJoinByCodeTap,
               ),
               SizedBox(width: gap),
               _TaqaCommunityActionButton(
-                label: 'Create Group',
+                label: t.translate('community_create_group'),
                 width: buttonWidth,
                 height: buttonHeight,
                 onTap: onCreateGroupTap,
@@ -96,7 +100,7 @@ class _TaqaCommunityActionButton extends StatelessWidget {
             borderRadius: TaqaUiStyles.actionButtonRadius,
           ),
           child: Text(
-            label.toUpperCase(),
+            taqaUppercase(label),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

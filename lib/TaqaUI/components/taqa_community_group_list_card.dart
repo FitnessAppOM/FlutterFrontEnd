@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
@@ -60,7 +61,7 @@ class TaqaCommunityGroupListCard extends StatelessWidget {
                 top: tagTop,
                 width: contentWidth,
                 child: Text(
-                  tag.toUpperCase(),
+                  taqaUppercase(tag),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TaqaUiStyles.dailyOutlookTag,

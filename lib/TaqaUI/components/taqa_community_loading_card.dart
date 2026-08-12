@@ -38,7 +38,7 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           Text(
-            label.toUpperCase(),
+            taqaUppercase(label),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,

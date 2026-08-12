@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import 'taqa_progress_widget_card.dart';
 
 class TaqaTrainingProgressWidget extends StatelessWidget {
@@ -24,6 +25,7 @@ class TaqaTrainingProgressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final safeCompleted = completed ?? 0;
     final safeTotal = total ?? 0;
     final progress = safeTotal > 0
@@ -35,15 +37,15 @@ class TaqaTrainingProgressWidget extends StatelessWidget {
 
     final hasNextUp = (nextUpLabel ?? '').trim().isNotEmpty;
     final goalText = loading
-        ? 'Loading'
+        ? t('dashboard_training_loading')
         : ((safeTotal > 0 && safeCompleted >= safeTotal) || nextUpAllDone)
-        ? 'Done for week'
+        ? t('dashboard_training_done_week')
         : hasNextUp
-        ? 'Next: ${nextUpLabel!.trim()}'
+        ? '${t('dashboard_training_next')}: ${nextUpLabel!.trim()}'
         : emptyStateLabel;
 
     return TaqaProgressWidgetCard(
-      title: 'Training Progress',
+      title: t('dashboard_training_progress'),
       valueText: valueText,
       goalText: goalText,
       progress: progress,

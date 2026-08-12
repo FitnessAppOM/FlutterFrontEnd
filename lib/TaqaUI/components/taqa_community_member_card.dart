@@ -135,7 +135,7 @@ class _MemberActionButton extends StatelessWidget {
             borderRadius: TaqaUiScale.radius(5),
           ),
           child: Text(
-            action.label.toUpperCase(),
+            taqaUppercase(action.label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),

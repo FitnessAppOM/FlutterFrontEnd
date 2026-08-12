@@ -424,24 +424,24 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
         path: s.trainingLoad.path,
         details: s.trainingLoad.details,
         detailLabels: {
-          'phase_label': 'Phase',
-          'badge_label': 'Badge',
-          'tflu_today': 'Today Load',
-          'tflu_7d_avg': '7-Day Avg Load',
-          'tflu_28d_avg': '28-Day Avg Load',
-          'normalization_peak': 'Normalization Peak',
-          'training_minutes': 'Training Minutes',
-          'rest_minutes': 'Rest Minutes',
-          'daily_volume_score': 'Daily Volume Score',
-          'raw_load': 'Raw Load',
-          'vbp_score': 'VBP Efficiency',
-          'consistency_score': 'Session Consistency',
-          'wow_score': 'WoW Progression',
-          'efficiency_ratio': 'Efficiency Ratio',
-          'active_days_7d': 'Active Days (7d)',
-          'wow_change_pct': 'WoW Change',
-          'risk_zone': 'Risk Zone',
-          'status_label': 'Status',
+          'phase_label': t('taqa_detail_phase'),
+          'badge_label': t('taqa_detail_badge'),
+          'tflu_today': t('taqa_detail_load_today'),
+          'tflu_7d_avg': t('taqa_detail_load_7day'),
+          'tflu_28d_avg': t('taqa_detail_load_28day'),
+          'normalization_peak': t('taqa_detail_normalization_peak'),
+          'training_minutes': t('taqa_detail_training_minutes'),
+          'rest_minutes': t('taqa_detail_rest_minutes'),
+          'daily_volume_score': t('taqa_detail_daily_volume'),
+          'raw_load': t('taqa_detail_raw_load'),
+          'vbp_score': t('taqa_detail_vbp_efficiency'),
+          'consistency_score': t('taqa_detail_session_consistency'),
+          'wow_score': t('taqa_detail_wow_progression'),
+          'efficiency_ratio': t('taqa_detail_efficiency_ratio'),
+          'active_days_7d': t('taqa_detail_active_days_7day'),
+          'wow_change_pct': t('taqa_detail_wow_change'),
+          'risk_zone': t('taqa_detail_risk_zone'),
+          'status_label': t('taqa_detail_status'),
         },
       ),
     );
@@ -555,9 +555,10 @@ class _ScorePreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String t(String key) => AppLocalizations.of(context).translate(key);
     final value = score?.round() ?? 0;
     final progress = score == null ? 0.0 : (score! / 100).clamp(0.0, 1.0);
-    final providerText = _providerLabel(provider);
+    final providerText = _providerLabel(provider, t);
 
     final arcSize = TaqaUiScale.w(141);
     final visibleHeight = TaqaUiScale.h(124);
@@ -633,7 +634,7 @@ class _ScorePreviewCard extends StatelessWidget {
   }
 }
 
-String _providerLabel(String? provider) {
+String _providerLabel(String? provider, String Function(String) t) {
   switch (provider) {
     case 'fitbit':
       return 'Fitbit';
@@ -644,11 +645,10 @@ String _providerLabel(String? provider) {
     case 'samsung':
       return 'Samsung Health';
     case 'healthkit':
-      return 'Smart Watch';
+      return t('taqa_source_smart_watch');
     case null:
-      return 'Smart Watch';
+      return t('taqa_source_smart_watch');
     default:
       return provider;
   }
 }
-

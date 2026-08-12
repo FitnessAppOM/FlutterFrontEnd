@@ -43,7 +43,7 @@ class TaqaTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
             fontSize: TaqaUiScale.sp(8),

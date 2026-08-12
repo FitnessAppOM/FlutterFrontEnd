@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../Typography/taqa_ui_typography.dart';
+import '../../localization/app_localizations.dart';
 
 import 'taqa_adaptive_name_text.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -163,6 +165,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,7 +176,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               height: boxHeight,
               layoutScale: layoutScale,
               color: TaqaUiColors.lime,
-              label: 'Badges',
+              label: t.translate('community_badges'),
               badgeCount: badgeCount,
               onTap: onBadgesTap,
             ),
@@ -183,7 +186,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               height: boxHeight,
               layoutScale: layoutScale,
               color: TaqaUiColors.lightGray,
-              label: 'Groups',
+              label: t.translate('community_groups'),
               value: groupCount,
               onTap: onGroupsTap,
             ),
@@ -197,7 +200,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               height: boxHeight,
               layoutScale: layoutScale,
               color: TaqaUiColors.lightGray,
-              label: 'Challenges',
+              label: t.translate('community_challenges'),
               value: challengeCount,
               onTap: onChallengesTap,
             ),
@@ -207,7 +210,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               height: boxHeight,
               layoutScale: layoutScale,
               color: TaqaUiColors.lightGray,
-              label: 'Reports',
+              label: t.translate('community_reports'),
               value: reportCount,
               onTap: onReportsTap,
             ),
@@ -264,7 +267,7 @@ class _TaqaCommunityStatBox extends StatelessWidget {
                 top: labelTop,
                 right: contentLeft,
                 child: Text(
-                  label.toUpperCase(),
+                  taqaUppercase(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TaqaUiStyles.dailyOutlookTag,

@@ -118,7 +118,7 @@ class TaqaManagementMetricCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label.toUpperCase(),
+            taqaUppercase(label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               color: TaqaUiColors.unnamedColor1c1d17,
@@ -326,7 +326,7 @@ class TaqaCompactActionButton extends StatelessWidget {
                 Icon(icon, size: TaqaUiScale.w(13), color: color),
               SizedBox(width: TaqaUiScale.w(5)),
               Text(
-                label.toUpperCase(),
+                taqaUppercase(label),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                   fontSize: TaqaUiScale.sp(8),

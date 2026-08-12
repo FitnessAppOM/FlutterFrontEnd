@@ -76,7 +76,8 @@ class TaqaProgressWidgetCard extends StatelessWidget {
           final titleFontSize = baseTitleFontSize * safeScale;
           final goalFontSize = baseGoalFontSize * safeScale;
           final valueFontSize =
-              (showArc ? baseValueFontSize : basePlainValueFontSize) * safeScale;
+              (showArc ? baseValueFontSize : basePlainValueFontSize) *
+              safeScale;
           final plainValueFontWeight = FontWeight.w600;
           final indicatorSize = baseIndicatorSize * safeScale;
           final arcSize = targetArcSize * safeScale;
@@ -102,20 +103,18 @@ class TaqaProgressWidgetCard extends StatelessWidget {
           // than the full string and reliably overflows into a scroll —
           // measuring a prefix of the actual text (same style) instead of
           // guessing a multiplier keeps this accurate to the real font.
-          final goalCapWidth =
-              (TextPainter(
-                    text: TextSpan(
-                      text: goalText.substring(
-                        0,
-                        math.min(goalScrollThreshold - 1, goalText.length),
-                      ),
-                      style: goalTextStyle,
-                    ),
-                    maxLines: 1,
-                    textDirection: TextDirection.ltr,
-                    textScaler: MediaQuery.textScalerOf(context),
-                  )..layout(maxWidth: double.infinity))
-                  .width;
+          final goalCapWidth = (TextPainter(
+            text: TextSpan(
+              text: goalText.substring(
+                0,
+                math.min(goalScrollThreshold - 1, goalText.length),
+              ),
+              style: goalTextStyle,
+            ),
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+            textScaler: MediaQuery.textScalerOf(context),
+          )..layout(maxWidth: double.infinity)).width;
 
           return Center(
             child: SizedBox(
@@ -145,7 +144,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                title.toUpperCase(),
+                                taqaUppercase(title),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -183,14 +182,14 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                                                 alignment: Alignment.center,
                                                 children: [
                                                   CustomPaint(
-                                                    size:
-                                                        Size(arcSize, arcSize),
+                                                    size: Size(
+                                                      arcSize,
+                                                      arcSize,
+                                                    ),
                                                     painter: _OpenArcPainter(
-                                                      progress:
-                                                          clampedProgress,
+                                                      progress: clampedProgress,
                                                       baseColor: baseArcColor,
-                                                      valueColor:
-                                                          valueArcColor,
+                                                      valueColor: valueArcColor,
                                                     ),
                                                   ),
                                                   if (loading)
@@ -253,7 +252,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                                                   padding: EdgeInsets.symmetric(
                                                     horizontal:
                                                         TaqaUiScale.w(4) *
-                                                            safeScale,
+                                                        safeScale,
                                                   ),
                                                   child: FittedBox(
                                                     fit: BoxFit.scaleDown,
@@ -265,8 +264,7 @@ class TaqaProgressWidgetCard extends StatelessWidget {
                                                         fontFamily:
                                                             TaqaUiFontFamilies
                                                                 .interTight,
-                                                        fontSize:
-                                                            valueFontSize,
+                                                        fontSize: valueFontSize,
                                                         fontWeight:
                                                             plainValueFontWeight,
                                                         color: textColor,

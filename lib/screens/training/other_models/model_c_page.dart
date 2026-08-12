@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../widgets/cardio/cardio_map.dart';
 import '../../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../../localization/app_localizations.dart';
 import 'other_model_widgets.dart';
 
 class ModelCPage extends StatelessWidget {
@@ -27,6 +28,7 @@ class ModelCPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Padding(
       padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
       child: RepaintBoundary(
@@ -48,13 +50,19 @@ class ModelCPage extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _TraceRow(route: route),
-                      ModelMetricPill(label: "Duration", value: durationLabel),
+                      ModelMetricPill(
+                        label: t.translate("training_duration"),
+                        value: durationLabel,
+                      ),
                       if (showDistance)
                         ModelMetricPill(
-                          label: "Distance",
+                          label: t.translate("training_distance"),
                           value: distanceLabel,
                         ),
-                      ModelMetricPill(label: "Pace", value: paceLabel),
+                      ModelMetricPill(
+                        label: t.translate("training_pace"),
+                        value: paceLabel,
+                      ),
                     ],
                   ),
                 ),

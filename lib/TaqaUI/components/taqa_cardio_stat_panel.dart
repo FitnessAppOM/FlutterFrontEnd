@@ -81,7 +81,7 @@ class _Readout extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(3)),
           Text(
-            metric.label.toUpperCase(),
+            taqaUppercase(metric.label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

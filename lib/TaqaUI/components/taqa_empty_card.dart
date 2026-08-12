@@ -77,7 +77,7 @@ class TaqaEmptyCard extends StatelessWidget {
             Padding(
               padding: TaqaUiScale.symmetric(horizontal: 20),
               child: Text(
-                subtitle!.toUpperCase(),
+                taqaUppercase(subtitle!),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,

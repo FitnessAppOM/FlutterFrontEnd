@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../localization/app_localizations.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -16,59 +17,59 @@ class TaqaCommunityManagementList extends StatelessWidget {
   final String groupName;
   final ValueChanged<String> onActionTap;
 
-  static const List<TaqaCommunityManagementAction> _actions = [
-    TaqaCommunityManagementAction(
-      id: 'edit',
-      title: 'Edit group',
-      description: 'Update the name, description, visibility, and category.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'members',
-      title: 'Manage members',
-      description: 'Review members and update their roles.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'view_code',
-      title: 'View join code',
-      description: 'Show the current private invite code.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'code',
-      title: 'Reset join code',
-      description: 'Invalidate the old code and create a new one.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'metric',
-      title: 'Leaderboard metric',
-      description: 'Choose what your group leaderboard measures.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'challenges',
-      title: 'Group challenges',
-      description: 'Create and manage challenges for this group.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'pin',
-      title: 'Pinned items',
-      description: 'Manage important tips, rules, and announcements.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'reports',
-      title: 'Reports',
-      description: 'Review reported posts and comments.',
-    ),
-    TaqaCommunityManagementAction(
-      id: 'archive',
-      title: 'Archive group',
-      description: 'Permanently archive this community.',
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final actions = <TaqaCommunityManagementAction>[
+      TaqaCommunityManagementAction(
+        id: 'edit',
+        title: t.translate('community_edit_group'),
+        description: t.translate('community_edit_group_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'members',
+        title: t.translate('community_manage_members'),
+        description: t.translate('community_manage_members_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'view_code',
+        title: t.translate('community_view_join_code'),
+        description: t.translate('community_view_join_code_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'code',
+        title: t.translate('community_reset_join_code'),
+        description: t.translate('community_reset_join_code_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'metric',
+        title: t.translate('community_leaderboard_metric'),
+        description: t.translate('community_leaderboard_metric_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'challenges',
+        title: t.translate('community_group_challenges'),
+        description: t.translate('community_group_challenges_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'pin',
+        title: t.translate('community_pinned_items'),
+        description: t.translate('community_pinned_items_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'reports',
+        title: t.translate('community_reports'),
+        description: t.translate('community_reports_body'),
+      ),
+      TaqaCommunityManagementAction(
+        id: 'archive',
+        title: t.translate('community_archive_group'),
+        description: t.translate('community_archive_group_body'),
+      ),
+    ];
     return ListView.separated(
       padding: TaqaUiScale.insetsLTRB(16, 8, 16, 24),
-      itemCount: _actions.length + 1,
+      itemCount: actions.length + 1,
       separatorBuilder: (_, __) => SizedBox(height: TaqaUiScale.h(12)),
       itemBuilder: (context, index) {
         if (index == 0) {
@@ -90,7 +91,7 @@ class TaqaCommunityManagementList extends StatelessWidget {
             ),
           );
         }
-        final action = _actions[index - 1];
+        final action = actions[index - 1];
         return TaqaSettingsRowCard(
           title: action.title,
           description: action.description,

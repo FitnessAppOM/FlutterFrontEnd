@@ -7,6 +7,7 @@ import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
+import '../../localization/app_localizations.dart';
 import '../cardio/cardio_exercise_utils.dart';
 
 class ExerciseCard extends StatelessWidget {
@@ -157,6 +158,7 @@ class ExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final previewWidth = TaqaUiScale.w(70);
     final previewHeight = TaqaUiScale.h(70);
     final cardPadding = TaqaUiScale.insetsLTRB(14, 14, 14, 14);
@@ -360,9 +362,9 @@ class ExerciseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: const Color(0x4D1C1D17)),
       ),
-      child: const Text(
-        "IN PROGRESS",
-        style: TextStyle(
+      child: Text(
+        t.translate("training_in_progress").toUpperCase(),
+        style: const TextStyle(
           fontWeight: FontWeight.w600,
           color: Color(0xFF1C1D17),
           fontSize: 10,
@@ -372,7 +374,7 @@ class ExerciseCard extends StatelessWidget {
     );
     final replaceChip = TaqaTagButton(
       icon: Icons.swap_horiz,
-      label: "REPLACE",
+      label: t.translate("training_replace_exercise").toUpperCase(),
       onTap: disabled ? () {} : onReplace,
     );
 

@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
+import '../../localization/app_localizations.dart';
 
 class TrainingDayCompleteSheet extends StatelessWidget {
-  const TrainingDayCompleteSheet({
-    super.key,
-    required this.dayLabel,
-  });
+  const TrainingDayCompleteSheet({super.key, required this.dayLabel});
 
   final String dayLabel;
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return SafeArea(
       top: false,
       child: Padding(
@@ -20,10 +19,7 @@ class TrainingDayCompleteSheet extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF0F162A),
-                Color(0xFF1B2D4A),
-              ],
+              colors: [Color(0xFF0F162A), Color(0xFF1B2D4A)],
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
@@ -86,20 +82,22 @@ class TrainingDayCompleteSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    "Day complete",
+                    t.translate("training_day_complete"),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "$dayLabel finished. Great work!",
+                    t
+                        .translate("training_day_finished")
+                        .replaceAll("{day}", dayLabel),
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   SizedBox(
@@ -114,9 +112,9 @@ class TrainingDayCompleteSheet extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: const Text(
-                        "Nice!",
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      child: Text(
+                        t.translate("training_nice"),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),

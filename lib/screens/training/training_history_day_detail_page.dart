@@ -8,6 +8,7 @@ import '../../TaqaUI/components/taqa_mini_tag.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../localization/app_localizations.dart';
 
 class TrainingHistoryDayDetailPage extends StatelessWidget {
   const TrainingHistoryDayDetailPage({
@@ -25,6 +26,7 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
@@ -42,8 +44,8 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
               Expanded(
                 child: Text(
                   weekLabel == null || weekLabel!.isEmpty
-                      ? "Completed exercises"
-                      : "Completed exercises • $weekLabel",
+                      ? t.translate("training_completed_exercises")
+                      : "${t.translate("training_completed_exercises")} • $weekLabel",
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
@@ -59,7 +61,7 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
           SizedBox(height: TaqaUiScale.h(16)),
           if (completedExercises.isEmpty)
             Text(
-              "No completed exercises.",
+              t.translate("training_no_completed_exercises"),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
@@ -195,7 +197,11 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
                       ),
                     ),
                     SizedBox(width: TaqaUiScale.w(8)),
-                    const TaqaMiniTag(label: "DONE"),
+                    TaqaMiniTag(
+                      label: AppLocalizations.of(
+                        context,
+                      ).translate("training_done").toUpperCase(),
+                    ),
                   ],
                 ),
                 if (!isCardio) ...[

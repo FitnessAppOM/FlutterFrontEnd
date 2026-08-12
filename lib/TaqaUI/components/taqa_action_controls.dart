@@ -75,7 +75,7 @@ class TaqaSegmentTabButton extends StatelessWidget {
                 ),
         ),
         child: Text(
-          label.toUpperCase(),
+          taqaUppercase(label),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
@@ -143,7 +143,7 @@ Future<bool> showTaqaActionConfirmDialog({
                     child: TextButton(
                       onPressed: () => Navigator.pop(context, false),
                       child: Text(
-                        cancelLabel.toUpperCase(),
+                        taqaUppercase(cancelLabel),
                         style: const TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: 14,
@@ -169,7 +169,7 @@ Future<bool> showTaqaActionConfirmDialog({
                         ),
                       ),
                       child: Text(
-                        confirmLabel.toUpperCase(),
+                        taqaUppercase(confirmLabel),
                         style: const TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: 13,
