@@ -815,7 +815,7 @@ class _CoachPageState extends State<CoachPage> {
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        title: 'Expert Dashboard',
+        title: t.translate('coach_client_dashboard_title'),
         showBackButton: false,
         trailing: IconButton(
           tooltip: 'My Coaches',
