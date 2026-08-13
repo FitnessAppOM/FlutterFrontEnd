@@ -32,6 +32,8 @@ class AccountStorage {
   static const _kProfileEditBlockedUntil = 'profile_edit_blocked_until';
   static const _kDismissDeactivatedPrompt = 'dismiss_deactivated_prompt';
   static const _kSubscriptionRequired = 'subscription_required';
+  static const _kSubscriptionVerifiedAt = 'subscription_verified_at';
+  static const _kSubscriptionAccessExpiresAt = 'subscription_access_expires_at';
   static const _kPostPurchaseIntroPending = 'post_purchase_intro_pending';
   static const _kPostPurchaseIntroSeen = 'post_purchase_intro_seen';
   static const _postPurchaseIntroModules = <String>[
@@ -72,6 +74,12 @@ class AccountStorage {
   static String _subscriptionRequiredKey(int? userId) => userId == null
       ? _kSubscriptionRequired
       : "${_kSubscriptionRequired}_u$userId";
+  static String _subscriptionVerifiedAtKey(int? userId) => userId == null
+      ? _kSubscriptionVerifiedAt
+      : "${_kSubscriptionVerifiedAt}_u$userId";
+  static String _subscriptionAccessExpiresAtKey(int? userId) => userId == null
+      ? _kSubscriptionAccessExpiresAt
+      : "${_kSubscriptionAccessExpiresAt}_u$userId";
   static String _postPurchaseIntroPendingKey(int userId) =>
       "${_kPostPurchaseIntroPending}_u$userId";
   static String _postPurchaseIntroSeenKey(int userId) =>
@@ -111,6 +119,7 @@ class AccountStorage {
   static final ValueNotifier<int> whoopChange = ValueNotifier(0);
   static final ValueNotifier<int> stravaChange = ValueNotifier(0);
   static final ValueNotifier<int> accountChange = ValueNotifier(0);
+  static final ValueNotifier<int> subscriptionChange = ValueNotifier(0);
   static final ValueNotifier<int> appleWatchChange = ValueNotifier(0);
   static final ValueNotifier<int> trainingChange = ValueNotifier(0);
   static final ValueNotifier<int> dietChange = ValueNotifier(0);
@@ -126,6 +135,10 @@ class AccountStorage {
 
   static void notifyAccountChanged() {
     accountChange.value++;
+  }
+
+  static void notifySubscriptionChanged() {
+    subscriptionChange.value++;
   }
 
   static void notifyAppleWatchChanged() {
@@ -448,15 +461,69 @@ class AccountStorage {
 
   /// Persists the new-user subscription gate across app restarts until StoreKit
   /// reports a completed purchase or restoration.
-  static Future<void> setSubscriptionRequired(bool required) async {
+  static Future<void> setSubscriptionRequired(
+    bool required, {
+    bool notify = true,
+  }) async {
     final sp = await SharedPreferences.getInstance();
     final userId = sp.getInt(_kUserId);
-    await sp.setBool(_subscriptionRequiredKey(userId), required);
+    final key = _subscriptionRequiredKey(userId);
+    final previous = sp.getBool(key);
+    await sp.setBool(key, required);
+    if (notify && previous != required) notifySubscriptionChanged();
   }
 
   static Future<bool> isSubscriptionRequired() async {
     final sp = await SharedPreferences.getInstance();
     return sp.getBool(_subscriptionRequiredKey(sp.getInt(_kUserId))) ?? false;
+  }
+
+  /// Saves an authoritative entitlement response for fast local access gates.
+  /// Startup, resume, Settings, and purchase flows refresh this snapshot.
+  static Future<void> setVerifiedSubscriptionAccess({
+    required bool required,
+    DateTime? expiresAt,
+    bool notify = true,
+  }) async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final requiredKey = _subscriptionRequiredKey(userId);
+    final previous = sp.getBool(requiredKey);
+    await sp.setBool(requiredKey, required);
+    await sp.setString(
+      _subscriptionVerifiedAtKey(userId),
+      DateTime.now().toUtc().toIso8601String(),
+    );
+    final expiryKey = _subscriptionAccessExpiresAtKey(userId);
+    if (expiresAt == null) {
+      await sp.remove(expiryKey);
+    } else {
+      await sp.setString(expiryKey, expiresAt.toUtc().toIso8601String());
+    }
+    if (notify && previous != required) notifySubscriptionChanged();
+  }
+
+  /// Returns locally verified access for notification routing. A dated plan is
+  /// valid until its saved end time. Non-expiring entitlements use a short
+  /// cache window so revocations cannot leave access open indefinitely.
+  static Future<bool?> cachedSubscriptionAccessAllowed() async {
+    final sp = await SharedPreferences.getInstance();
+    final userId = sp.getInt(_kUserId);
+    final requiredKey = _subscriptionRequiredKey(userId);
+    if (!sp.containsKey(requiredKey)) return null;
+    if (sp.getBool(requiredKey) == true) return false;
+
+    final verifiedAt = DateTime.tryParse(
+      sp.getString(_subscriptionVerifiedAtKey(userId)) ?? '',
+    );
+    if (verifiedAt == null) return null;
+
+    final expiresAt = DateTime.tryParse(
+      sp.getString(_subscriptionAccessExpiresAtKey(userId)) ?? '',
+    );
+    final now = DateTime.now().toUtc();
+    if (expiresAt != null) return now.isBefore(expiresAt.toUtc());
+    return now.difference(verifiedAt.toUtc()) < const Duration(hours: 24);
   }
 
   /// Queues the feature introduction after this account's first verified
@@ -879,6 +946,8 @@ class AccountStorage {
       await sp.remove(_profileEditBlockedUntilKey(currentUserId));
       await sp.remove(_dismissDeactivatedPromptKey(currentUserId));
       await sp.remove(_subscriptionRequiredKey(currentUserId));
+      await sp.remove(_subscriptionVerifiedAtKey(currentUserId));
+      await sp.remove(_subscriptionAccessExpiresAtKey(currentUserId));
       await sp.remove(_postPurchaseIntroPendingKey(currentUserId));
       await sp.remove(_postPurchaseIntroSeenKey(currentUserId));
       for (final module in _postPurchaseIntroModules) {

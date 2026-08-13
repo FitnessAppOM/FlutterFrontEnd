@@ -121,11 +121,14 @@ class TaqaScoreCard extends StatelessWidget {
                         top: descriptionTop,
                         width: descriptionWidth,
                         height: descriptionHeight,
-                        child: Text(
-                          metaText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TaqaUiStyles.scoreCardMeta,
+                        child: Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Text(
+                            metaText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TaqaUiStyles.scoreCardMeta,
+                          ),
                         ),
                       ),
                       Positioned(

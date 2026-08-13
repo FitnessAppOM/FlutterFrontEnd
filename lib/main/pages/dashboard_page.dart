@@ -5421,7 +5421,7 @@ class DashboardPageState extends State<DashboardPage>
             provider: _taqaScore?.provider,
             scoreDayLabel: DateFormat(
               'dd/MM',
-              locale,
+              'en_US',
             ).format(_taqaScoreDateForSelection()),
             emptyMessage: t("taqa_no_data"),
             onTap: () async {

@@ -89,6 +89,18 @@ class TaqaScoreWidget extends StatelessWidget {
         return t('taqa_source_screening');
       case 'journal':
         return t('taqa_source_journal');
+      case 'diet':
+        return t('taqa_source_diet');
+      case 'direct':
+        return t('taqa_source_direct');
+      case 'composite':
+        return t('taqa_source_composite');
+      case 'insufficient_data':
+        return t('taqa_source_insufficient_data');
+      case 'no_screening':
+        return t('taqa_source_no_screening');
+      case 'no_smart_watch':
+        return t('taqa_source_no_smart_watch');
       default:
         return _humanizeLabel(scoringPath);
     }
@@ -137,6 +149,18 @@ class TaqaScoreWidget extends StatelessWidget {
         return taqaUppercase(t('taqa_source_smart_watch'));
       case 'journal':
         return taqaUppercase(t('taqa_source_journal'));
+      case 'diet':
+        return taqaUppercase(t('taqa_source_diet'));
+      case 'direct':
+        return taqaUppercase(t('taqa_source_direct'));
+      case 'composite':
+        return taqaUppercase(t('taqa_source_composite'));
+      case 'insufficient_data':
+        return taqaUppercase(t('taqa_source_insufficient_data'));
+      case 'no_screening':
+        return taqaUppercase(t('taqa_source_no_screening'));
+      case 'no_smart_watch':
+        return taqaUppercase(t('taqa_source_no_smart_watch'));
       default:
         return taqaUppercase(_humanizeLabel(scoringPath));
     }

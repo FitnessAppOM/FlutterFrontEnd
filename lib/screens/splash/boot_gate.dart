@@ -66,7 +66,10 @@ class _BootGateState extends State<BootGate> {
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
             : null,
       ),
-      AccountStorage.setSubscriptionRequired(subscriptionRequired),
+      AccountStorage.setVerifiedSubscriptionAccess(
+        required: subscriptionRequired,
+        expiresAt: _startupSubscriptionExpiresAt,
+      ),
     ]);
     if (!mounted) return;
     if (NavigationService.isOnJournalPage) {
@@ -129,9 +132,13 @@ class _BootGateState extends State<BootGate> {
     }
   }
 
+  DateTime? _startupSubscriptionExpiresAt;
+
   Future<void> _navigateOfflineMain() async {
-    final cachedSubscriptionRequired =
-        await AccountStorage.isSubscriptionRequired();
+    final cachedAccess = await AccountStorage.cachedSubscriptionAccessAllowed();
+    // An unknown legacy cache is not proof of paid access. Existing installs
+    // must reconnect once to create the dated, server-verified snapshot.
+    final cachedSubscriptionRequired = cachedAccess != true;
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -157,10 +164,14 @@ class _BootGateState extends State<BootGate> {
 
   Future<StartupBootstrapSnapshot> _fetchStartup(int userId) async {
     try {
-      return await AppleBillingService.fetchStartupBootstrap();
+      final snapshot = await AppleBillingService.fetchStartupBootstrap();
+      _startupSubscriptionExpiresAt = snapshot.subscriptionExpiresAt;
+      return snapshot;
     } on AppleBillingException catch (error) {
       if (error.statusCode != 404) rethrow;
-      return _fetchLegacyStartup(userId);
+      final snapshot = await _fetchLegacyStartup(userId);
+      _startupSubscriptionExpiresAt = snapshot.subscriptionExpiresAt;
+      return snapshot;
     }
   }
 
@@ -212,6 +223,9 @@ class _BootGateState extends State<BootGate> {
           completedOnboarding &&
           !normalEntitlement.active &&
           !(coachEntitlement?.active ?? false),
+      subscriptionExpiresAt: normalEntitlement.active
+          ? normalEntitlement.expiresAt
+          : coachEntitlement?.expiresAt,
     );
   }
 

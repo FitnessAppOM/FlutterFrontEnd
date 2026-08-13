@@ -812,7 +812,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (scheduleIntro) {
       await AccountStorage.schedulePostPurchaseIntro();
     }
-    await AccountStorage.setSubscriptionRequired(false);
+    await AccountStorage.setVerifiedSubscriptionAccess(
+      required: false,
+      expiresAt: _billingState?.expiresAt,
+    );
     if (purchase?.pendingCompletePurchase == true) {
       unawaited(_completePurchaseInBackground(purchase!));
     }

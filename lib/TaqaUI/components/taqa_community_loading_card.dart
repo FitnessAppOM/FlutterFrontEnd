@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 /// Shared loading state for Community lists and detail screens.
 class TaqaCommunityLoadingCard extends StatelessWidget {
-  const TaqaCommunityLoadingCard({
-    super.key,
-    this.label = 'Loading community...',
-  });
+  const TaqaCommunityLoadingCard({super.key, this.label});
 
-  final String label;
+  /// Optional screen-specific message. When omitted, the shared localized
+  /// Community loading label is used.
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
+    final effectiveLabel =
+        label ?? AppLocalizations.of(context).translate('community_loading');
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 20, vertical: 20),
@@ -38,7 +40,7 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           Text(
-            taqaUppercase(label),
+            taqaUppercase(effectiveLabel),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,

@@ -277,6 +277,14 @@ class _SettingsPageState extends State<SettingsPage>
           ? normalEntitlement
           : await AppleBillingService.fetchEntitlement('coach_tools');
       final pendingChange = entitlement.pendingChange;
+      // Settings may be the active route when the app returns from App Store
+      // subscription management. Persist and broadcast the verified access
+      // result so MainLayout can enforce an expired subscription immediately,
+      // without requiring another app restart/resume cycle.
+      await AccountStorage.setVerifiedSubscriptionAccess(
+        required: !entitlement.active,
+        expiresAt: entitlement.active ? entitlement.expiresAt : null,
+      );
       if (!mounted) return;
       setState(() {
         _currentPlan = entitlement;

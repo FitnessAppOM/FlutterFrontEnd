@@ -658,9 +658,9 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (pinnedCorrections.isEmpty)
-                  const _InlineInfo(
+                  _InlineInfo(
                     icon: Icons.push_pin_outlined,
-                    label: 'No pinned replies yet.',
+                    label: t.translate('coach_pinned_empty'),
                   ),
                 ...pinnedCorrections.map(
                   (correction) => _PinnedCorrectionRow(
@@ -715,9 +715,9 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
                 if (!_loadingFeedback &&
                     _feedbackError == null &&
                     nonPinnedFeedbackEntries.isEmpty)
-                  const _InlineInfo(
+                  _InlineInfo(
                     icon: Icons.chat_bubble_outline,
-                    label: 'No coach replies yet.',
+                    label: t.translate('coach_feedback_empty'),
                   ),
                 if (!_loadingFeedback && _feedbackError == null)
                   ...nonPinnedFeedbackEntries.map(

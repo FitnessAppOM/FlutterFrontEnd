@@ -4,6 +4,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/daily_outlook/daily_outlook_service.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_back_button.dart';
+import '../components/taqa_daily_outlook_card.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import '../taqa_ui_colors.dart';
@@ -17,7 +18,7 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
     final generatedTag = outlook.readinessState.trim().isNotEmpty
-        ? outlook.readinessState.trim()
+        ? localizedDailyOutlookReadiness(t, outlook.readinessState)
         : t('dash_daily_outlook_title');
     final bodyStyle = TaqaUiStyles.dailyOutlookDescription;
     final headlineStyle = TextStyle(

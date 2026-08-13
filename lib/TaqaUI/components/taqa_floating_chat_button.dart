@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
@@ -46,7 +47,7 @@ class TaqaFloatingChatButton extends StatelessWidget {
             ],
           ),
           child: Text(
-            "CHAT",
+            AppLocalizations.of(context).translate('coach_tab_chat'),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(12),

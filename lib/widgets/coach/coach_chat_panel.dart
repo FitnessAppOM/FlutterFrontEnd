@@ -18,6 +18,7 @@ import '../../TaqaUI/components/taqa_loading_indicator.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
 import '../../services/coach/coach_support_chat_service.dart';
 import '../../services/coach/voice_note_audio_service.dart';
@@ -309,7 +310,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         : '.${picked.extension!.trim().toLowerCase()}';
     final type = _inferAttachmentType(extension: ext);
     if (type == null) {
-      AppToast.show(context, 'Unsupported file type.', type: AppToastType.error);
+      AppToast.show(
+        context,
+        'Unsupported file type.',
+        type: AppToastType.error,
+      );
       return;
     }
 
@@ -351,14 +356,18 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
                 title: Text(
-                  'Photo or video',
+                  AppLocalizations.of(
+                    context,
+                  ).translate('coach_chat_photo_video'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal,
                   ),
                 ),
                 subtitle: Text(
-                  'Upload an image or video',
+                  AppLocalizations.of(
+                    context,
+                  ).translate('coach_chat_photo_video_sub'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
@@ -372,14 +381,16 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
                 title: Text(
-                  'Document',
+                  AppLocalizations.of(context).translate('coach_chat_document'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal,
                   ),
                 ),
                 subtitle: Text(
-                  'Upload a file like PDF or DOCX',
+                  AppLocalizations.of(
+                    context,
+                  ).translate('coach_chat_document_sub'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
@@ -413,7 +424,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           : '.${picked.path.split('.').last.toLowerCase()}';
       final type = _inferAttachmentType(extension: ext);
       if (type == null || (type != 'image' && type != 'video')) {
-        AppToast.show(context, 'Unsupported media type.', type: AppToastType.error);
+        AppToast.show(
+          context,
+          'Unsupported media type.',
+          type: AppToastType.error,
+        );
         return;
       }
 
@@ -433,7 +448,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       }
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, 'Could not open gallery: $e', type: AppToastType.error);
+      AppToast.show(
+        context,
+        'Could not open gallery: $e',
+        type: AppToastType.error,
+      );
     }
   }
 
@@ -679,7 +698,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, 'Could not open image: $e', type: AppToastType.error);
+      AppToast.show(
+        context,
+        'Could not open image: $e',
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _openingAttachment = false);
@@ -772,7 +795,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, 'Could not open video: $e', type: AppToastType.error);
+      AppToast.show(
+        context,
+        'Could not open video: $e',
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() => _openingAttachment = false);
@@ -820,7 +847,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
                 title: Text(
-                  'Copy',
+                  AppLocalizations.of(context).translate('coach_chat_copy'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal,
@@ -834,9 +861,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                     Icons.flag_outlined,
                     color: Color(0xFFFF8A00),
                   ),
-                  title: const Text(
-                    'Report',
-                    style: TextStyle(color: Color(0xFFFF8A00)),
+                  title: Text(
+                    AppLocalizations.of(context).translate('coach_chat_report'),
+                    style: const TextStyle(color: Color(0xFFFF8A00)),
                   ),
                   onTap: () => Navigator.of(sheetContext).pop('report'),
                 ),
@@ -850,7 +877,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     if (action == 'copy') {
       await Clipboard.setData(ClipboardData(text: message.messageText));
       if (!mounted) return;
-      AppToast.show(context, 'Message copied.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('coach_chat_message_copied'),
+        type: AppToastType.success,
+      );
     } else if (action == 'report' && canReport) {
       await _reportMessage(message);
     }
@@ -1116,25 +1147,33 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   }
 
   String _buildSlaLine(CoachSupportChatSla sla) {
+    final t = AppLocalizations.of(context).translate;
     if (sla.status == 'no_coach_assigned') {
-      return 'Connect to a coach to start support chat.';
+      return t('coach_chat_connect_first');
     }
     if (sla.status == 'waiting_for_coach') {
       final dueAt = sla.expectedResponseDueAt;
-      if (dueAt == null) return 'Expected response within: --';
+      if (dueAt == null) {
+        return t('coach_chat_expected_within').replaceAll('{time}', '--');
+      }
       final remaining = dueAt.toLocal().difference(DateTime.now());
       final safe = remaining.isNegative ? Duration.zero : remaining;
-      return 'Expected response within: ${_formatDurationShort(safe)}';
+      return t(
+        'coach_chat_expected_within',
+      ).replaceAll('{time}', _formatDurationShort(safe));
     }
     if (sla.status == 'breached') {
-      return 'Expected response window exceeded.';
+      return t('coach_chat_window_exceeded');
     }
     if (sla.status == 'responded') {
       return widget.role == CoachChatRole.coach
           ? 'Thread active.'
-          : 'Coach responded.';
+          : t('coach_chat_coach_responded');
     }
-    return 'Expected response within: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax}h';
+    return t('coach_chat_expected_within').replaceAll(
+      '{time}',
+      '${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax}h',
+    );
   }
 
   Widget _buildCoachSelector() {
@@ -1253,8 +1292,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
               Expanded(
                 child: Text(
                   otherPartyName.isEmpty
-                      ? 'Support chat'
-                      : 'Support chat with $otherPartyFirstName',
+                      ? AppLocalizations.of(
+                          context,
+                        ).translate('coach_chat_support')
+                      : AppLocalizations.of(context)
+                            .translate('coach_chat_support_with')
+                            .replaceAll('{name}', otherPartyFirstName),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     color: TaqaUiColors.charcoal,
@@ -1280,7 +1323,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             ),
             SizedBox(height: TaqaUiScale.h(4)),
             Text(
-              'Target response window: ${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax} hours',
+              AppLocalizations.of(context)
+                  .translate('coach_chat_target_window')
+                  .replaceAll(
+                    '{hours}',
+                    '${sla.targetWindowHoursMin}-${sla.targetWindowHoursMax}',
+                  ),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
@@ -1300,7 +1348,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                 ),
               ),
               child: Text(
-                'New support-chat message',
+                AppLocalizations.of(
+                  context,
+                ).translate('coach_chat_new_message'),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   color: const Color(0xFFFF8A00),
@@ -1522,6 +1572,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context).translate;
     if (_loading) {
       return const Center(child: TaqaLoadingIndicator());
     }
@@ -1565,7 +1616,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
             child: SizedBox(
               width: TaqaUiScale.w(357),
               child: Text(
-                'No coach is currently assigned. Once connected, this chat will be enabled.',
+                t('coach_chat_no_coach'),
                 textAlign: TextAlign.left,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
@@ -1600,7 +1651,7 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
               borderRadius: TaqaUiScale.radius(10),
             ),
             child: Text(
-              'No messages yet. Send your first text message to your coach.',
+              t('coach_chat_empty'),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
@@ -1667,7 +1718,11 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                     SizedBox(width: TaqaUiScale.w(8)),
                     Expanded(
                       child: Text(
-                        (_pendingAttachmentName ?? 'Attachment').trim(),
+                        (_pendingAttachmentName ??
+                                AppLocalizations.of(
+                                  context,
+                                ).translate('coach_chat_attachment'))
+                            .trim(),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           color: TaqaUiColors.charcoal,
@@ -1710,7 +1765,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                   onPressed: disabled || _isRecordingVoice
                       ? null
                       : _showAttachmentOptions,
-                  tooltip: 'Add media',
+                  tooltip: AppLocalizations.of(
+                    context,
+                  ).translate('coach_chat_add_media'),
                   icon: const Icon(Icons.add_rounded),
                   color: const Color(0xFF1F1F1F),
                   iconSize: TaqaUiScale.sp(22),
@@ -1780,7 +1837,9 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                               SizedBox(width: TaqaUiScale.w(10)),
                               Expanded(
                                 child: Text(
-                                  'Recording voice... release to keep',
+                                  AppLocalizations.of(
+                                    context,
+                                  ).translate('coach_chat_recording'),
                                   style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     color: TaqaUiColors.charcoal.withValues(
@@ -1820,8 +1879,12 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
                             decoration: InputDecoration(
                               isCollapsed: true,
                               hintText: disabled
-                                  ? 'Chat unavailable'
-                                  : 'Write a message',
+                                  ? AppLocalizations.of(
+                                      context,
+                                    ).translate('coach_chat_unavailable')
+                                  : AppLocalizations.of(
+                                      context,
+                                    ).translate('coach_chat_write_message'),
                               hintStyle: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 color: TaqaUiColors.unnamedColorE3e3e3,

@@ -639,15 +639,15 @@ class NotificationService {
     if (raw.isEmpty) return;
 
     if (raw == dailyJournalPayload) {
-      NavigationService.navigateToJournal(fromNotification: true);
+      NavigationService.handleNotificationTap(type: dailyJournalPayload);
       return;
     }
     if (raw == dietPayload) {
-      NavigationService.navigateToDiet(fromNotification: true);
+      NavigationService.handleNotificationTap(type: dietPayload);
       return;
     }
     if (raw == expertAiUpdatesPayload) {
-      NavigationService.navigateToExpertDashboard(fromNotification: true);
+      NavigationService.handleNotificationTap(type: expertAiUpdatesPayload);
       return;
     }
 
@@ -691,8 +691,8 @@ class NotificationService {
                     map['from_role'] ??
                     map['fromRole'] ??
                     map['role'])
-            ?.toString()
-            .trim();
+                ?.toString()
+                .trim();
       }
     } catch (_) {
       type = raw;

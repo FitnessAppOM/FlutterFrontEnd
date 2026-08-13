@@ -481,6 +481,7 @@ class _CoachPageState extends State<CoachPage> {
   }
 
   Future<void> _openCoachesSheet() async {
+    final t = AppLocalizations.of(context).translate;
     final coaches = List<_CoachAssignment>.from(_assignedCoaches);
     final requests = List<_CoachConnectionRequest>.from(_coachRequests);
     // Owned by _CoachCodeField below, not created here: a TextEditingController
@@ -525,7 +526,7 @@ class _CoachPageState extends State<CoachPage> {
                   ),
                   SizedBox(height: TaqaUiScale.h(18)),
                   Text(
-                    'MY COACHES',
+                    t('coach_my_coaches').toUpperCase(),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                       fontSize: TaqaUiScale.sp(10),
@@ -561,7 +562,7 @@ class _CoachPageState extends State<CoachPage> {
                             ),
                             SizedBox(width: TaqaUiScale.w(8)),
                             Text(
-                              'CONNECT',
+                              t('coach_connect').toUpperCase(),
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(14),
@@ -579,7 +580,9 @@ class _CoachPageState extends State<CoachPage> {
                     Padding(
                       padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
                       child: Text(
-                        'No coaches connected.',
+                        AppLocalizations.of(
+                          context,
+                        ).translate('coach_no_connected_coaches'),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
@@ -663,7 +666,7 @@ class _CoachPageState extends State<CoachPage> {
                               children: [
                                 _CoachSheetActionChip(
                                   icon: Icons.flag_outlined,
-                                  label: 'Report',
+                                  label: t('coach_sheet_report'),
                                   loading: isReporting,
                                   onTap:
                                       (coachId == null ||
@@ -678,7 +681,7 @@ class _CoachPageState extends State<CoachPage> {
                                 ),
                                 _CoachSheetActionChip(
                                   icon: Icons.link_off,
-                                  label: 'Detach',
+                                  label: t('coach_sheet_detach'),
                                   loading: isDetaching,
                                   onTap:
                                       (coachId == null ||
@@ -700,7 +703,7 @@ class _CoachPageState extends State<CoachPage> {
                   if (requests.isNotEmpty) ...[
                     SizedBox(height: TaqaUiScale.h(6)),
                     Text(
-                      'CONNECTION REQUESTS',
+                      t('coach_connection_requests').toUpperCase(),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                         fontSize: TaqaUiScale.sp(10),
@@ -715,8 +718,8 @@ class _CoachPageState extends State<CoachPage> {
                           ? request.updatedAt.split('T').first
                           : request.updatedAt;
                       final statusLine = isPending
-                          ? 'Pending approval${updatedDate.isEmpty ? '' : ' · $updatedDate'}'
-                          : 'Request denied${updatedDate.isEmpty ? '' : ' · $updatedDate'}';
+                          ? '${t('coach_request_pending')}${updatedDate.isEmpty ? '' : ' · $updatedDate'}'
+                          : '${t('coach_request_denied')}${updatedDate.isEmpty ? '' : ' · $updatedDate'}';
                       final statusColor = isPending
                           ? const Color(0xFFFF8A00)
                           : const Color(0xFFE84C4F);
@@ -818,7 +821,7 @@ class _CoachPageState extends State<CoachPage> {
         title: t.translate('coach_client_dashboard_title'),
         showBackButton: false,
         trailing: IconButton(
-          tooltip: 'My Coaches',
+          tooltip: t.translate('coach_my_coaches'),
           onPressed: _openCoachesSheet,
           icon: Icon(
             Icons.groups_2_outlined,
@@ -1021,7 +1024,7 @@ class _CoachCodeFieldState extends State<_CoachCodeField> {
       ),
       decoration: InputDecoration(
         counterText: "",
-        hintText: "Enter 6-digit coach code",
+        hintText: AppLocalizations.of(context).translate('coach_code_hint'),
         hintStyle: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
           color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
