@@ -1207,6 +1207,23 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
     }
   }
 
+  String _categoryLabel(String value) {
+    final normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ');
+    final localizationKey = normalized.replaceAll(' ', '_');
+    final translated = AppLocalizations.of(context).translate(localizationKey);
+    if (translated != localizationKey) return translated;
+
+    return normalized
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
   void _submit() {
     if ((_selectedAffId == null || _selectedAffId!.isEmpty) &&
         _otherCtrl.text.trim().isEmpty) {
@@ -1243,6 +1260,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               label: t.translate("affiliation_category"),
               value: _selectedCategory,
               options: _categories,
+              itemLabelBuilder: _categoryLabel,
               onChanged: (val) {
                 setState(() => _selectedCategory = val);
                 if (val != null && val.isNotEmpty) _loadAffiliations(val);
