@@ -82,7 +82,11 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
         _loading = false;
         _error = userFriendlyErrorMessage(
           e,
-          fallback: 'Could not load Form Check. Please try again.',
+          fallback: _tr(
+            context,
+            'coach_form_check_load_failed',
+            'Could not load Form Check. Please try again.',
+          ),
         );
       });
       _syncPolling();
@@ -286,7 +290,11 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       _showToast(
         userFriendlyErrorMessage(
           e,
-          fallback: 'Could not upload Form Check. Please try again.',
+          fallback: _tr(
+            context,
+            'coach_form_check_upload_failed',
+            'Could not upload Form Check. Please try again.',
+          ),
         ),
       );
     }
@@ -326,7 +334,11 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       _showToast(
         userFriendlyErrorMessage(
           e,
-          fallback: 'Could not update this item. Please try again.',
+          fallback: _tr(
+            context,
+            'coach_form_check_update_failed',
+            'Could not update this item. Please try again.',
+          ),
         ),
       );
     }
@@ -366,13 +378,22 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       _showToast(
         userFriendlyErrorMessage(
           e,
-          fallback: 'Could not update this item. Please try again.',
+          fallback: _tr(
+            context,
+            'coach_form_check_update_failed',
+            'Could not update this item. Please try again.',
+          ),
         ),
       );
     }
   }
 
   Future<void> _deleteSubmission(FormCheckSubmission item) async {
+    final deleteFailedMessage = _tr(
+      context,
+      'coach_form_check_delete_failed',
+      'Could not delete this item. Please try again.',
+    );
     final confirmed = await showTaqaConfirmDialog(
       context: context,
       title: _tr(context, 'coach_form_check_delete_title', 'Delete Form Check'),
@@ -381,11 +402,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
         'coach_form_check_delete_body',
         'This removes the submission and its analysis from your account.',
       ),
-      confirmLabel: _tr(
-        context,
-        'coach_form_check_delete_confirm',
-        'Delete',
-      ),
+      confirmLabel: _tr(context, 'coach_form_check_delete_confirm', 'Delete'),
       cancelLabel: _tr(context, 'common_close', 'Close'),
     );
     if (!confirmed) return;
@@ -403,12 +420,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
         _tr(context, 'coach_form_check_delete_success', 'Form Check deleted'),
       );
     } catch (e) {
-      _showToast(
-        userFriendlyErrorMessage(
-          e,
-          fallback: 'Could not delete this item. Please try again.',
-        ),
-      );
+      _showToast(userFriendlyErrorMessage(e, fallback: deleteFailedMessage));
     }
   }
 
@@ -432,7 +444,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
     } catch (e) {
       if (!mounted) return;
       _showToast(
-        'Could not open video: ${userFriendlyErrorMessage(e, fallback: 'Please try again.')}',
+        '${_tr(context, 'coach_form_check_open_video_failed', 'Could not open video.')} ${userFriendlyErrorMessage(e, fallback: '')}',
       );
     }
   }
@@ -444,7 +456,9 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
 
   String _formatDate(DateTime? value) {
     if (value == null) return '--';
-    return DateFormat('MMM d, HH:mm').format(value.toLocal());
+    return DateFormat.MMMd(
+      Localizations.localeOf(context).toLanguageTag(),
+    ).add_Hm().format(value.toLocal());
   }
 
   @override
@@ -489,7 +503,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
               children: [
                 _UsageChip(
                   label:
-                      '${usage.usedThisWeek}/${usage.weeklyLimit} USED'
+                      '${usage.usedThisWeek}/${usage.weeklyLimit} ${_tr(context, 'coach_form_check_used', 'USED')}'
                           .toUpperCase(),
                 ),
                 const _UsageChip(label: 'MP4/MOV'),
@@ -610,7 +624,9 @@ class _UsageChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: TaqaUiColors.white,
         borderRadius: TaqaUiScale.radius(8),
-        border: Border.all(color: TaqaUiColors.charcoal.withValues(alpha: 0.15)),
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.15),
+        ),
       ),
       child: Text(
         label,
@@ -769,9 +785,7 @@ class _UploadCard extends StatelessWidget {
           ],
           SizedBox(height: TaqaUiScale.h(20)),
           GestureDetector(
-            onTap: submitting
-                ? null
-                : () => onConsentChanged(!consentAccepted),
+            onTap: submitting ? null : () => onConsentChanged(!consentAccepted),
             behavior: HitTestBehavior.opaque,
             child: Padding(
               padding: EdgeInsets.only(left: TaqaUiScale.w(9)),
@@ -956,6 +970,17 @@ class _SubmissionCard extends StatelessWidget {
     final hasCoachReply =
         item.coachReviewReplies.isNotEmpty ||
         ((item.coachReview?.reviewText ?? '').trim().isNotEmpty);
+    final normalizedStatus = item.status.trim().toLowerCase();
+    final statusKey = switch (normalizedStatus) {
+      'pending' => 'coach_form_check_status_pending',
+      'processing' => 'coach_form_check_status_processing',
+      'completed' => 'coach_form_check_status_completed',
+      'failed' => 'coach_form_check_status_failed',
+      _ => null,
+    };
+    final statusLabel = statusKey == null
+        ? item.status
+        : _tr(context, statusKey, item.status);
 
     return Container(
       decoration: BoxDecoration(
@@ -979,7 +1004,7 @@ class _SubmissionCard extends StatelessWidget {
                   ),
                 ),
               ),
-              TaqaMiniTag(label: item.status.toUpperCase()),
+              TaqaMiniTag(label: statusLabel),
             ],
           ),
           SizedBox(height: TaqaUiScale.h(8)),
@@ -993,7 +1018,7 @@ class _SubmissionCard extends StatelessWidget {
               ),
               TaqaMiniTag(
                 label:
-                    '${_tr(context, 'coach_form_check_duration', 'Duration')}: ${item.durationSeconds.toStringAsFixed(1)}s',
+                    '${_tr(context, 'coach_form_check_duration', 'Duration')}: ${item.durationSeconds.toStringAsFixed(1)}${_tr(context, 'coach_form_check_seconds', 's')}',
               ),
               TaqaMiniTag(
                 label:
@@ -1091,9 +1116,7 @@ class _SubmissionCard extends StatelessWidget {
                           bullet,
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.8,
-                            ),
+                            color: TaqaUiColors.charcoal.withValues(alpha: 0.8),
                             height: 1.35,
                           ),
                         ),

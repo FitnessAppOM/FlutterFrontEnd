@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 
+import '../../localization/app_localizations.dart';
 import '../../services/daily_outlook/daily_outlook_service.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
@@ -38,11 +39,12 @@ class DailyOutlookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
     final outlook = status?.outlook;
     final generated = status?.generated == true && outlook != null;
     final tagText = generated && outlook.readinessState.trim().isNotEmpty
-        ? outlook.readinessState.trim()
-        : 'DAILY OUTLOOK';
+        ? localizedDailyOutlookReadiness(t, outlook.readinessState)
+        : t('dash_daily_outlook_tag');
     final headlineText = generated && outlook.headline.trim().isNotEmpty
         ? outlook.headline.trim()
         : generateLabel;
@@ -175,6 +177,16 @@ class DailyOutlookCard extends StatelessWidget {
       },
     );
   }
+}
+
+String localizedDailyOutlookReadiness(String Function(String) t, String raw) {
+  return switch (raw.trim().toLowerCase()) {
+    'train hard' => t('dash_daily_outlook_train_hard'),
+    'train light' => t('dash_daily_outlook_train_light'),
+    'rest & recover' ||
+    'rest and recover' => t('dash_daily_outlook_rest_recover'),
+    _ => raw.trim(),
+  };
 }
 
 class _DailyOutlookActionButton extends StatelessWidget {

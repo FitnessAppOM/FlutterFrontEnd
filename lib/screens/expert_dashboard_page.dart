@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../config/base_url.dart';
 import '../core/user_friendly_error.dart';
+import '../localization/app_localizations.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/core/pdf_open_service.dart';
@@ -1465,13 +1466,15 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context).translate;
+
     return SafeArea(
       child: Column(
         children: [
           Padding(
             padding: TaqaUiScale.insetsLTRB(16, 12, 20, 0),
             child: TaqaDashboardPageHeader(
-              title: 'Coach Dashboard',
+              title: t('expert_dashboard_title'),
               trailing: _buildInboxButton(),
             ),
           ),
@@ -1482,7 +1485,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 SizedBox(
                   width: TaqaUiScale.w(109),
                   child: TaqaPillTab(
-                    label: 'My Clients',
+                    label: t('expert_dashboard_tab_clients'),
                     active: _tabIndex == _tabMyClients,
                     onTap: () => _selectTab(_tabMyClients),
                   ),
@@ -1491,7 +1494,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 SizedBox(
                   width: TaqaUiScale.w(109),
                   child: TaqaPillTab(
-                    label: 'Programs',
+                    label: t('expert_dashboard_tab_programs'),
                     active: _tabIndex == _tabPrograms,
                     onTap: () => _selectTab(_tabPrograms),
                   ),
@@ -1500,7 +1503,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                 SizedBox(
                   width: TaqaUiScale.w(109),
                   child: TaqaPillTab(
-                    label: 'Nutrition',
+                    label: t('expert_dashboard_tab_nutrition'),
                     active: _tabIndex == _tabNutrition,
                     onTap: () => _selectTab(_tabNutrition),
                   ),

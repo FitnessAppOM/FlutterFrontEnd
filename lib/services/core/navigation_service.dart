@@ -8,6 +8,9 @@ import '../../screens/coach_page.dart';
 import '../../screens/expert_client_chat_page.dart';
 import '../../screens/expert_client_habits_page.dart';
 import '../../screens/expert_client_diet_review_page.dart';
+import '../../screens/daily_journal.dart';
+
+enum _NotificationAccessState { allowed, subscriptionRequired, unavailable }
 
 class NavigationService {
   static final GlobalKey<NavigatorState> navigatorKey =
@@ -146,6 +149,23 @@ class NavigationService {
     final nav = navigatorKey.currentState;
     if (nav == null) return false;
 
+    final access = await _cachedNotificationAccess();
+    if (access == _NotificationAccessState.unavailable) {
+      // Never consume or open a notification destination unless access was
+      // verified. Keeping it queued lets a later retry deliver it safely.
+      return false;
+    }
+    if (access == _NotificationAccessState.subscriptionRequired) {
+      setNotificationNavigationReady(false);
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => const MainLayout(initialSubscriptionRequired: true),
+        ),
+        (_) => false,
+      );
+      return true;
+    }
+
     final type = pendingType;
     final senderUserId = _pendingNotificationSenderUserId;
     final senderRole = _pendingNotificationSenderRole;
@@ -160,6 +180,18 @@ class NavigationService {
     launchedFromNotificationPayload = false;
 
     final effectiveClientId = clientUserId ?? senderUserId;
+    if (type == 'daily_journal') {
+      await navigateToJournal(fromNotification: true);
+      return true;
+    }
+    if (type == 'diet') {
+      await navigateToDiet(fromNotification: true);
+      return true;
+    }
+    if (type == 'expert_ai_updates') {
+      await navigateToExpertDashboard(fromNotification: true);
+      return true;
+    }
     if (type == 'coach_application_decision') {
       nav.pushAndRemoveUntil(
         MaterialPageRoute(
@@ -236,6 +268,18 @@ class NavigationService {
     final pendingType = (_pendingNotificationType ?? '').trim();
     if (pendingType.isEmpty) return null;
 
+    final access = initialSubscriptionRequired == true
+        ? _NotificationAccessState.subscriptionRequired
+        : initialSubscriptionRequired == false
+        ? _NotificationAccessState.allowed
+        : await _cachedNotificationAccess();
+    if (access == _NotificationAccessState.unavailable) return null;
+    if (access == _NotificationAccessState.subscriptionRequired) {
+      // Do not consume the destination. MainLayout will show the mandatory
+      // plan page, then deliver this notification after access is restored.
+      return const MainLayout(initialSubscriptionRequired: true);
+    }
+
     final type = pendingType;
     final senderUserId = _pendingNotificationSenderUserId;
     final senderRole = (_pendingNotificationSenderRole ?? '')
@@ -252,6 +296,22 @@ class NavigationService {
     _pendingNotificationCoachUserId = null;
     launchedFromNotificationPayload = false;
 
+    if (type == 'daily_journal') {
+      return const DailyJournalPage();
+    }
+    if (type == 'diet') {
+      return MainLayout(
+        initialIndex: 0,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
+    }
+    if (type == 'expert_ai_updates') {
+      return MainLayout(
+        initialIndex: MainLayout.coachTabIndex,
+        autoOpenExpertDashboard: true,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
+    }
     if (type == 'coach_application_decision') {
       return MainLayout(
         initialIndex: MainLayout.coachTabIndex,
@@ -322,6 +382,13 @@ class NavigationService {
       return CoachPage(initialTabIndex: 1, initialCoachUserId: coachUserId);
     }
     return null;
+  }
+
+  static Future<_NotificationAccessState> _cachedNotificationAccess() async {
+    final allowed = await AccountStorage.cachedSubscriptionAccessAllowed();
+    if (allowed == true) return _NotificationAccessState.allowed;
+    if (allowed == false) return _NotificationAccessState.subscriptionRequired;
+    return _NotificationAccessState.unavailable;
   }
 
   static Future<void> navigateToJournal({bool fromNotification = false}) async {

@@ -79,6 +79,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AccountStorage.subscriptionChange.addListener(_handleSubscriptionChanged);
     final idx = widget.initialIndex;
     _index = (idx >= 0 && idx < 5) ? idx : 0;
     _pages[_index] = _buildPage(_index);
@@ -90,7 +91,15 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AccountStorage.subscriptionChange.removeListener(
+      _handleSubscriptionChanged,
+    );
     super.dispose();
+  }
+
+  void _handleSubscriptionChanged() {
+    if (!mounted || !_accessGatesResolved) return;
+    unawaited(_enforceSubscriptionGate(force: true));
   }
 
   @override
@@ -98,8 +107,14 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     if (state != AppLifecycleState.resumed || !_accessGatesResolved) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-      unawaited(_enforceSubscriptionGate(force: true));
+      unawaited(_refreshAccessAndPendingNotification());
     });
+  }
+
+  Future<void> _refreshAccessAndPendingNotification() async {
+    await _enforceSubscriptionGate(force: true);
+    if (!mounted) return;
+    await NavigationService.flushPendingNotificationNavigation();
   }
 
   Future<void> _resolveAccessGates() async {
@@ -182,9 +197,12 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     _subscriptionGateInProgress = true;
 
     try {
-      var subscriptionRequired =
-          widget.initialSubscriptionRequired ??
-          await AccountStorage.isSubscriptionRequired();
+      final cachedAccess =
+          await AccountStorage.cachedSubscriptionAccessAllowed();
+      var subscriptionRequired = cachedAccess == null
+          ? widget.initialSubscriptionRequired ??
+                await AccountStorage.isSubscriptionRequired()
+          : !cachedAccess;
       if (force || widget.initialSubscriptionRequired == null) {
         final completedOnboarding =
             await AccountStorage.isQuestionnaireDone() ||
@@ -201,7 +219,13 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
               : await AppleBillingService.fetchEntitlement('coach_tools');
           subscriptionRequired =
               !normalEntitlement.active && !(coachEntitlement?.active ?? false);
-          await AccountStorage.setSubscriptionRequired(subscriptionRequired);
+          final activeEntitlement = normalEntitlement.active
+              ? normalEntitlement
+              : coachEntitlement;
+          await AccountStorage.setVerifiedSubscriptionAccess(
+            required: subscriptionRequired,
+            expiresAt: activeEntitlement?.expiresAt,
+          );
         } catch (_) {
           // Keep the last verified state during a temporary backend outage.
         }

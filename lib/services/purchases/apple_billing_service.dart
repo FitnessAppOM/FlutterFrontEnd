@@ -88,11 +88,13 @@ class StartupBootstrapSnapshot {
     required this.account,
     required this.profile,
     required this.subscriptionRequired,
+    this.subscriptionExpiresAt,
   });
 
   final Map<String, dynamic> account;
   final Map<String, dynamic> profile;
   final bool subscriptionRequired;
+  final DateTime? subscriptionExpiresAt;
 
   bool get accountDeactivated =>
       account['status']?.toString().trim().toLowerCase() == 'deactivated';
@@ -152,6 +154,10 @@ class AppleBillingService {
     }
     final account = body['account'];
     final profile = body['profile'];
+    final subscription = body['subscription'];
+    final subscriptionMap = subscription is Map
+        ? Map<String, dynamic>.from(subscription)
+        : const <String, dynamic>{};
     return StartupBootstrapSnapshot(
       account: account is Map
           ? Map<String, dynamic>.from(account)
@@ -160,6 +166,7 @@ class AppleBillingService {
           ? Map<String, dynamic>.from(profile)
           : <String, dynamic>{},
       subscriptionRequired: body['subscription_required'] == true,
+      subscriptionExpiresAt: _date(subscriptionMap['current_period_end']),
     );
   }
 
