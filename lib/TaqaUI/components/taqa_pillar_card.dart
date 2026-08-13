@@ -357,6 +357,22 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
       if (key == 'wow_change_pct') {
         return '${rawVal.toStringAsFixed(1)}%';
       }
+      if (key == 'efficiency' ||
+          key == 'deep_rem_pct' ||
+          key == 'sleep_disturbance_pct' ||
+          key == 'hrv_drop_pct' ||
+          key == 'rhr_rise_pct') {
+        return '${rawVal.toStringAsFixed(1)}%';
+      }
+      if (key == 'hrv_today_ms' || key == 'hrv_baseline_ms') {
+        return '${rawVal.toStringAsFixed(1)} ms';
+      }
+      if (key == 'resting_hr_today_bpm' || key == 'resting_hr_baseline_bpm') {
+        return '${rawVal.toStringAsFixed(1)} bpm';
+      }
+      if (key == 'hrv_baseline_days') {
+        return rawVal.toInt().toString();
+      }
       if (key == 'efficiency_ratio') {
         return rawVal.toStringAsFixed(3);
       }

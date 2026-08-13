@@ -373,6 +373,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           'architecture_score': t("taqa_detail_architecture"),
           'deep_rem_pct': t("taqa_detail_deep_rem"),
           'disturbance_penalty': t("taqa_detail_disturbance"),
+          'source_provider': t("taqa_detail_source_provider"),
+          'native_score_capability': t("taqa_detail_native_capability"),
         },
       ),
     );
@@ -393,6 +395,13 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           'rhr_ratio': 'RHR ratio',
           'sleep_component': t("taqa_detail_sleep_comp"),
           'fatigue_component': t("taqa_detail_fatigue"),
+          'hrv_today_ms': t("taqa_detail_hrv_today"),
+          'hrv_baseline_ms': t("taqa_detail_hrv_baseline"),
+          'hrv_baseline_days': t("taqa_detail_hrv_baseline_days"),
+          'resting_hr_today_bpm': t("taqa_detail_rhr_today"),
+          'resting_hr_baseline_bpm': t("taqa_detail_rhr_baseline"),
+          'source_provider': t("taqa_detail_source_provider"),
+          'native_score_capability': t("taqa_detail_native_capability"),
         },
       ),
     );
@@ -410,6 +419,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           'hrv_drop_pct': t("taqa_detail_hrv_drop"),
           'rhr_rise_pct': t("taqa_detail_rhr_rise"),
           'sleep_disturbance_pct': t("taqa_detail_sleep_disturb"),
+          'source_provider': t("taqa_detail_source_provider"),
+          'native_score_capability': t("taqa_detail_native_capability"),
         },
       ),
     );

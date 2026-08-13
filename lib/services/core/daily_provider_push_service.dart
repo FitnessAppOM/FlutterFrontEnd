@@ -1,6 +1,7 @@
 import '../fitbit/fitbit_daily_sync.dart';
 import '../metrics/daily_metrics_sync.dart';
 import '../whoop/whoop_daily_sync.dart';
+import '../scores/taqa_score_api.dart';
 
 class DailyProviderPushService {
   static const int localStartHour = 1; // 1:00 AM local device time
@@ -59,6 +60,7 @@ class DailyProviderPushService {
         // ignore: avoid_print
         print("DailyProviderPushService: fitbit sync failed: $e");
       }
+      TaqaScoreApi.clearCache();
     } finally {
       _inFlight = false;
     }

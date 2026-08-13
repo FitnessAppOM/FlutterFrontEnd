@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import '../../core/account_storage.dart';
 import '../diet/calories_service.dart';
@@ -68,6 +69,8 @@ class DailyMetricsSync {
       sleepMinutesRem: sleepMetrics?.remMinutes,
       restingHr: recoveryLoad?.restingHeartRate,
       hrvMs: recoveryLoad?.hrvMs,
+      sourceProvider: Platform.isIOS ? 'healthkit' : 'health_connect',
+      hrvMetricType: Platform.isIOS ? 'sdnn' : 'rmssd',
       activeMinutes: recoveryLoad?.activeMinutes,
       workoutMinutes: recoveryLoad?.workoutMinutes,
       heartZoneOutOfRangeMinutes: recoveryLoad?.zones?.outOfRangeMinutes,
