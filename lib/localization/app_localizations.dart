@@ -994,6 +994,7 @@ class AppLocalizations {
 
       "training_location": "Where do you train?",
       "gym": "Gym",
+      "hospital": "Hospital",
       "home": "Home",
       "hybrid": "Hybrid",
 
@@ -1049,7 +1050,9 @@ class AppLocalizations {
       "water_intake": "Daily water intake",
       "meal_plan": "Meal plan type",
       "low_budget": "Low budget",
+      "low": "Low",
       "moderate": "Moderate",
+      "high": "High",
 
       "daily_activity": "Daily activity level",
       "sedentary": "Sedentary (desk job)",
@@ -1079,6 +1082,7 @@ class AppLocalizations {
       "affiliation_other_hint": "Type the gym, clinic, or organization name",
       "affiliation_help":
           "Choose from the list or type it if you don't see it.",
+      "didnt_find_affiliation": "Can't find your affiliation?",
       "affiliation_required": "Please pick an affiliation or type one.",
       "affiliation_none_value": "Not affiliated",
       "affiliation_prompt": "Are you affiliated with a gym/hospital?",
@@ -3284,6 +3288,7 @@ class AppLocalizations {
 
       "training_location": "مكان التدريب",
       "gym": "نادي رياضي",
+      "hospital": "مستشفى",
       "home": "المنزل",
       "hybrid": "كلاهما",
 
@@ -3339,7 +3344,9 @@ class AppLocalizations {
       "water_intake": "كمية الماء اليومية",
       "meal_plan": "نوع خطة الوجبات",
       "low_budget": "ميزانية منخفضة",
+      "low": "منخفض",
       "moderate": "متوسطة",
+      "high": "مرتفع",
 
       "daily_activity": "مستوى النشاط اليومي",
       "sedentary": "خامل (عمل مكتبي)",
@@ -3368,6 +3375,7 @@ class AppLocalizations {
       "affiliation_other": "جهة أخرى",
       "affiliation_other_hint": "اكتب اسم النادي أو العيادة أو الجهة",
       "affiliation_help": "اختر من القائمة أو اكتبها إذا لم تجدها.",
+      "didnt_find_affiliation": "لم تجد جهة انتسابك؟",
       "affiliation_required": "يرجى اختيار جهة أو كتابتها.",
       "affiliation_none_value": "بدون جهة",
       "affiliation_prompt": "هل أنت منتسب لنادٍ أو مستشفى؟",

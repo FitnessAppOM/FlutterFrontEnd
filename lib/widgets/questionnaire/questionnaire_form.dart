@@ -158,8 +158,13 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         _affiliationCategories = categories.where((c) {
           if (_isOther(c)) return false;
 
-          final isGym = _norm(c) == _norm(_t("gym"));
-          final isHospital = _norm(c) == _norm(_t("hospital"));
+          final normalizedCategory = _norm(c);
+          final isGym =
+              normalizedCategory == "gym" ||
+              normalizedCategory == _norm(_t("gym"));
+          final isHospital =
+              normalizedCategory == "hospital" ||
+              normalizedCategory == _norm(_t("hospital"));
 
           if (_isPhysicalRehab == true) {
             return isGym || isHospital;
@@ -471,6 +476,22 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       .replaceAll('-', ' ')
       .replaceAll('–', ' ')
       .trim();
+
+  String _affiliationCategoryLabel(String value) {
+    final normalized = _norm(value);
+    if (normalized == "gym" || normalized == _norm(_t("gym"))) {
+      return _t("gym");
+    }
+    if (normalized == "hospital" || normalized == _norm(_t("hospital"))) {
+      return _t("hospital");
+    }
+
+    return normalized
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
 
   String _toEnglishChoice(String value, List<String> keys) {
     final normalized = _norm(value);
@@ -1014,6 +1035,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             label: _t("affiliation_category"),
             value: _selectedAffiliationCategory,
             options: _affiliationCategories,
+            itemLabelBuilder: _affiliationCategoryLabel,
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
                   (_affiliationOtherCtrl.text.trim().isEmpty) &&
