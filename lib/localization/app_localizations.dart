@@ -78,6 +78,22 @@ class AppLocalizations {
       "signup_password_rule_symbol": "One symbol (e.g. ! @ # \$ %)",
       "signup_password_weak": "Please meet all password requirements.",
       "signup_failed": "Signup failed.",
+      "referral_onboarding_title": "Referral",
+      "referral_onboarding_heading": "Do you have a referral code?",
+      "referral_onboarding_body":
+          "Enter the code a friend or coach shared with you. This optional step is only available while creating your account.",
+      "referral_onboarding_code_label": "Referral code",
+      "referral_onboarding_code_hint": "Enter your code",
+      "referral_onboarding_code_required": "Enter a referral code first.",
+      "referral_onboarding_error":
+          "Could not save your referral choice. Please try again.",
+      "referral_apply_code": "Apply code",
+      "referral_no_code": "I don't have a code",
+      "referral_skip_title": "Continue without a referral code?",
+      "referral_skip_body":
+          "Referral codes can only be entered during signup. You won't be able to add one later for this account.",
+      "referral_enter_code": "Enter a code",
+      "referral_continue_without": "Continue without a code",
       "google_signup": "Continue with Google",
       "google_success_message": "Signed in with Google. Welcome!",
       "signup_expert_title": "Create Expert Account",
@@ -357,6 +373,22 @@ class AppLocalizations {
       "diet_clear_meal_confirm_button": "Clear",
       "diet_clear_meal_success": "Meal cleared",
       "diet_clear_meal_failed": "Failed to clear meal",
+      "diet_suggestions_title": "Diet Suggestions",
+      "diet_suggestions_default_message":
+          "Here are a few ideas to finish your day.",
+      "diet_suggestions_remaining_message":
+          "You have about {calories} kcal left today. Here are a few ideas to finish your day.",
+      "diet_suggestions_close": "Close",
+      "diet_suggestions_loading": "Loading suggestions...",
+      "diet_suggestions_failed":
+          "Couldn't load suggestions right now. Please try again later.",
+      "diet_suggestions_empty": "No suggestions right now.",
+      "diet_suggestions_option": "Option",
+      "diet_suggestions_macros":
+          "{calories} kcal • P {protein} • C {carbs} • F {fat}",
+      "diet_checkin_notification_title": "Diet check-in",
+      "diet_checkin_notification_body":
+          "Check your remaining calories. Tap to log your food.",
 
       "sec_basic_title": "Basic Info",
       "sec_goals_title": "Goals & Motivation",
@@ -820,6 +852,70 @@ class AppLocalizations {
       "community_progress_unit": "Progress Unit",
       "community_active": "Active",
       "community_report_content": "Report content",
+      "community_report_submitted": "Report submitted.",
+      "community_feed_item_hidden": "Feed item hidden.",
+      "community_group_created": "Group created.",
+      "community_group_updated": "Group updated.",
+      "community_group_left": "Group left.",
+      "community_group_joined": "Joined group.",
+      "community_joined_named_group": "Joined {name}.",
+      "community_invite_code_help":
+          "Share this 6-digit code with anyone you want to invite.",
+      "community_leave_group_body":
+          "You can rejoin later if the group is public or if you still have the private code.",
+      "community_leave": "Leave",
+      "community_reset_code_body":
+          "Anyone using the old 6-digit code will lose access to join.",
+      "community_reset": "Reset",
+      "community_new_code_help":
+          "The previous invite code no longer works. Share this new code with members you want to invite.",
+      "community_archive_group_confirm_body":
+          "This will archive the group and remove it from normal community use.",
+      "community_archive": "Archive",
+      "community_group_archived": "Group archived.",
+      "community_no_weekly_breakdown_body":
+          "Your overall challenge progress is shown above. Detailed periods will appear when this challenge records them.",
+      "community_badges_empty_body":
+          "Your earned community milestones will appear here automatically.",
+      "community_report_updated": "Report updated.",
+      "community_moderation_applied": "Moderation action applied.",
+      "community_status_open": "Open",
+      "community_status_reviewing": "Reviewing",
+      "community_status_resolved": "Resolved",
+      "community_status_dismissed": "Dismissed",
+      "community_no_reports": "No reports",
+      "community_no_matching_reports": "No matching reports",
+      "community_no_reports_body": "The moderation queue is currently clear.",
+      "community_no_matching_reports_body":
+          "Try a different combination of report statuses.",
+      "community_remove_member_body": "This will remove {name} from the group.",
+      "community_member_removed": "Member removed.",
+      "community_give_admin_body":
+          "Give {name} admin access for this community.",
+      "community_remove_admin_body": "Remove admin access from {name}.",
+      "community_promote": "Promote",
+      "community_demote": "Demote",
+      "community_member_promoted": "Member promoted.",
+      "community_member_demoted": "Member demoted.",
+      "community_transfer_admin_body": "Make {name} the new group admin.",
+      "community_transfer": "Transfer",
+      "community_admin_transferred": "Admin transferred.",
+      "community_pin_created": "Pin created.",
+      "community_pin_updated": "Pin updated.",
+      "community_delete_pin_body":
+          "This will remove the pinned item from the group.",
+      "community_pin_deleted": "Pin deleted.",
+      "community_share_taqa_score":
+          "Share your Taqa Fitness Score with this group.",
+      "community_share_daily_movement":
+          "Share your daily movement with this group.",
+      "community_share_wearable_data":
+          "Share your wearable data with this group.",
+      "community_share_wellness": "Share your wellness data with this group.",
+      "community_group_name_min_length":
+          "Group name must be at least 3 characters.",
+      "community_create_pin": "Create pin",
+      "community_edit_pin": "Edit pin",
 
       "sex": "Sex",
       "male": "Male",
@@ -2296,6 +2392,21 @@ class AppLocalizations {
       "signup_password_rule_symbol": "رمز واحد (مثل ! @ # \$ %)",
       "signup_password_weak": "يرجى استيفاء جميع متطلبات كلمة المرور.",
       "signup_failed": "فشل في إنشاء الحساب.",
+      "referral_onboarding_title": "الإحالة",
+      "referral_onboarding_heading": "هل لديك رمز إحالة؟",
+      "referral_onboarding_body":
+          "أدخل الرمز الذي شاركه معك صديق أو مدرب. هذه الخطوة اختيارية ومتاحة فقط أثناء إنشاء الحساب.",
+      "referral_onboarding_code_label": "رمز الإحالة",
+      "referral_onboarding_code_hint": "أدخل الرمز",
+      "referral_onboarding_code_required": "أدخل رمز الإحالة أولاً.",
+      "referral_onboarding_error": "تعذر حفظ اختيار الإحالة. حاول مرة أخرى.",
+      "referral_apply_code": "استخدام الرمز",
+      "referral_no_code": "ليس لدي رمز",
+      "referral_skip_title": "المتابعة من دون رمز إحالة؟",
+      "referral_skip_body":
+          "يمكن إدخال رمز الإحالة أثناء التسجيل فقط، ولن تتمكن من إضافته لاحقاً لهذا الحساب.",
+      "referral_enter_code": "إدخال رمز",
+      "referral_continue_without": "المتابعة من دون رمز",
       "google_signup": "المتابعة عبر Google",
       "google_success_message": "تم تسجيل الدخول عبر Google. أهلاً بعودتك!",
       "signup_expert_title": "إنشاء حساب خبير",
@@ -2570,6 +2681,21 @@ class AppLocalizations {
       "diet_clear_meal_confirm_button": "تفريغ",
       "diet_clear_meal_success": "تم تفريغ الوجبة",
       "diet_clear_meal_failed": "فشل تفريغ الوجبة",
+      "diet_suggestions_title": "اقتراحات النظام الغذائي",
+      "diet_suggestions_default_message": "إليك بعض الأفكار لإكمال يومك.",
+      "diet_suggestions_remaining_message":
+          "تبقى لك نحو {calories} سعرة حرارية اليوم. إليك بعض الأفكار لإكمال يومك.",
+      "diet_suggestions_close": "إغلاق",
+      "diet_suggestions_loading": "جارٍ تحميل الاقتراحات...",
+      "diet_suggestions_failed":
+          "تعذر تحميل الاقتراحات الآن. يرجى المحاولة لاحقاً.",
+      "diet_suggestions_empty": "لا توجد اقتراحات الآن.",
+      "diet_suggestions_option": "خيار",
+      "diet_suggestions_macros":
+          "{calories} سعرة • بروتين {protein} • كربوهيدرات {carbs} • دهون {fat}",
+      "diet_checkin_notification_title": "متابعة النظام الغذائي",
+      "diet_checkin_notification_body":
+          "تحقق من السعرات الحرارية المتبقية. اضغط لتسجيل طعامك.",
 
       "sec_basic_title": "المعلومات الأساسية",
       "sec_goals_title": "الأهداف والدوافع",
@@ -3019,6 +3145,67 @@ class AppLocalizations {
       "community_progress_unit": "وحدة التقدم",
       "community_active": "نشط",
       "community_report_content": "الإبلاغ عن المحتوى",
+      "community_report_submitted": "تم إرسال البلاغ.",
+      "community_feed_item_hidden": "تم إخفاء عنصر الموجز.",
+      "community_group_created": "تم إنشاء المجموعة.",
+      "community_group_updated": "تم تحديث المجموعة.",
+      "community_group_left": "تمت مغادرة المجموعة.",
+      "community_group_joined": "تم الانضمام إلى المجموعة.",
+      "community_joined_named_group": "تم الانضمام إلى {name}.",
+      "community_invite_code_help":
+          "شارك هذا الرمز المكوّن من 6 أرقام مع من تريد دعوتهم.",
+      "community_leave_group_body":
+          "يمكنك الانضمام مجدداً لاحقاً إذا كانت المجموعة عامة أو إذا كان رمز المجموعة الخاصة لا يزال معك.",
+      "community_leave": "مغادرة",
+      "community_reset_code_body":
+          "لن يتمكن أي شخص يستخدم الرمز القديم المكوّن من 6 أرقام من الانضمام.",
+      "community_reset": "إعادة تعيين",
+      "community_new_code_help":
+          "لم يعد رمز الدعوة السابق صالحاً. شارك هذا الرمز الجديد مع الأعضاء الذين تريد دعوتهم.",
+      "community_archive_group_confirm_body":
+          "سيؤدي هذا إلى أرشفة المجموعة وإزالتها من الاستخدام المعتاد للمجتمع.",
+      "community_archive": "أرشفة",
+      "community_group_archived": "تمت أرشفة المجموعة.",
+      "community_no_weekly_breakdown_body":
+          "يظهر تقدمك الإجمالي في التحدي أعلاه. ستظهر الفترات التفصيلية عندما يسجلها هذا التحدي.",
+      "community_badges_empty_body": "ستظهر إنجازاتك في المجتمع هنا تلقائياً.",
+      "community_report_updated": "تم تحديث البلاغ.",
+      "community_moderation_applied": "تم تطبيق إجراء الإشراف.",
+      "community_status_open": "مفتوح",
+      "community_status_reviewing": "قيد المراجعة",
+      "community_status_resolved": "تم الحل",
+      "community_status_dismissed": "مرفوض",
+      "community_no_reports": "لا توجد بلاغات",
+      "community_no_matching_reports": "لا توجد بلاغات مطابقة",
+      "community_no_reports_body": "قائمة الإشراف فارغة حالياً.",
+      "community_no_matching_reports_body":
+          "جرّب مجموعة مختلفة من حالات البلاغات.",
+      "community_remove_member_body": "سيؤدي هذا إلى إزالة {name} من المجموعة.",
+      "community_member_removed": "تمت إزالة العضو.",
+      "community_give_admin_body":
+          "امنح {name} صلاحية الإشراف على هذا المجتمع.",
+      "community_remove_admin_body": "أزل صلاحية الإشراف من {name}.",
+      "community_promote": "ترقية",
+      "community_demote": "إلغاء الترقية",
+      "community_member_promoted": "تمت ترقية العضو.",
+      "community_member_demoted": "تم إلغاء ترقية العضو.",
+      "community_transfer_admin_body": "عيّن {name} مشرفاً جديداً للمجموعة.",
+      "community_transfer": "نقل",
+      "community_admin_transferred": "تم نقل الإشراف.",
+      "community_pin_created": "تم إنشاء العنصر المثبت.",
+      "community_pin_updated": "تم تحديث العنصر المثبت.",
+      "community_delete_pin_body":
+          "سيؤدي هذا إلى إزالة العنصر المثبت من المجموعة.",
+      "community_pin_deleted": "تم حذف العنصر المثبت.",
+      "community_share_taqa_score":
+          "شارك درجة Taqa Fitness الخاصة بك مع هذه المجموعة.",
+      "community_share_daily_movement": "شارك حركتك اليومية مع هذه المجموعة.",
+      "community_share_wearable_data":
+          "شارك بيانات جهازك القابل للارتداء مع هذه المجموعة.",
+      "community_share_wellness": "شارك بيانات عافيتك مع هذه المجموعة.",
+      "community_group_name_min_length": "يجب ألا يقل اسم المجموعة عن 3 أحرف.",
+      "community_create_pin": "إنشاء عنصر مثبت",
+      "community_edit_pin": "تعديل العنصر المثبت",
 
       "sex": "الجنس",
       "male": "ذكر",

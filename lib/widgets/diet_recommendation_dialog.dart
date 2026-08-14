@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import '../theme/app_theme.dart';
 
 /// Result of the recommendation fetch, surfaced to the dialog so it can swap the
@@ -19,18 +20,19 @@ class DietRecommendationResult {
 /// from [optionsFuture]; otherwise we briefly show a spinner until it resolves.
 Future<void> showDietRecommendationDialog({
   required BuildContext context,
-  String title = "Diet Suggestions",
+  String? title,
   String? message,
   List<Map<String, dynamic>>? options,
   int? remainingCalories,
   Future<DietRecommendationResult>? optionsFuture,
 }) {
+  final t = AppLocalizations.of(context);
   return showDialog<void>(
     context: context,
     builder: (ctx) {
       return _DietRecommendationDialog(
-        title: title,
-        initialMessage: message ?? _defaultHeaderMessage(remainingCalories),
+        title: title ?? t.translate('diet_suggestions_title'),
+        initialMessage: message ?? _defaultHeaderMessage(t, remainingCalories),
         initialOptions: options ?? const [],
         optionsFuture: optionsFuture,
       );
@@ -38,12 +40,13 @@ Future<void> showDietRecommendationDialog({
   );
 }
 
-String _defaultHeaderMessage(int? remainingCalories) {
+String _defaultHeaderMessage(AppLocalizations t, int? remainingCalories) {
   if (remainingCalories != null && remainingCalories > 0) {
-    return "You have about $remainingCalories kcal left today. "
-        "Here are a few ideas to finish your day.";
+    return t
+        .translate('diet_suggestions_remaining_message')
+        .replaceAll('{calories}', '$remainingCalories');
   }
-  return "Here are a few ideas to finish your day.";
+  return t.translate('diet_suggestions_default_message');
 }
 
 class _DietRecommendationDialog extends StatefulWidget {
@@ -79,25 +82,28 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
 
     final future = widget.optionsFuture;
     if (future != null) {
-      future.then((result) {
-        if (!mounted) return;
-        setState(() {
-          _message = result.message.isNotEmpty ? result.message : _message;
-          _options = result.options;
-          _loadingOptions = false;
-        });
-      }).catchError((_) {
-        if (!mounted) return;
-        setState(() {
-          _loadingOptions = false;
-          _failed = true;
-        });
-      });
+      future
+          .then((result) {
+            if (!mounted) return;
+            setState(() {
+              _message = result.message.isNotEmpty ? result.message : _message;
+              _options = result.options;
+              _loadingOptions = false;
+            });
+          })
+          .catchError((_) {
+            if (!mounted) return;
+            setState(() {
+              _loadingOptions = false;
+              _failed = true;
+            });
+          });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Dialog(
       backgroundColor: AppColors.cardDark,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -120,7 +126,10 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
               const SizedBox(height: 8),
               Text(
                 _message,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 12,
+                ),
               ),
               const SizedBox(height: 14),
               _buildBody(),
@@ -131,13 +140,18 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                      side: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
-                  child: const Text("Close"),
+                  child: Text(t.translate('diet_suggestions_close')),
                 ),
               ),
             ],
@@ -148,18 +162,25 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
   }
 
   Widget _buildBody() {
+    final t = AppLocalizations.of(context);
     if (_loadingOptions) {
       return Row(
         children: [
           const SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.accent,
+            ),
           ),
           const SizedBox(width: 10),
           Text(
-            "Loading suggestions...",
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            t.translate('diet_suggestions_loading'),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
           ),
         ],
       );
@@ -168,9 +189,12 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
     if (_options.isEmpty) {
       return Text(
         _failed
-            ? "Couldn't load suggestions right now. Please try again later."
-            : "No suggestions right now.",
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            ? t.translate('diet_suggestions_failed')
+            : t.translate('diet_suggestions_empty'),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.7),
+          fontSize: 12,
+        ),
       );
     }
 
@@ -181,7 +205,8 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
         separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           final opt = _options[i];
-          final title = (opt["title"] ?? "Option").toString();
+          final title = (opt["title"] ?? t.translate('diet_suggestions_option'))
+              .toString();
           final how = (opt["how_to_eat"] ?? "").toString();
           final cals = opt["estimated_calories"] ?? 0;
           final p = opt["estimated_protein_g"] ?? 0;
@@ -217,7 +242,12 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
                 ],
                 const SizedBox(height: 8),
                 Text(
-                  "$cals kcal • P $p • C $c • F $f",
+                  t
+                      .translate('diet_suggestions_macros')
+                      .replaceAll('{calories}', '$cals')
+                      .replaceAll('{protein}', '$p')
+                      .replaceAll('{carbs}', '$c')
+                      .replaceAll('{fat}', '$f'),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 12,

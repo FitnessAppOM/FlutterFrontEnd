@@ -301,13 +301,19 @@ class DietPageState extends State<DietPage> {
 
     // Kick off the fetch immediately, but open the dialog right away with the
     // remaining-calorie number we already have cached — no blank "please wait".
-    final optionsFuture = DietService.fetchRemainingRecommendations(userId)
-        .then((data) {
+    final t = AppLocalizations.of(context);
+    final languageCode = t.locale.languageCode == 'ar' ? 'ar' : 'en';
+    final optionsFuture =
+        DietService.fetchRemainingRecommendations(
+          userId,
+          languageCode: languageCode,
+        ).then((data) {
           final rec = (data["recommendation"] is Map)
               ? data["recommendation"] as Map
               : const {};
           final message =
-              (rec["message"] ?? "Here are a few ideas to finish your day.")
+              (rec["message"] ??
+                      t.translate('diet_suggestions_default_message'))
                   .toString();
           final optionsRaw = rec["options"];
           final options = (optionsRaw is List)
@@ -326,7 +332,7 @@ class DietPageState extends State<DietPage> {
 
     await showDietRecommendationDialog(
       context: context,
-      title: "Diet Suggestions",
+      title: t.translate('diet_suggestions_title'),
       remainingCalories: _cachedRemainingCalories(),
       optionsFuture: optionsFuture,
     );

@@ -710,11 +710,13 @@ class DietService {
     int userId, {
     DateTime? date,
     int? trainingDayId,
+    String languageCode = 'en',
   }) async {
     final d = date ?? DateTime.now();
     final qp = <String, String>{
       'meal_date': _dateParam(d),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
+      'locale': languageCode == 'ar' ? 'ar' : 'en',
     };
     final url = Uri.parse(
       '$baseUrl/diet/recommendations/$userId/remaining',

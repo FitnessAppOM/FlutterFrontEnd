@@ -179,7 +179,7 @@ class DashboardPageState extends State<DashboardPage>
   static final Map<String, List<double>> _trendCaloriesWeekCache = {};
   final Map<DateTime, Map<String, dynamic>> _dietSummaryCache = {};
   final Map<DateTime, _ExerciseProgressSnapshot> _exerciseProgressCache = {};
-  final Map<DateTime, DailyOutlookStatus?> _dailyOutlookCache = {};
+  final Map<String, DailyOutlookStatus?> _dailyOutlookCache = {};
   final Map<DateTime, TaqaDailyScore?> _taqaScoreCache = {};
   final Map<DateTime, DateTime> _taqaScoreCacheAt = {};
   static const Duration _taqaScoreLiveDayTtl = Duration(seconds: 60);
@@ -201,6 +201,7 @@ class DashboardPageState extends State<DashboardPage>
 
   List<NewsItem> _news = const [];
   String _newsLanguageCode = 'en';
+  String _dailyOutlookLanguageCode = 'en';
   int _newsRequestId = 0;
   bool _loading = true;
   String? _error;
@@ -278,12 +279,23 @@ class DashboardPageState extends State<DashboardPage>
     return _exerciseProgressCache[_dayKey(date)];
   }
 
-  bool _hasDailyOutlookCache(DateTime date) {
-    return _dailyOutlookCache.containsKey(_dayKey(date));
+  String _dailyOutlookCacheKey(DateTime date, String languageCode) {
+    final day = _dayKey(date);
+    final locale = languageCode == 'ar' ? 'ar' : 'en';
+    return '${day.year}-${day.month}-${day.day}|$locale';
   }
 
-  DailyOutlookStatus? _readDailyOutlookCache(DateTime date) {
-    return _dailyOutlookCache[_dayKey(date)];
+  bool _hasDailyOutlookCache(DateTime date, String languageCode) {
+    return _dailyOutlookCache.containsKey(
+      _dailyOutlookCacheKey(date, languageCode),
+    );
+  }
+
+  DailyOutlookStatus? _readDailyOutlookCache(
+    DateTime date,
+    String languageCode,
+  ) {
+    return _dailyOutlookCache[_dailyOutlookCacheKey(date, languageCode)];
   }
 
   bool _hasTaqaScoreCache(DateTime scoreDate) {
@@ -343,8 +355,12 @@ class DashboardPageState extends State<DashboardPage>
     }
   }
 
-  void _writeDailyOutlookCache(DateTime date, DailyOutlookStatus? status) {
-    _dailyOutlookCache[_dayKey(date)] = status;
+  void _writeDailyOutlookCache(
+    DateTime date,
+    String languageCode,
+    DailyOutlookStatus? status,
+  ) {
+    _dailyOutlookCache[_dailyOutlookCacheKey(date, languageCode)] = status;
     if (_dailyOutlookCache.length > 120) {
       final keys = _dailyOutlookCache.keys.toList()..sort();
       while (_dailyOutlookCache.length > 120 && keys.isNotEmpty) {
@@ -560,8 +576,14 @@ class DashboardPageState extends State<DashboardPage>
     final cachedExercise = _readExerciseProgressCache(next);
     final hasCachedExercise =
         cachedExercise != null || (nextIsToday && hasCachedToday);
-    final hasCachedOutlook = _hasDailyOutlookCache(next);
-    final cachedOutlook = _readDailyOutlookCache(next);
+    final hasCachedOutlook = _hasDailyOutlookCache(
+      next,
+      _dailyOutlookLanguageCode,
+    );
+    final cachedOutlook = _readDailyOutlookCache(
+      next,
+      _dailyOutlookLanguageCode,
+    );
     final nextScoreDate = _taqaScoreDateForDate(next);
     final hasCachedTaqa = _hasTaqaScoreCache(nextScoreDate);
     final cachedTaqa = _readTaqaScoreCache(nextScoreDate);
@@ -684,9 +706,15 @@ class DashboardPageState extends State<DashboardPage>
     final languageCode = Localizations.localeOf(context).languageCode == 'ar'
         ? 'ar'
         : 'en';
-    if (_newsLanguageCode == languageCode) return;
-    _newsLanguageCode = languageCode;
-    unawaited(_loadNews(languageCode: languageCode));
+    if (_newsLanguageCode != languageCode) {
+      _newsLanguageCode = languageCode;
+      unawaited(_loadNews(languageCode: languageCode));
+    }
+    if (_dailyOutlookLanguageCode != languageCode) {
+      _dailyOutlookLanguageCode = languageCode;
+      _dailyOutlookReqId++;
+      unawaited(_loadDailyOutlookStatus());
+    }
   }
 
   Future<void> _showUpdateAndReleaseNotes() async {
@@ -1854,8 +1882,11 @@ class DashboardPageState extends State<DashboardPage>
     }
 
     final targetDate = _dayKey(_selectedDate);
-    final hasCached = _hasDailyOutlookCache(targetDate);
-    final cached = _readDailyOutlookCache(targetDate);
+    final languageCode = Localizations.localeOf(context).languageCode == 'ar'
+        ? 'ar'
+        : 'en';
+    final hasCached = _hasDailyOutlookCache(targetDate, languageCode);
+    final cached = _readDailyOutlookCache(targetDate, languageCode);
 
     final reqId = ++_dailyOutlookReqId;
     if (mounted) {
@@ -1870,16 +1901,21 @@ class DashboardPageState extends State<DashboardPage>
     final result = await DailyOutlookApi.fetchDaily(
       userId: userId,
       date: targetDate,
+      languageCode: languageCode,
       forceRefresh: force,
     );
     if (!mounted) return;
     if (reqId != _dailyOutlookReqId) return;
     if (_dayKey(_selectedDate) != targetDate) return;
+    if ((Localizations.localeOf(context).languageCode == 'ar' ? 'ar' : 'en') !=
+        languageCode) {
+      return;
+    }
     final currentUserId = await AccountStorage.getUserId();
     if (currentUserId != userId) return;
 
     final nextStatus = result ?? (hasCached ? cached : null);
-    _writeDailyOutlookCache(targetDate, nextStatus);
+    _writeDailyOutlookCache(targetDate, languageCode, nextStatus);
     setState(() {
       _dailyOutlook = nextStatus;
       _dailyOutlookLoading = false;
@@ -1891,6 +1927,9 @@ class DashboardPageState extends State<DashboardPage>
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0 || !mounted) return;
     final targetDate = _dayKey(_selectedDate);
+    final languageCode = Localizations.localeOf(context).languageCode == 'ar'
+        ? 'ar'
+        : 'en';
     if (targetDate != _dashboardToday()) return;
 
     setState(() => _dailyOutlookGenerating = true);
@@ -1900,14 +1939,21 @@ class DashboardPageState extends State<DashboardPage>
       final result = await DailyOutlookApi.generateDaily(
         userId: userId,
         date: targetDate,
+        languageCode: languageCode,
       );
       if (!mounted) return;
       if (_dayKey(_selectedDate) != targetDate) return;
+      if ((Localizations.localeOf(context).languageCode == 'ar'
+              ? 'ar'
+              : 'en') !=
+          languageCode) {
+        return;
+      }
       if (result != null) {
         setState(() {
           _dailyOutlook = result;
         });
-        _writeDailyOutlookCache(targetDate, result);
+        _writeDailyOutlookCache(targetDate, languageCode, result);
         if (result.generatedNow) {
           AppToast.show(
             context,

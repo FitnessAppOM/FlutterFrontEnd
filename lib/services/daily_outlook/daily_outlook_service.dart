@@ -16,6 +16,7 @@ class DailyOutlookData {
   final String summary;
   final List<String> actionItems;
   final String cautionNote;
+  final String locale;
   final DateTime? generatedAt;
 
   const DailyOutlookData({
@@ -28,6 +29,7 @@ class DailyOutlookData {
     required this.summary,
     required this.actionItems,
     required this.cautionNote,
+    this.locale = 'en',
     this.provider,
     this.generatedAt,
   });
@@ -51,6 +53,7 @@ class DailyOutlookData {
       summary: (json['summary'] as String?) ?? '',
       actionItems: items,
       cautionNote: (json['caution_note'] as String?) ?? '',
+      locale: (json['locale'] as String?) ?? 'en',
       generatedAt: json['generated_at'] is String
           ? DateTime.tryParse(json['generated_at'] as String)
           : null,
@@ -99,8 +102,11 @@ class DailyOutlookApi {
     _inFlight.clear();
   }
 
-  static String _dayKey(int userId, DateTime date) =>
-      "$userId|${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  static String _normalizedLocale(String languageCode) =>
+      languageCode == 'ar' ? 'ar' : 'en';
+
+  static String _dayKey(int userId, DateTime date, String languageCode) =>
+      "$userId|${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}|${_normalizedLocale(languageCode)}";
 
   static String _fmtDate(DateTime d) =>
       "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
@@ -108,13 +114,15 @@ class DailyOutlookApi {
   static Future<DailyOutlookStatus?> fetchDaily({
     required int userId,
     required DateTime date,
+    required String languageCode,
     bool forceRefresh = false,
   }) async {
-    final key = _dayKey(userId, date);
+    final locale = _normalizedLocale(languageCode);
+    final key = _dayKey(userId, date, locale);
     if (!forceRefresh && _cache.containsKey(key)) return _cache[key];
     if (_inFlight.containsKey(key)) return _inFlight[key];
 
-    final future = _doFetchDaily(userId, date, key);
+    final future = _doFetchDaily(userId, date, locale, key);
     _inFlight[key] = future;
     try {
       return await future;
@@ -126,6 +134,7 @@ class DailyOutlookApi {
   static Future<DailyOutlookStatus?> _doFetchDaily(
     int userId,
     DateTime date,
+    String locale,
     String cacheKey,
   ) async {
     final headers = await AccountStorage.getAuthHeaders();
@@ -133,8 +142,8 @@ class DailyOutlookApi {
 
     final dateStr = _fmtDate(date);
     final url = Uri.parse(
-      "${ApiConfig.baseUrl}/daily-outlook/$userId/daily?date=$dateStr",
-    );
+      "${ApiConfig.baseUrl}/daily-outlook/$userId/daily",
+    ).replace(queryParameters: {'date': dateStr, 'locale': locale});
 
     try {
       final resp = await http.get(url, headers: headers);
@@ -158,6 +167,7 @@ class DailyOutlookApi {
   static Future<DailyOutlookStatus?> generateDaily({
     required int userId,
     required DateTime date,
+    required String languageCode,
   }) async {
     final headers = {
       "Content-Type": "application/json",
@@ -166,9 +176,10 @@ class DailyOutlookApi {
     if (!headers.containsKey("Authorization")) return null;
 
     final dateStr = _fmtDate(date);
+    final locale = _normalizedLocale(languageCode);
     final url = Uri.parse(
-      "${ApiConfig.baseUrl}/daily-outlook/$userId/generate?date=$dateStr",
-    );
+      "${ApiConfig.baseUrl}/daily-outlook/$userId/generate",
+    ).replace(queryParameters: {'date': dateStr, 'locale': locale});
 
     final resp = await http.post(url, headers: headers);
     final handled = await AccountStorage.handleAuthStatus(
@@ -192,7 +203,7 @@ class DailyOutlookApi {
       throw Exception("Invalid Daily Outlook response.");
     }
     final status = DailyOutlookStatus.fromJson(decoded);
-    _cache[_dayKey(userId, date)] = status;
+    _cache[_dayKey(userId, date, locale)] = status;
     return status;
   }
 }

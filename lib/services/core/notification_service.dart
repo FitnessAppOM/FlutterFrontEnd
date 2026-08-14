@@ -6,11 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import '../../core/account_storage.dart';
+import '../../core/locale_controller.dart';
+import '../../localization/app_localizations.dart';
 import '../metrics/daily_journal_service.dart';
 import 'navigation_service.dart';
 import '../diet/diet_service.dart';
 
 class NotificationService {
+  static String _localized(String key) =>
+      AppLocalizations(localeController.locale).translate(key);
   static const int _journalResetHour = 6;
   static const int _expertAiUpdatesReminderId = 5;
   static const int _expertAiUpdatesReminderBaseId = 500;
@@ -245,8 +249,8 @@ class NotificationService {
     if (shouldSendDiet) {
       await _plugin.zonedSchedule(
         4,
-        'Diet check-in',
-        'Check your remaining calories. Tap to log your food.',
+        _localized('diet_checkin_notification_title'),
+        _localized('diet_checkin_notification_body'),
         nextNinePm,
         _defaultDetails,
         payload: dietPayload,
@@ -423,8 +427,8 @@ class NotificationService {
     if (shouldSendDiet) {
       await _plugin.zonedSchedule(
         4,
-        'Diet check-in',
-        'Check your remaining calories. Tap to log your food.',
+        _localized('diet_checkin_notification_title'),
+        _localized('diet_checkin_notification_body'),
         nextNinePm,
         _defaultDetails,
         payload: dietPayload,
@@ -569,8 +573,8 @@ class NotificationService {
       );
       await _plugin.zonedSchedule(
         baseId + i,
-        'Diet check-in',
-        'Check your remaining calories. Tap to log your food. (${i + 1}/$count)',
+        _localized('diet_checkin_notification_title'),
+        '${_localized('diet_checkin_notification_body')} (${i + 1}/$count)',
         when,
         _defaultDetails,
         payload: dietPayload,
@@ -594,7 +598,7 @@ class NotificationService {
     );
     await _plugin.show(
       910002,
-      'Diet check-in (Test)',
+      '${_localized('diet_checkin_notification_title')} (Test)',
       'Tap to open your diet module.',
       _defaultDetails,
       payload: dietPayload,
