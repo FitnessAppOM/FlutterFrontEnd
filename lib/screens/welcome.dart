@@ -20,6 +20,7 @@ import '../config/base_url.dart';
 import '../services/auth/profile_service.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
+import '../auth/referral_onboarding_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
@@ -237,9 +238,12 @@ class _WelcomePageState extends State<WelcomePage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isCoachAccount
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: isCoachAccount
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
+            ),
           ),
           (route) => false,
         );

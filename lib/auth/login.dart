@@ -25,6 +25,7 @@ import '../screens/account_restore_page.dart';
 import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
+import 'referral_onboarding_page.dart';
 import 'expert_questionnaire.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
@@ -163,9 +164,12 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => isCoachAccount
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: isCoachAccount
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
+            ),
           ),
           (route) => false,
         );

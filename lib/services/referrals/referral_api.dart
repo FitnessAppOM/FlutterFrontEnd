@@ -226,6 +226,15 @@ class ReferralApi {
     _decode(response);
   }
 
+  static Future<void> skipOnboarding() async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/referrals/onboarding/decision'),
+      headers: await _headers(),
+      body: jsonEncode({'decision': 'skip'}),
+    );
+    _decode(response);
+  }
+
   static Future<ReferralClaimPreparation> prepareClaim({
     required int rewardId,
     required String platform,

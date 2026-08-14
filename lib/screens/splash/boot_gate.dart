@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../auth/expert_questionnaire.dart';
 import '../../auth/questionnaire.dart';
+import '../../auth/referral_onboarding_page.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import '../../core/account_type.dart';
@@ -123,9 +124,12 @@ class _BootGateState extends State<BootGate> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isCoachAccount
-              ? const ExpertQuestionnairePage()
-              : const QuestionnairePage(),
+          builder: (_) => referralOnboardingIfNeeded(
+            profile: profile,
+            nextPage: isCoachAccount
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
         ),
         (route) => false,
       );

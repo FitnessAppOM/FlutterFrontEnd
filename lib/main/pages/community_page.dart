@@ -242,7 +242,11 @@ class _CommunityPageState extends State<CommunityPage> {
         details: result['details'] as String?,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Report submitted.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_report_submitted'),
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -265,7 +269,11 @@ class _CommunityPageState extends State<CommunityPage> {
             .where((entry) => entry.feedItemId != item.feedItemId)
             .toList(growable: false);
       });
-      AppToast.show(context, 'Feed item hidden.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_feed_item_hidden'),
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -288,15 +296,18 @@ class _CommunityPageState extends State<CommunityPage> {
         isDiscoverable: payload.isDiscoverable,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Group created.', type: AppToastType.success);
+      final t = AppLocalizations.of(context);
+      AppToast.show(
+        context,
+        t.translate('community_group_created'),
+        type: AppToastType.success,
+      );
       if (payload.visibility == 'private' && result.joinCode != null) {
         await _showGroupCodeDialog(
           context,
-          title: AppLocalizations.of(
-            context,
-          ).translate('community_private_group_code'),
+          title: t.translate('community_private_group_code'),
           code: result.joinCode!,
-          message: 'Share this 6-digit code with anyone you want to invite.',
+          message: t.translate('community_invite_code_help'),
         );
         if (!mounted) return;
       }
@@ -327,7 +338,9 @@ class _CommunityPageState extends State<CommunityPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        'Joined ${group.name}.',
+        AppLocalizations.of(context)
+            .translate('community_joined_named_group')
+            .replaceAll('{name}', group.name),
         type: AppToastType.success,
       );
       await _loadInitial();
@@ -1082,15 +1095,18 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_leave_group'),
-      message:
-          'You can rejoin later if the group is public or if you still have the private code.',
-      confirmLabel: 'Leave',
+      message: t.translate('community_leave_group_body'),
+      confirmLabel: t.translate('community_leave'),
     );
     if (!confirm) return;
     try {
       await CommunityService.leaveGroup(widget.groupId);
       if (!mounted) return;
-      AppToast.show(context, 'Group left.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_group_left'),
+        type: AppToastType.success,
+      );
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -1108,7 +1124,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     try {
       await CommunityService.joinGroupByCode(code);
       if (!mounted) return;
-      AppToast.show(context, 'Joined group.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_group_joined'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1126,7 +1146,9 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        'Joined ${group.name}.',
+        AppLocalizations.of(context)
+            .translate('community_joined_named_group')
+            .replaceAll('{name}', group.name),
         type: AppToastType.success,
       );
       await _load();
@@ -1155,7 +1177,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         isDiscoverable: payload.isDiscoverable,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Group updated.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_group_updated'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -1172,8 +1198,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_reset_join_code'),
-      message: 'Anyone using the old 6-digit code will lose access to join.',
-      confirmLabel: 'Reset',
+      message: t.translate('community_reset_code_body'),
+      confirmLabel: t.translate('community_reset'),
     );
     if (!confirm) return;
     try {
@@ -1183,8 +1209,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         context,
         title: t.translate('community_new_group_code'),
         code: newCode,
-        message:
-            'The previous invite code no longer works. Share this new code with members you want to invite.',
+        message: t.translate('community_new_code_help'),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1205,7 +1230,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         context,
         title: t.translate('community_current_group_code'),
         code: code,
-        message: 'Share this 6-digit code with anyone you want to invite.',
+        message: t.translate('community_invite_code_help'),
       );
     } catch (e) {
       if (!mounted) return;
@@ -1535,7 +1560,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
         details: result['details'] as String?,
       );
       if (!mounted) return;
-      AppToast.show(context, 'Report submitted.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_report_submitted'),
+        type: AppToastType.success,
+      );
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -1569,15 +1598,18 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_archive_group'),
-      message:
-          'This will archive the group and remove it from normal community use.',
-      confirmLabel: 'Archive',
+      message: t.translate('community_archive_group_confirm_body'),
+      confirmLabel: t.translate('community_archive'),
     );
     if (!confirm) return;
     try {
       await CommunityService.archiveGroup(detail.id);
       if (!mounted) return;
-      AppToast.show(context, 'Group archived.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_group_archived'),
+        type: AppToastType.success,
+      );
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -2203,8 +2235,7 @@ class _CommunityChallengeProgressPageState
               if (challenge.segments.isEmpty)
                 _CommunityEmptyCard(
                   title: t.translate('community_no_weekly_breakdown'),
-                  message:
-                      'Your overall challenge progress is shown above. Detailed periods will appear when this challenge records them.',
+                  message: t.translate('community_no_weekly_breakdown_body'),
                 )
               else
                 ...challenge.segments.map(
@@ -2371,14 +2402,13 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
               _CommunityEmptyCard(
                 title: t.translate('community_badges_load_error'),
                 message: _error!,
-                actionLabel: 'Retry',
+                actionLabel: t.translate('community_retry'),
                 onPressed: () => _load(),
               )
             else if (items.isEmpty)
               _CommunityEmptyCard(
                 title: t.translate('community_no_badges'),
-                message:
-                    'Your earned community milestones will appear here automatically.',
+                message: t.translate('community_badges_empty_body'),
               )
             else
               ...items.map(
@@ -2565,7 +2595,11 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
     try {
       await CommunityService.reviewReport(report.reportId, status: status);
       if (!mounted) return;
-      AppToast.show(context, 'Report updated.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('community_report_updated'),
+        type: AppToastType.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -2593,7 +2627,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        'Moderation action applied.',
+        AppLocalizations.of(context).translate('community_moderation_applied'),
         type: AppToastType.success,
       );
       await _load();
@@ -2622,7 +2656,12 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
           padding: TaqaUiScale.insetsLTRB(16, 8, 16, 24),
           children: [
             TaqaCommunityFilterGrid(
-              labels: const ['Open', 'Reviewing', 'Resolved', 'Dismissed'],
+              labels: [
+                t.translate('community_status_open'),
+                t.translate('community_status_reviewing'),
+                t.translate('community_status_resolved'),
+                t.translate('community_status_dismissed'),
+              ],
               selectedIndexes: {
                 for (var index = 0; index < _statusOptions.length; index++)
                   if (_selectedStatuses.contains(_statusOptions[index])) index,
@@ -2649,11 +2688,11 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
             else if (_visibleReports.isEmpty)
               _CommunityEmptyCard(
                 title: _selectedStatuses.isEmpty
-                    ? 'No reports'
-                    : 'No matching reports',
+                    ? t.translate('community_no_reports')
+                    : t.translate('community_no_matching_reports'),
                 message: _selectedStatuses.isEmpty
-                    ? 'The moderation queue is currently clear.'
-                    : 'Try a different combination of report statuses.',
+                    ? t.translate('community_no_reports_body')
+                    : t.translate('community_no_matching_reports_body'),
               )
             else
               ..._visibleReports.map(
@@ -3055,14 +3094,20 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_remove_member'),
-      message: 'This will remove ${member.displayName} from the group.',
+      message: t
+          .translate('community_remove_member_body')
+          .replaceAll('{name}', member.displayName),
       confirmLabel: t.translate('community_remove'),
     );
     if (!confirm) return;
     try {
       await CommunityService.removeGroupMember(widget.groupId, member.userId);
       if (!mounted) return;
-      AppToast.show(context, 'Member removed.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_member_removed'),
+        type: AppToastType.success,
+      );
       await _load();
       Navigator.pop(context, true);
     } catch (e) {
@@ -3082,10 +3127,14 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       title: role == 'admin'
           ? t.translate('community_make_admin')
           : t.translate('community_make_member'),
-      message: role == 'admin'
-          ? 'Give ${member.displayName} admin access for this community.'
-          : 'Remove admin access from ${member.displayName}.',
-      confirmLabel: role == 'admin' ? 'Promote' : 'Demote',
+      message:
+          (role == 'admin'
+                  ? t.translate('community_give_admin_body')
+                  : t.translate('community_remove_admin_body'))
+              .replaceAll('{name}', member.displayName),
+      confirmLabel: role == 'admin'
+          ? t.translate('community_promote')
+          : t.translate('community_demote'),
     );
     if (!confirm) return;
     try {
@@ -3097,7 +3146,9 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       if (!mounted) return;
       AppToast.show(
         context,
-        role == 'admin' ? 'Member promoted.' : 'Member demoted.',
+        role == 'admin'
+            ? t.translate('community_member_promoted')
+            : t.translate('community_member_demoted'),
         type: AppToastType.success,
       );
       await _load();
@@ -3117,14 +3168,20 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_transfer_ownership'),
-      message: 'Make ${member.displayName} the new group admin.',
-      confirmLabel: 'Transfer',
+      message: t
+          .translate('community_transfer_admin_body')
+          .replaceAll('{name}', member.displayName),
+      confirmLabel: t.translate('community_transfer'),
     );
     if (!confirm) return;
     try {
       await CommunityService.transferAdmin(widget.groupId, member.userId);
       if (!mounted) return;
-      AppToast.show(context, 'Admin transferred.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_admin_transferred'),
+        type: AppToastType.success,
+      );
       await _load();
       Navigator.pop(context, true);
     } catch (e) {
@@ -3829,7 +3886,9 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        existing == null ? 'Pin created.' : 'Pin updated.',
+        existing == null
+            ? AppLocalizations.of(context).translate('community_pin_created')
+            : AppLocalizations.of(context).translate('community_pin_updated'),
         type: AppToastType.success,
       );
       await _refresh();
@@ -3848,14 +3907,18 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
     final confirm = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('community_delete_pin'),
-      message: 'This will remove the pinned item from the group.',
+      message: t.translate('community_delete_pin_body'),
       confirmLabel: t.translate('community_delete'),
     );
     if (!confirm) return;
     try {
       await CommunityService.deletePin(widget.groupId, pin.pinId);
       if (!mounted) return;
-      AppToast.show(context, 'Pin deleted.', type: AppToastType.success);
+      AppToast.show(
+        context,
+        t.translate('community_pin_deleted'),
+        type: AppToastType.success,
+      );
       await _refresh();
     } catch (e) {
       if (!mounted) return;
@@ -4053,7 +4116,7 @@ class _CommunitySharedMetricsPageState
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
               title: t.translate('community_taqa_score'),
-              description: 'Share your Taqa Fitness Score with this group.',
+              description: t.translate('community_share_taqa_score'),
               value: _settings.shareTaqaScore,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareTaqaScore: value),
@@ -4062,7 +4125,7 @@ class _CommunitySharedMetricsPageState
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
               title: t.translate('community_daily_movement'),
-              description: 'Share your daily movement with this group.',
+              description: t.translate('community_share_daily_movement'),
               value: _settings.shareDailyMovement,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareDailyMovement: value),
@@ -4071,7 +4134,7 @@ class _CommunitySharedMetricsPageState
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
               title: t.translate('community_wearable_data'),
-              description: 'Share your wearable data with this group.',
+              description: t.translate('community_share_wearable_data'),
               value: _settings.shareWearableData,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareWearableData: value),
@@ -4080,7 +4143,7 @@ class _CommunitySharedMetricsPageState
             const SizedBox(height: 15),
             TaqaMuteNotificationsCard(
               title: t.translate('community_wellness'),
-              description: 'Share your wellness data with this group.',
+              description: t.translate('community_share_wellness'),
               value: _settings.shareWellness,
               onChanged: (value) => _toggle(
                 (settings) => settings.copyWith(shareWellness: value),
@@ -4586,8 +4649,9 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                               final name = nameController.text.trim();
                               if (name.length < 3) {
                                 setLocalState(() {
-                                  nameError =
-                                      'Group name must be at least 3 characters.';
+                                  nameError = t.translate(
+                                    'community_group_name_min_length',
+                                  );
                                 });
                                 return;
                               }
@@ -4822,7 +4886,9 @@ Future<_PinEditorResult?> _showPinEditor(
           return AlertDialog(
             backgroundColor: AppColors.cardDark,
             title: Text(
-              existing == null ? 'Create pin' : 'Edit pin',
+              existing == null
+                  ? t.translate('community_create_pin')
+                  : t.translate('community_edit_pin'),
               style: const TextStyle(color: Colors.white),
             ),
             content: SingleChildScrollView(

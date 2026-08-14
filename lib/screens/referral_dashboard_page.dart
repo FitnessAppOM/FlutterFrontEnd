@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/referrals/referral_api.dart';
-import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -21,7 +19,6 @@ class ReferralDashboardPage extends StatefulWidget {
 }
 
 class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
-  final _codeController = TextEditingController();
   ReferralSummary? _summary;
   String? _error;
   bool _loading = true;
@@ -33,51 +30,19 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _codeController.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final pending = prefs.getString('pending_referral_code');
       final summary = await ReferralApi.mySummary();
       if (!mounted) return;
-      _codeController.text = pending ?? '';
       setState(() => _summary = summary);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _redeem() async {
-    final code = _codeController.text.trim().toUpperCase();
-    if (code.isEmpty) return;
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
-    try {
-      await ReferralApi.redeem(code);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('pending_referral_code');
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Referral code accepted.')));
-      await _load();
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
-    } finally {
-      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -279,7 +244,7 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
                                 icon: Icons.ios_share_rounded,
                                 filled: true,
                                 onTap: () => Share.share(
-                                  'Join me on Taqa: ${_summary!.identity.shareUrl}',
+                                  'Join me on Taqa. Install the app here: ${_summary!.identity.shareUrl}\nReferral code: ${_summary!.identity.code}',
                                 ),
                               ),
                             ],
@@ -288,77 +253,6 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(14)),
-                    if (!_summary!.hasAttribution) ...[
-                      _card(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('HAVE A REFERRAL CODE?', style: _textStyle(size: 11, weight: FontWeight.w700)),
-                            SizedBox(height: TaqaUiScale.h(6)),
-                            Text(
-                              'Enter it before your first successful paid charge.',
-                              style: _textStyle(
-                                size: 12,
-                                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.62),
-                              ),
-                            ),
-                            SizedBox(height: TaqaUiScale.h(14)),
-                            TextField(
-                              controller: _codeController,
-                              enabled: !_submitting,
-                              textCapitalization: TextCapitalization.characters,
-                              autocorrect: false,
-                              enableSuggestions: false,
-                              style: _textStyle(size: 16, weight: FontWeight.w600),
-                              decoration: InputDecoration(
-                                hintText: 'ENTER CODE',
-                                hintStyle: _textStyle(
-                                  size: 13,
-                                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.42),
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.confirmation_number_outlined,
-                                  color: TaqaUiColors.charcoal,
-                                ),
-                                filled: true,
-                                fillColor: TaqaUiColors.white,
-                                contentPadding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: TaqaUiScale.radius(10),
-                                  borderSide: const BorderSide(
-                                    color: TaqaUiColors.charcoal,
-                                    width: 1.4,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: TaqaUiScale.radius(10),
-                                  borderSide: const BorderSide(
-                                    color: TaqaUiColors.lime,
-                                    width: 2.2,
-                                  ),
-                                ),
-                                disabledBorder: OutlineInputBorder(
-                                  borderRadius: TaqaUiScale.radius(10),
-                                  borderSide: BorderSide(
-                                    color: TaqaUiColors.charcoal.withValues(alpha: 0.30),
-                                  ),
-                                ),
-                              ),
-                              onSubmitted: (_) {
-                                if (!_submitting) _redeem();
-                              },
-                            ),
-                            SizedBox(height: TaqaUiScale.h(12)),
-                            TaqaFilledButton(
-                              label: 'Accept referral',
-                              loading: _submitting,
-                              onTap: _submitting ? null : _redeem,
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(14)),
-                    ],
                     _card(
                       child: Row(
                         children: [

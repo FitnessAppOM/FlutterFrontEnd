@@ -8,6 +8,7 @@ import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
+import 'referral_onboarding_page.dart';
 
 class VerificationSuccessPage extends StatelessWidget {
   final String email;
@@ -26,9 +27,11 @@ class VerificationSuccessPage extends StatelessWidget {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => isExpert
-              ? const ExpertQuestionnairePage()
-              : const QuestionnairePage(),
+          builder: (_) => ReferralOnboardingPage(
+            nextPage: isExpert
+                ? const ExpertQuestionnairePage()
+                : const QuestionnairePage(),
+          ),
         ),
         (_) => false,
       );

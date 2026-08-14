@@ -21,6 +21,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../core/account_storage.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
+import 'referral_onboarding_page.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 
@@ -339,7 +340,12 @@ class _SignupPageState extends State<SignupPage> {
       if (widget.isExpert && !expertQuestionnaireDone) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+          MaterialPageRoute(
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: const ExpertQuestionnairePage(),
+            ),
+          ),
           (route) => false,
         );
         return;
@@ -354,9 +360,12 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => widget.isExpert
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: widget.isExpert
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
+            ),
           ),
           (route) => false,
         );
@@ -366,9 +375,15 @@ class _SignupPageState extends State<SignupPage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => widget.isExpert
-              ? const ExpertQuestionnairePage()
-              : const QuestionnairePage(),
+          builder: (_) => result['is_new_user'] == true
+              ? ReferralOnboardingPage(
+                  nextPage: widget.isExpert
+                      ? const ExpertQuestionnairePage()
+                      : const QuestionnairePage(),
+                )
+              : widget.isExpert
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
         ),
         (route) => false,
       );
@@ -468,7 +483,12 @@ class _SignupPageState extends State<SignupPage> {
       if (widget.isExpert && !expertQuestionnaireDone) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+          MaterialPageRoute(
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: const ExpertQuestionnairePage(),
+            ),
+          ),
           (route) => false,
         );
         return;
@@ -483,9 +503,12 @@ class _SignupPageState extends State<SignupPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => widget.isExpert
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            builder: (_) => referralOnboardingIfNeeded(
+              profile: profile,
+              nextPage: widget.isExpert
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
+            ),
           ),
           (route) => false,
         );
@@ -495,9 +518,15 @@ class _SignupPageState extends State<SignupPage> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => widget.isExpert
-              ? const ExpertQuestionnairePage()
-              : const QuestionnairePage(),
+          builder: (_) => result['is_new_user'] == true
+              ? ReferralOnboardingPage(
+                  nextPage: widget.isExpert
+                      ? const ExpertQuestionnairePage()
+                      : const QuestionnairePage(),
+                )
+              : widget.isExpert
+                  ? const ExpertQuestionnairePage()
+                  : const QuestionnairePage(),
         ),
         (route) => false,
       );
