@@ -29,6 +29,10 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _affiliationOtherCtrl = TextEditingController();
   final TextEditingController _chronicCtrl = TextEditingController();
+  final TextEditingController _universitySearchCtrl = TextEditingController();
+  final TextEditingController _affiliationSearchCtrl = TextEditingController();
+  String _universitySearch = "";
+  String _affiliationSearch = "";
 
   static const _totalSections = 7;
   List<String> _affiliationCategories = [];
@@ -53,6 +57,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   @override
   void dispose() {
     _affiliationOtherCtrl.dispose();
+    _universitySearchCtrl.dispose();
+    _affiliationSearchCtrl.dispose();
     for (final c in _otherControllers.values) {
       c.dispose();
     }
@@ -956,11 +962,28 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     final universityIdToName = {
       for (final u in _universities) u["id"].toString(): u["name"].toString(),
     };
+    final filteredUniversityIdToName = Map<String, String>.fromEntries(
+      universityIdToName.entries.where(
+        (entry) =>
+            entry.value.toLowerCase().contains(_universitySearch.toLowerCase()) ||
+            entry.key == _selectedUniversityId,
+      ),
+    );
     final affiliationIdToName = {
       for (final item in _affiliations)
         item["id"].toString(): item["name"]?.toString() ?? "",
       "custom": _t("didnt_find_affiliation"),
     };
+    final filteredAffiliationIdToName = Map<String, String>.fromEntries(
+      affiliationIdToName.entries.where(
+        (entry) =>
+            entry.key == "custom" ||
+            entry.key == selectedAffiliationId ||
+            entry.value
+                .toLowerCase()
+                .contains(_affiliationSearch.toLowerCase()),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -972,10 +995,19 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         ),
         if (_isUniversityStudent == true) ...[
           SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineTextField(
+            controller: _universitySearchCtrl,
+            label: _t("search_university"),
+            hint: _t("search_by_name"),
+            onChanged: (value) {
+              setState(() => _universitySearch = value.trim());
+            },
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
           TaqaUnderlineDropdown(
             label: _t("select_university"),
             value: _selectedUniversityId,
-            options: universityIdToName.keys.toList(),
+            options: filteredUniversityIdToName.keys.toList(),
             itemLabelBuilder: (id) => universityIdToName[id] ?? id,
             validator: (val) {
               if (_isUniversityStudent == true &&
@@ -1050,6 +1082,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                     setState(() {
                       _selectedAffiliationCategory = val;
                       _affiliations = [];
+                      _affiliationSearch = "";
+                      _affiliationSearchCtrl.clear();
                       _values.remove("affiliation_id");
                       _affiliationError = null;
                     });
@@ -1059,12 +1093,21 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   },
           ),
           SizedBox(height: TaqaUiScale.h(12)),
+          TaqaUnderlineTextField(
+            controller: _affiliationSearchCtrl,
+            label: _t("search_affiliation"),
+            hint: _t("search_by_name"),
+            onChanged: (value) {
+              setState(() => _affiliationSearch = value.trim());
+            },
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
           TaqaUnderlineDropdown(
             label: _affiliationsLoading
                 ? _t("affiliation_loading")
                 : _t("affiliation_select"),
             value: selectedAffiliationId,
-            options: affiliationIdToName.keys.toList(),
+            options: filteredAffiliationIdToName.keys.toList(),
             itemLabelBuilder: (id) => affiliationIdToName[id] ?? id,
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
