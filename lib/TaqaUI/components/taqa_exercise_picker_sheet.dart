@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_popup_guard.dart';
 
 class ExercisePickerItem {
   const ExercisePickerItem({required this.id, required this.name});
@@ -21,7 +22,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
   final searchController = TextEditingController();
   String query = '';
 
-  final selected = await showModalBottomSheet<ExercisePickerItem>(
+  final selected = await TaqaPopupGuard.bottomSheet<ExercisePickerItem>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,

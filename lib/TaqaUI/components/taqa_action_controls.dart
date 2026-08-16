@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
+import 'taqa_popup_guard.dart';
 
 class TaqaSheetActionButton extends StatelessWidget {
   const TaqaSheetActionButton({
@@ -98,7 +99,7 @@ Future<bool> showTaqaActionConfirmDialog({
   required String cancelLabel,
   required String confirmLabel,
 }) async {
-  final result = await showDialog<bool>(
+  final result = await TaqaPopupGuard.dialog<bool>(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (context) => Dialog(

@@ -5,6 +5,44 @@ import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 
 void main() {
+  testWidgets('rapid taps open only one Taqa popup', (tester) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        minTextAdapt: true,
+        builder: (_, _) => MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () {
+                  for (var attempt = 0; attempt < 2; attempt++) {
+                    showTaqaMultilineTextDialog(
+                      context: context,
+                      title: 'Report client',
+                      message: 'Please write the reason for this report.',
+                      hintText: 'Write the reason...',
+                      confirmLabel: 'Report',
+                    );
+                  }
+                },
+                child: const Text('OPEN REPORT'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('OPEN REPORT'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report client'), findsOneWidget);
+    await tester.tap(find.text('CANCEL'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report client'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('multiline dialog can be canceled and reopened safely', (
     tester,
   ) async {

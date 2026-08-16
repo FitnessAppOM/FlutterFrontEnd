@@ -6,6 +6,7 @@ import '../taqa_ui_colors.dart';
 import 'taqa_expert_client_dashboard_ui.dart';
 import 'taqa_expert_dashboard_ui.dart';
 import 'taqa_filled_button.dart';
+import 'taqa_popup_guard.dart';
 import 'taqa_training_plan_ui.dart';
 
 class TaqaTemplateAssignClient {
@@ -63,7 +64,7 @@ Future<TaqaTemplateAssignment?> showTaqaTemplateAssignSheet({
   required String templateTitle,
   required List<TaqaTemplateAssignClient> clients,
 }) {
-  return showModalBottomSheet<TaqaTemplateAssignment>(
+  return TaqaPopupGuard.bottomSheet<TaqaTemplateAssignment>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -80,7 +81,7 @@ Future<void> showTaqaTemplatePreviewSheet({
   required String title,
   required List<TaqaTemplatePreviewDay> days,
 }) {
-  return showModalBottomSheet<void>(
+  return TaqaPopupGuard.bottomSheetVoid(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
@@ -94,7 +95,7 @@ Future<void> showTaqaTemplateAssignedClientsSheet({
   required String templateTitle,
   required List<TaqaTemplateAssignClient> clients,
 }) {
-  return showModalBottomSheet<void>(
+  return TaqaPopupGuard.bottomSheetVoid(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
