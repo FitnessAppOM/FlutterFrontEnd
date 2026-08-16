@@ -7,6 +7,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_community_option_picker_sheet.dart';
 import '../components/taqa_filled_button.dart';
 import '../components/taqa_page_app_bar.dart';
+import '../components/taqa_popup_guard.dart';
 import '../components/taqa_segmented_toggle_button.dart';
 import '../components/taqa_switch.dart';
 import '../components/taqa_toast.dart';
@@ -166,7 +167,7 @@ class _TaqaHabitReminderSettingsPageState
     final labels = _weekdayKeys
         .map((entry) => _tr(entry.value))
         .toList(growable: false);
-    await showModalBottomSheet<void>(
+    await TaqaPopupGuard.bottomSheetVoid(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -191,7 +192,7 @@ class _TaqaHabitReminderSettingsPageState
 
   Future<void> _pickHour() async {
     final hourOptions = List<int>.generate(24, (index) => index);
-    await showModalBottomSheet<void>(
+    await TaqaPopupGuard.bottomSheetVoid(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,

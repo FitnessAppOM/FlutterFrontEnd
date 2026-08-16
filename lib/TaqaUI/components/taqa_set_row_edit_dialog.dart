@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_popup_guard.dart';
 
 class TaqaSetRowEditResult {
   const TaqaSetRowEditResult({
@@ -37,7 +38,7 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
   var done = completed;
 
   try {
-    final saved = await showDialog<bool>(
+    final saved = await TaqaPopupGuard.dialog<bool>(
       context: context,
       barrierColor: const Color(0x66000000),
       builder: (ctx) {

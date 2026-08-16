@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_popup_guard.dart';
 
 class TaqaPopupDialog extends StatelessWidget {
   const TaqaPopupDialog({
@@ -67,7 +68,7 @@ Future<bool> showTaqaConfirmDialog({
   required String confirmLabel,
   String? cancelLabel,
 }) async {
-  final result = await showDialog<bool>(
+  final result = await TaqaPopupGuard.dialog<bool>(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (ctx) {
@@ -185,7 +186,7 @@ Future<void> showTaqaInfoDialog({
   required String message,
   String confirmLabel = "OK",
 }) {
-  return showDialog<void>(
+  return TaqaPopupGuard.dialogVoid(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (ctx) {
@@ -288,7 +289,7 @@ Future<T?> showTaqaOptionDialog<T>({
   required List<TaqaDialogOption<T>> options,
   String? cancelLabel,
 }) {
-  return showDialog<T>(
+  return TaqaPopupGuard.dialog<T>(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (ctx) {
@@ -457,7 +458,7 @@ Future<String?> showTaqaMultilineTextDialog({
   String requiredMessage = 'This field is required.',
   int maxLength = 1000,
 }) {
-  return showDialog<String>(
+  return TaqaPopupGuard.dialog<String>(
     context: context,
     barrierColor: const Color(0x66000000),
     builder: (_) => _TaqaMultilineTextDialog(
@@ -675,7 +676,7 @@ Future<String?> _showTaqaInputDialog({
       : null;
 
   try {
-    return await showDialog<String>(
+    return await TaqaPopupGuard.dialog<String>(
       context: context,
       barrierColor: const Color(0x66000000),
       builder: (ctx) {

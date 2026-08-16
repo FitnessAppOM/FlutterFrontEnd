@@ -1058,6 +1058,9 @@ class AppLocalizations {
       "daily_activity": "Daily activity level",
       "sedentary": "Sedentary (desk job)",
       "active": "Active",
+      "coach_activity_active": "Active",
+      "coach_activity_at_risk": "At risk",
+      "coach_activity_inactive": "Inactive",
       "highly_active": "Highly physical",
 
       "sleep_hours": "Sleep duration",
@@ -3356,6 +3359,9 @@ class AppLocalizations {
       "daily_activity": "مستوى النشاط اليومي",
       "sedentary": "خامل (عمل مكتبي)",
       "active": "نشط",
+      "coach_activity_active": "نشط",
+      "coach_activity_at_risk": "بحاجة للمتابعة",
+      "coach_activity_inactive": "غير نشط",
       "highly_active": "نشط جدًا",
 
       "sleep_hours": "مدة النوم",

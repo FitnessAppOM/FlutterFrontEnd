@@ -28,6 +28,7 @@ import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
 import '../components/taqa_page_app_bar.dart';
+import '../components/taqa_popup_guard.dart';
 import '../components/taqa_refresh_indicator.dart';
 import '../components/taqa_subscription_plan_card.dart';
 import '../components/taqa_steps_ui.dart' show TaqaRangeTab;
@@ -1884,7 +1885,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   Future<void> _showPlanPicker(List<TaqaSubscriptionPlan> plans) async {
-    await showGeneralDialog<void>(
+    await TaqaPopupGuard.generalDialogVoid(
       context: context,
       barrierLabel: _tr('subscription_close_plan_selection'),
       barrierDismissible: true,

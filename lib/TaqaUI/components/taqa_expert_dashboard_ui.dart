@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
@@ -528,13 +529,20 @@ class TaqaActivityStatus extends StatelessWidget {
     }
   }
 
-  String get _label =>
-      (status ?? '').trim().toLowerCase() == 'green' ? 'ACTIVE' : 'INACTIVE';
+  String _label(BuildContext context) {
+    final key = switch ((status ?? '').trim().toLowerCase()) {
+      'green' => 'coach_activity_active',
+      'yellow' => 'coach_activity_at_risk',
+      _ => 'coach_activity_inactive',
+    };
+    return taqaUppercase(AppLocalizations.of(context).translate(key));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final label = _label(context);
     return Tooltip(
-      message: _label,
+      message: label,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -555,7 +563,7 @@ class TaqaActivityStatus extends StatelessWidget {
           ),
           SizedBox(width: TaqaUiScale.w(4)),
           Text(
-            _label,
+            label,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),
