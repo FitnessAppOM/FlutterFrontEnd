@@ -31,7 +31,7 @@ import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
 import '../../screens/cardio/cardio_history_page.dart';
-import '../../widgets/training/training_day_complete_sheet.dart';
+import '../../TaqaUI/components/taqa_completion_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
@@ -5147,15 +5147,16 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   .replaceAll("{number}", "${index + 1}"))
           .toString(),
     );
-    await showModalBottomSheet(
+    final acknowledged = await showTaqaCompletionDialog(
       context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      barrierColor: const Color(0x66000000),
-      backgroundColor: Colors.transparent,
-      builder: (_) => TrainingDayCompleteSheet(dayLabel: label),
+      eyebrow: AppLocalizations.of(context).translate('training'),
+      title: AppLocalizations.of(context).translate('training_day_complete'),
+      message: AppLocalizations.of(
+        context,
+      ).translate('training_day_finished').replaceAll('{day}', label),
+      buttonLabel: AppLocalizations.of(context).translate('training_nice'),
     );
-    await sp.setBool(key, true);
+    if (acknowledged) await sp.setBool(key, true);
   }
 
   void _scheduleWeekRefreshIfNeeded() {
