@@ -5,6 +5,7 @@ import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_text_field.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
@@ -75,26 +76,14 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
 
   Future<void> _confirmSkip() async {
     final t = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showTaqaConfirmDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TaqaUiColors.white,
-        title: Text(t.translate('referral_skip_title')),
-        content: Text(t.translate('referral_skip_body')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(t.translate('referral_enter_code')),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(t.translate('referral_continue_without')),
-          ),
-        ],
-      ),
+      title: t.translate('referral_skip_title'),
+      message: t.translate('referral_skip_body'),
+      confirmLabel: t.translate('referral_continue_without'),
+      cancelLabel: t.translate('referral_enter_code'),
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() => _submitting = true);
     try {
