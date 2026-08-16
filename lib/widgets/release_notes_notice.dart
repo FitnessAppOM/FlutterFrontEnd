@@ -91,12 +91,12 @@ class ReleaseNotesDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
+            _ReleaseNoteItem(text: l10n.translate('release_notes_bug_fixes')),
             _ReleaseNoteItem(
-              text: l10n.translate('release_notes_subscription_testing'),
+              text: l10n.translate('release_notes_referral_testing'),
             ),
-            _ReleaseNoteItem(text: l10n.translate('release_notes_carousel')),
             _ReleaseNoteItem(
-              text: l10n.translate('release_notes_general_updates'),
+              text: l10n.translate('release_notes_experience_updates'),
             ),
             const SizedBox(height: 18),
             Align(

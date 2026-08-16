@@ -1747,9 +1747,11 @@ class AppLocalizations {
       "release_notes_title": "What's New",
       "release_notes_version": "Version {version}",
       "release_notes_changes": "What Changed",
-      "release_notes_subscription_testing": "Testing subscription plans.",
-      "release_notes_carousel": "New Taqa tutorial carousel.",
-      "release_notes_general_updates": "General fixes and updates.",
+      "release_notes_bug_fixes": "Bug fixes and stability improvements.",
+      "release_notes_referral_testing":
+          "Referral system testing and improvements.",
+      "release_notes_experience_updates":
+          "Coach, client, and localization experience improvements.",
       "release_notes_got_it": "GOT IT",
       "settings_contact": "Contact us",
       "settings_contact_sub": "Reach our support team",
@@ -4021,9 +4023,10 @@ class AppLocalizations {
       "release_notes_title": "ما الجديد",
       "release_notes_version": "الإصدار {version}",
       "release_notes_changes": "التغييرات",
-      "release_notes_subscription_testing": "اختبار خطط الاشتراك.",
-      "release_notes_carousel": "جولة تعليمية جديدة لتطبيق Taqa.",
-      "release_notes_general_updates": "إصلاحات وتحديثات عامة.",
+      "release_notes_bug_fixes": "إصلاحات للأخطاء وتحسينات في الاستقرار.",
+      "release_notes_referral_testing": "اختبار نظام الإحالة وتحسينه.",
+      "release_notes_experience_updates":
+          "تحسينات على تجربة المدرب والعميل ودعم اللغة.",
       "release_notes_got_it": "فهمت",
       "settings_contact": "اتصل بنا",
       "settings_contact_sub": "تواصل مع فريق الدعم",
