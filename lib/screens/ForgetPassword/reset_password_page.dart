@@ -32,6 +32,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   bool newPasswordVisible = false;
   bool confirmationVisible = false;
 
+  bool _hasMinLength(String value) => value.length >= 12;
+  bool _hasUppercase(String value) => RegExp(r'[A-Z]').hasMatch(value);
+  bool _hasLowercase(String value) => RegExp(r'[a-z]').hasMatch(value);
+  bool _hasDigit(String value) => RegExp(r'\d').hasMatch(value);
+  bool _hasSymbol(String value) =>
+      RegExp(r'''[!@#$%^&*()_+\-=\[\]{};':",.<>/?\\|`~]''').hasMatch(value);
+
+  bool _passwordMeetsAllRules(String value) =>
+      _hasMinLength(value) &&
+      _hasUppercase(value) &&
+      _hasLowercase(value) &&
+      _hasDigit(value) &&
+      _hasSymbol(value);
+
   @override
   void dispose() {
     pwCtrl.dispose();
@@ -48,6 +62,15 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       AppToast.show(
         context,
         t.translate('fill_all_fields'),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    if (!_passwordMeetsAllRules(newPassword)) {
+      AppToast.show(
+        context,
+        t.translate('signup_password_weak'),
         type: AppToastType.error,
       );
       return;
@@ -107,6 +130,77 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
     }
   }
 
+  Widget _buildPasswordRequirements(AppLocalizations t) {
+    final value = pwCtrl.text;
+    final rules = <MapEntry<String, bool>>[
+      MapEntry('signup_password_rule_length', _hasMinLength(value)),
+      MapEntry('signup_password_rule_uppercase', _hasUppercase(value)),
+      MapEntry('signup_password_rule_lowercase', _hasLowercase(value)),
+      MapEntry('signup_password_rule_digit', _hasDigit(value)),
+      MapEntry('signup_password_rule_symbol', _hasSymbol(value)),
+    ];
+
+    return Container(
+      width: double.infinity,
+      margin: EdgeInsets.only(top: TaqaUiScale.h(12)),
+      padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t.translate('signup_password_requirements_title'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              fontSize: TaqaUiScale.sp(8),
+              fontWeight: FontWeight.w400,
+              letterSpacing: 0.4,
+              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(8)),
+          for (var index = 0; index < rules.length; index++) ...[
+            _buildRuleRow(t.translate(rules[index].key), rules[index].value),
+            if (index != rules.length - 1) SizedBox(height: TaqaUiScale.h(6)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRuleRow(String label, bool satisfied) {
+    final color = satisfied
+        ? TaqaUiColors.unnamedColor1c1d17
+        : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          satisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: TaqaUiScale.w(16),
+          color: satisfied
+              ? TaqaUiColors.unnamedColorE4e93b
+              : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.25),
+        ),
+        SizedBox(width: TaqaUiScale.w(8)),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(12),
+              fontWeight: satisfied ? FontWeight.w600 : FontWeight.w400,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -157,6 +251,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             ),
                           ),
                         ),
+                        _buildPasswordRequirements(t),
                         SizedBox(height: TaqaUiScale.h(12)),
                         TaqaTextField(
                           controller: retypeCtrl,
