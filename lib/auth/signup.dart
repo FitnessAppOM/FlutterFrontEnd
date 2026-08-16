@@ -133,7 +133,7 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack("Last name cannot exceed 50 characters.");
       return false;
     }
-    if (pass.length < 8) {
+    if (pass.length < 12) {
       _showSnack(t.translate("signup_password_short"));
       return false;
     }
@@ -150,7 +150,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   // ---- Password rule checks (must match backend _validate_password_strong) ----
-  bool _hasMinLength(String p) => p.length >= 8;
+  bool _hasMinLength(String p) => p.length >= 12;
   bool _hasUppercase(String p) => RegExp(r'[A-Z]').hasMatch(p);
   bool _hasLowercase(String p) => RegExp(r'[a-z]').hasMatch(p);
   bool _hasDigit(String p) => RegExp(r'\d').hasMatch(p);

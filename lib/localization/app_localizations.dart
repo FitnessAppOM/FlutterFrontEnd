@@ -69,9 +69,9 @@ class AppLocalizations {
       "signup_username_invalid":
           "Username can use letters, numbers, '.', '-' or '_'.",
       "signup_email_invalid": "Enter a valid email.",
-      "signup_password_short": "Password must be at least 8 characters.",
+      "signup_password_short": "Password must be at least 12 characters.",
       "signup_password_requirements_title": "Your password must include:",
-      "signup_password_rule_length": "At least 8 characters",
+      "signup_password_rule_length": "At least 12 characters",
       "signup_password_rule_uppercase": "One uppercase letter (A–Z)",
       "signup_password_rule_lowercase": "One lowercase letter (a–z)",
       "signup_password_rule_digit": "One number (0–9)",
@@ -2394,9 +2394,9 @@ class AppLocalizations {
       "signup_username_invalid":
           "يمكن استخدام الحروف والأرقام و '.' و '-' و '_'.",
       "signup_email_invalid": "أدخل بريدًا إلكترونيًا صالحًا.",
-      "signup_password_short": "يجب أن تكون كلمة المرور 8 أحرف على الأقل.",
+      "signup_password_short": "يجب أن تكون كلمة المرور 12 حرفًا على الأقل.",
       "signup_password_requirements_title": "يجب أن تحتوي كلمة المرور على:",
-      "signup_password_rule_length": "8 أحرف على الأقل",
+      "signup_password_rule_length": "12 حرفًا على الأقل",
       "signup_password_rule_uppercase": "حرف كبير واحد (A–Z)",
       "signup_password_rule_lowercase": "حرف صغير واحد (a–z)",
       "signup_password_rule_digit": "رقم واحد (0–9)",
