@@ -15,6 +15,7 @@ import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import '../../TaqaUI/components/taqa_loading_indicator.dart';
+import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../config/base_url.dart';
 import '../../core/user_friendly_error.dart';
@@ -906,6 +907,14 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     await _loadClientSideChat();
   }
 
+  Future<void> _refreshChat() async {
+    if (widget.role == CoachChatRole.coach) {
+      await _loadCoachSideChat(showLoading: false);
+      return;
+    }
+    await _loadClientSideChat(showLoading: false);
+  }
+
   Future<void> _loadCoachSideChat({bool showLoading = true}) async {
     if (showLoading) {
       setState(() {
@@ -944,12 +953,14 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
     }
   }
 
-  Future<void> _loadClientSideChat() async {
-    setState(() {
-      _loading = true;
-      _loadingThread = true;
-      _error = null;
-    });
+  Future<void> _loadClientSideChat({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _loadingThread = true;
+        _error = null;
+      });
+    }
 
     try {
       final threads = await CoachSupportChatService.fetchClientCoachThreads();
@@ -962,8 +973,10 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
           _coachThreads = const <CoachSupportChatThreadSummary>[];
           _selectedCoachUserId = null;
           _chatState = null;
-          _loading = false;
-          _loadingThread = false;
+          if (showLoading) {
+            _loading = false;
+            _loadingThread = false;
+          }
           _error = null;
         });
         return;
@@ -994,13 +1007,16 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
         _coachThreads = normalizedThreads;
         _selectedCoachUserId = selectedCoachUserId;
         _chatState = state;
-        _loading = false;
-        _loadingThread = false;
+        if (showLoading) {
+          _loading = false;
+          _loadingThread = false;
+        }
         _error = null;
       });
       _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
+      if (!showLoading) return;
       setState(() {
         _loading = false;
         _loadingThread = false;
@@ -1944,10 +1960,8 @@ class _CoachChatPanelState extends State<CoachChatPanel> {
       child: Column(
         children: [
           Expanded(
-            child: RefreshIndicator(
-              onRefresh: _loadChat,
-              color: TaqaUiColors.accent,
-              backgroundColor: TaqaUiColors.white,
+            child: TaqaRefreshIndicator(
+              onRefresh: _refreshChat,
               child: _buildBody(),
             ),
           ),
