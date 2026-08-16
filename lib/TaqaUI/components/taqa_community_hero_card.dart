@@ -291,8 +291,8 @@ class _TaqaCommunityStatBox extends StatelessWidget {
   }
 }
 
-/// Overlapping stack of badge chips: up to 3 shown front-to-back, with a
-/// "+N" chip peeking out from behind the last one when there are more.
+/// Overlapping stack of badge chips: up to 3 shown front-to-back, followed by
+/// a "+N" chip when there are more.
 class _TaqaBadgeChipStack extends StatelessWidget {
   const _TaqaBadgeChipStack({required this.count, required this.layoutScale});
 
@@ -320,19 +320,19 @@ class _TaqaBadgeChipStack extends StatelessWidget {
 
     final children = <Widget>[];
     if (hasOverflow) {
-      // `visible` is always 3 here. Paint the overflow chip before the
-      // last badge chip so the "+N" appears to sit behind it.
+      for (var i = 0; i < visible; i++) {
+        children.add(
+          Positioned(
+            left: overlap * i,
+            child: _badgeChip(chipSize, layoutScale),
+          ),
+        );
+      }
       children.add(
-        Positioned(left: 0, child: _badgeChip(chipSize, layoutScale)),
-      );
-      children.add(
-        Positioned(left: overlap, child: _badgeChip(chipSize, layoutScale)),
-      );
-      children.add(
-        Positioned(left: overlap * 2, child: _overflowChip(chipSize, overflow)),
-      );
-      children.add(
-        Positioned(left: overlap * 3, child: _badgeChip(chipSize, layoutScale)),
+        Positioned(
+          left: overlap * visible,
+          child: _overflowChip(chipSize, overflow),
+        ),
       );
     } else {
       for (var i = 0; i < visible; i++) {
