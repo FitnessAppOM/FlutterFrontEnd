@@ -210,6 +210,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       final payload = {"expert_id": expertId, ...values};
       await ExpertQuestionnaireApi.submit(payload);
       await AccountStorage.setExpertQuestionnaireDone(true);
+      await AccountStorage.setCoachApplicationStatus('pending');
       if (!mounted) return;
       AppToast.show(context, _t("save_success"), type: AppToastType.success);
       Navigator.of(context).pushAndRemoveUntil(

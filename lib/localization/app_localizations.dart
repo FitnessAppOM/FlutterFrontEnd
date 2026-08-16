@@ -130,6 +130,10 @@ class AppLocalizations {
       "expert_questionnaire_chip_time": "Takes ~5–8 min",
       "expert_questionnaire_chip_quality": "Helps vet expertise",
       "expert_questionnaire_submit": "Submit expert questionnaire",
+      "expert_document_uploaded_scan_pending":
+          "Document uploaded successfully. Security check in progress.",
+      "expert_documents_uploaded_scan_pending":
+          "Documents uploaded successfully. The security check is still in progress and may take a few minutes. Please try submitting again shortly.",
       "expert_question_label": "Question",
       "expert_question_hint": "Type your response",
       "expert_section_experience": "Experience",
@@ -2456,6 +2460,10 @@ class AppLocalizations {
       "expert_questionnaire_chip_time": "يستغرق ~5–8 دقائق",
       "expert_questionnaire_chip_quality": "يساعدنا على تقييم الخبرة",
       "expert_questionnaire_submit": "إرسال نموذج الخبير",
+      "expert_document_uploaded_scan_pending":
+          "تم رفع المستند بنجاح. فحص الأمان جارٍ الآن.",
+      "expert_documents_uploaded_scan_pending":
+          "تم رفع المستندات بنجاح. لا يزال فحص الأمان جارياً وقد يستغرق بضع دقائق. يُرجى محاولة الإرسال مجدداً بعد قليل.",
       "expert_question_label": "السؤال",
       "expert_question_hint": "اكتب إجابتك",
       "expert_section_experience": "الخبرة",

@@ -24,6 +24,7 @@ import '../TaqaUI/screens/taqa_intro_module.dart';
 import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
 import '../services/purchases/apple_billing_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
+import '../auth/coach_application_status_page.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({
@@ -376,6 +377,21 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     final isVerifiedCoach = isExpert && applicationStatus == 'approved';
     if (!isVerifiedCoach) {
       _showClientCoachPage();
+      final hasSubmittedApplication =
+          applicationStatus != null && applicationStatus.trim().isNotEmpty;
+      if (autoOpen || !hasSubmittedApplication) return;
+
+      final choice = await _chooseCoachPortal();
+      if (!mounted || choice == null || choice == 'client') return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => CoachApplicationStatusPage(
+            initialStatus: applicationStatus,
+            allowClose: true,
+          ),
+        ),
+      );
       return;
     }
 

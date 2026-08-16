@@ -21,9 +21,14 @@ import 'expert_questionnaire.dart';
 /// Locks coach applicants out of the app until an admin decision is made and,
 /// once approved, until their coach membership is started.
 class CoachApplicationStatusPage extends StatefulWidget {
-  const CoachApplicationStatusPage({super.key, this.initialStatus});
+  const CoachApplicationStatusPage({
+    super.key,
+    this.initialStatus,
+    this.allowClose = false,
+  });
 
   final String? initialStatus;
+  final bool allowClose;
 
   @override
   State<CoachApplicationStatusPage> createState() =>
@@ -137,6 +142,11 @@ class _CoachApplicationStatusPageState
     );
   }
 
+  void _close() {
+    if (!widget.allowClose || !Navigator.of(context).canPop()) return;
+    Navigator.of(context).pop();
+  }
+
   Future<void> _logout() async {
     final userId = await AccountStorage.getUserId();
     await RemotePushService.unregisterTokenForCurrentUser();
@@ -165,20 +175,29 @@ class _CoachApplicationStatusPageState
         : 'Our team is reviewing your application. You will be able to continue once it has been accepted.';
 
     return PopScope(
-      canPop: false,
+      canPop: widget.allowClose,
       child: Scaffold(
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
         appBar: TaqaPageAppBar(
           title: 'Coach application',
           showBackButton: false,
-          trailing: IconButton(
-            tooltip: 'Sign out',
-            onPressed: _logout,
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
-          ),
+          trailing: widget.allowClose
+              ? IconButton(
+                  tooltip: 'Close',
+                  onPressed: _close,
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                )
+              : IconButton(
+                  tooltip: 'Sign out',
+                  onPressed: _logout,
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                ),
         ),
         body: SafeArea(
           top: false,
@@ -240,6 +259,10 @@ class _CoachApplicationStatusPageState
                   )
                 else if (rejected)
                   TaqaFilledButton(label: 'Reapply', onTap: _reapply),
+                if (widget.allowClose) ...[
+                  SizedBox(height: TaqaUiScale.h(8)),
+                  TaqaTextActionButton(label: 'Close', onTap: _close),
+                ],
               ],
             ),
           ),

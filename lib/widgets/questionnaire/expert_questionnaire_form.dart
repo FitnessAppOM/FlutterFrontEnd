@@ -786,12 +786,17 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       _toast("$e", type: AppToastType.error);
       return false;
     }
+    if (!mounted) return false;
 
     for (final kind in requiredKinds) {
       final status = _documentUploads[kind]?.status;
       if (status == null || status == "clean") continue;
       if (status == "pending") {
-        _toast("Your upload is still processing. Please try again shortly.");
+        _toast(
+          AppLocalizations.of(
+            context,
+          ).translate("expert_documents_uploaded_scan_pending"),
+        );
       } else {
         _toast(
           "An uploaded document could not be accepted. Please upload it again.",
@@ -1043,11 +1048,17 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
 
     try {
       final upload = await ExpertQuestionnaireApi.upload(kind, path);
+      if (!mounted) return;
       setState(() {
         controller.text = upload.reference;
         _documentUploads[kind] = upload;
       });
-      _toast("Uploaded.", type: AppToastType.success);
+      _toast(
+        AppLocalizations.of(
+          context,
+        ).translate("expert_document_uploaded_scan_pending"),
+        type: AppToastType.success,
+      );
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1092,7 +1103,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         controller.text = upload.reference;
         _documentUploads["selfie"] = upload;
       });
-      _toast("Uploaded.", type: AppToastType.success);
+      _toast(
+        AppLocalizations.of(
+          context,
+        ).translate("expert_document_uploaded_scan_pending"),
+        type: AppToastType.success,
+      );
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
@@ -1171,6 +1187,8 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   bool _loading = false;
   String? _error;
   final TextEditingController _otherCtrl = TextEditingController();
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _search = "";
   bool _useCustomAffiliation = false;
 
   @override
@@ -1184,6 +1202,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   @override
   void dispose() {
     _otherCtrl.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -1226,6 +1245,32 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
     }
   }
 
+  String _categoryLabel(String value) {
+    final normalized = value
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ');
+    final localizationKey = normalized.replaceAll(' ', '_');
+    final translated = AppLocalizations.of(context).translate(localizationKey);
+    if (translated != localizationKey) return translated;
+
+    return normalized
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
+  String _affiliationName(String id) {
+    final match = _affiliations.firstWhere(
+      (item) => item["id"].toString() == id,
+      orElse: () => <String, dynamic>{},
+    );
+    final name = match["name"]?.toString().trim();
+    return name == null || name.isEmpty ? id : name;
+  }
+
   void _submit() {
     if ((_selectedAffId == null || _selectedAffId!.isEmpty) &&
         _otherCtrl.text.trim().isEmpty) {
@@ -1244,6 +1289,17 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final visibleAffiliationIds = _affiliations
+        .where((item) {
+          final id = item["id"].toString();
+          final name = item["name"]?.toString() ?? "";
+          return id == _selectedAffId ||
+              name.toLowerCase().contains(_search.toLowerCase());
+        })
+        .map((item) => item["id"].toString())
+        .toList(growable: false);
+
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: const TaqaPageAppBar(title: "Affiliation"),
@@ -1256,9 +1312,12 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               label: "Category",
               value: _selectedCategory,
               options: _categories,
+              itemLabelBuilder: _categoryLabel,
               onChanged: (val) {
                 setState(() {
                   _selectedCategory = val;
+                  _search = "";
+                  _searchCtrl.clear();
                 });
                 if (val != null && val.isNotEmpty) {
                   _loadAffiliations(val);
@@ -1266,12 +1325,20 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               },
             ),
             SizedBox(height: TaqaUiScale.h(16)),
+            TaqaUnderlineTextField(
+              controller: _searchCtrl,
+              label: t.translate("search_affiliation"),
+              hint: t.translate("search_by_name"),
+              onChanged: (value) {
+                setState(() => _search = value.trim());
+              },
+            ),
+            SizedBox(height: TaqaUiScale.h(16)),
             TaqaUnderlineDropdown(
               label: _loading ? "Loading..." : "Affiliation",
               value: _selectedAffId,
-              options: _affiliations
-                  .map((item) => item["id"].toString())
-                  .toList(),
+              options: visibleAffiliationIds,
+              itemLabelBuilder: _affiliationName,
               onChanged: _loading
                   ? null
                   : (val) {
@@ -1516,12 +1583,18 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
     }
     try {
       final upload = await ExpertQuestionnaireApi.upload(kind, path);
+      if (!mounted) return;
       setState(() {
         _fileCtrl.text = upload.reference;
         _documentId = upload.documentId;
         _scanStatus = upload.status;
       });
-      _toast("Uploaded.", type: AppToastType.success);
+      _toast(
+        AppLocalizations.of(
+          context,
+        ).translate("expert_document_uploaded_scan_pending"),
+        type: AppToastType.success,
+      );
     } catch (e) {
       _toast("$e", type: AppToastType.error);
     }
