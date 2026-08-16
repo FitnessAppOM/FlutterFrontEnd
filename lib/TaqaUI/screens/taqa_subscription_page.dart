@@ -18,6 +18,7 @@ import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../screens/welcome.dart';
 import '../../services/core/notification_service.dart';
+import '../../services/core/remote_push_service.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
 import '../../services/purchases/apple_promotional_offer.dart';
@@ -1630,13 +1631,15 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   Future<void> _logout() async {
+    final userId = await AccountStorage.getUserId();
+    await RemotePushService.unregisterTokenForCurrentUser();
+    await NotificationService.cancelAccountNotifications(userId: userId);
     await AccountStorage.logoutSession();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
       (route) => false,
     );
-    NotificationService.refreshDailyJournalRemindersForCurrentUser();
   }
 
   @override

@@ -7,6 +7,7 @@ import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/timer_based_exercises.dart';
 import '../../services/training/training_network_resilience.dart';
 import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
@@ -168,9 +169,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       !_isCardioExercise() && widget.exercise.containsKey('set_rows');
 
   bool _isTimerBased() {
-    if (widget.exercise['is_timer_based'] == true) return true;
-    if (widget.exercise['set_input_mode'] == 'timer') return true;
-    return false;
+    return isTimerBasedExercise(widget.exercise);
   }
 
   int? _programExerciseId() {
@@ -2005,7 +2004,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     final useSetRows = _supportsSetRows;
 
     final plannedWeight = _plannedWeight();
-    final tagLabel = plannedWeight != null
+    final tagLabel = isTimer
+        ? t.translate("training_time")
+        : plannedWeight != null
         ? "${plannedWeight.toStringAsFixed(plannedWeight == plannedWeight.roundToDouble() ? 0 : 1)}KG"
         : repsLabel;
 
@@ -2167,6 +2168,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
           SizedBox(height: TaqaUiScale.h(30)),
           if (useSetRows)
             ..._buildSetRowsSection(isTimer)
+          else if (isTimer)
+            ..._buildTimerFallbackSection(t)
           else
             ..._buildFallbackInputsSection(t),
           SizedBox(height: TaqaUiScale.h(10)),
@@ -2861,6 +2864,16 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     ];
   }
 
+  List<Widget> _buildTimerFallbackSection(AppLocalizations t) {
+    return [
+      Text(
+        t.translate("training_timer_based_exercise"),
+        style: const TextStyle(color: Colors.white70),
+      ),
+      SizedBox(height: TaqaUiScale.h(8)),
+    ];
+  }
+
   Future<void> _finishExercise() async {
     if (submitting) return;
     _exerciseFinished = true;
@@ -2896,6 +2909,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       final now = DateTime.now(); // device local
 
       final useSetRows = _supportsSetRows;
+      final isTimerBased = _isTimerBased();
       final completedRows = _setRows
           .where((row) => _toBool(row['completed']))
           .toList(growable: false);
@@ -2919,7 +2933,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             ))
           : rir.round();
 
-      final double? weight = useSetRows
+      final double? weight = isTimerBased
+          ? null
+          : useSetRows
           ? _toDouble(
               sourceRows.isNotEmpty
                   ? sourceRows.last['weight_kg']
@@ -2980,8 +2996,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               TrainingService.finishExercise(
                 programExerciseId: programExerciseId,
                 sets: finalSets > 0 ? finalSets : null,
-                reps: finalReps > 0 ? finalReps : null,
-                rir: finalRir >= 0 ? finalRir : null,
+                reps: !isTimerBased && finalReps > 0 ? finalReps : null,
+                rir: !isTimerBased && finalRir >= 0 ? finalRir : null,
                 durationSeconds: seconds,
                 entryDate: now,
               ),
@@ -2994,8 +3010,8 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               programExerciseId: programExerciseId,
               data: {
                 "sets": finalSets,
-                "reps": finalReps,
-                "rir": finalRir,
+                if (!isTimerBased) "reps": finalReps,
+                if (!isTimerBased) "rir": finalRir,
                 "duration_seconds": seconds,
                 "entry_date":
                     "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 
 class TrainingDayCompleteSheet extends StatelessWidget {
@@ -11,117 +16,72 @@ class TrainingDayCompleteSheet extends StatelessWidget {
     final t = AppLocalizations.of(context);
     return SafeArea(
       top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0F162A), Color(0xFF1B2D4A)],
-            ),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
-              ),
-            ],
+      child: Container(
+        width: double.infinity,
+        padding: TaqaUiScale.insetsLTRB(20, 12, 20, 24),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.graphite,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(TaqaUiScale.w(15)),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                right: -18,
-                top: -18,
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFD4AF37).withValues(alpha: 0.08),
-                  ),
-                ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: TaqaUiScale.w(42),
+              height: TaqaUiScale.h(4),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.white.withValues(alpha: 0.25),
+                borderRadius: TaqaUiScale.radius(4),
               ),
-              Positioned(
-                left: -12,
-                bottom: -18,
-                child: Container(
-                  width: 70,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
-                ),
+            ),
+            SizedBox(height: TaqaUiScale.h(24)),
+            Container(
+              width: TaqaUiScale.w(64),
+              height: TaqaUiScale.w(64),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.lime,
+                borderRadius: TaqaUiScale.radius(18),
               ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.7),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.emoji_events_rounded,
-                      size: 34,
-                      color: Color(0xFFD4AF37),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    t.translate("training_day_complete"),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    t
-                        .translate("training_day_finished")
-                        .replaceAll("{day}", dayLabel),
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFD4AF37),
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: Text(
-                        t.translate("training_nice"),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
+              child: Icon(
+                Icons.check_rounded,
+                size: TaqaUiScale.w(38),
+                color: TaqaUiColors.charcoal,
               ),
-            ],
-          ),
+            ),
+            SizedBox(height: TaqaUiScale.h(18)),
+            Text(
+              t.translate('training_day_complete'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(24),
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+                color: TaqaUiColors.white,
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
+            Text(
+              t
+                  .translate('training_day_finished')
+                  .replaceAll('{day}', dayLabel),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(14),
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+                color: TaqaUiColors.white.withValues(alpha: 0.7),
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(24)),
+            TaqaFilledButton(
+              label: t.translate('training_nice'),
+              onTap: () => Navigator.of(context).pop(),
+            ),
+          ],
         ),
       ),
     );

@@ -11,6 +11,7 @@ import '../../config/base_url.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/auth/profile_storage.dart';
 import '../../services/core/notification_service.dart';
+import '../../services/core/remote_push_service.dart';
 import '../../screens/edit_profile_page.dart';
 import '../../screens/welcome.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
@@ -513,6 +514,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               }
                             },
                             onLogout: () async {
+                              final userId = await AccountStorage.getUserId();
+                              await RemotePushService.unregisterTokenForCurrentUser();
+                              await NotificationService.cancelAccountNotifications(
+                                userId: userId,
+                              );
                               await AccountStorage.logoutSession();
                               if (!context.mounted) return;
                               Navigator.pushAndRemoveUntil(
@@ -522,7 +528,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                                 (route) => false,
                               );
-                              NotificationService.refreshDailyJournalRemindersForCurrentUser();
                             },
                           ),
                         ],

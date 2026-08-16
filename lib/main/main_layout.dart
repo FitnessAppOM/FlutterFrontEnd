@@ -11,6 +11,8 @@ import '../core/account_type.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
+import '../services/core/notification_service.dart';
+import '../services/core/remote_push_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
 import '../services/training/training_activity_service.dart';
 import '../screens/coach_page.dart';
@@ -229,6 +231,12 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
         } catch (_) {
           // Keep the last verified state during a temporary backend outage.
         }
+      }
+      await NotificationService.syncForSubscriptionAccess(
+        active: !subscriptionRequired,
+      );
+      if (!subscriptionRequired) {
+        await RemotePushService.syncTokenForCurrentUser();
       }
       if (!subscriptionRequired || !mounted) return;
 

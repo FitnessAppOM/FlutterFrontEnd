@@ -48,6 +48,36 @@ class NotificationService {
     ),
   );
 
+  static Future<bool> _hasNotificationAccess() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return false;
+    final cached = await AccountStorage.cachedSubscriptionAccessAllowed();
+    if (cached != null) return cached;
+    return !(await AccountStorage.isSubscriptionRequired());
+  }
+
+  static Future<void> cancelAccountNotifications({int? userId}) async {
+    await _plugin.cancel(2);
+    await _plugin.cancel(3);
+    await _plugin.cancel(4);
+    await _cancelExpertAiUpdateReminders();
+
+    final resolvedUserId = userId ?? await AccountStorage.getUserId();
+    if (resolvedUserId == null || resolvedUserId <= 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('${_dailyReminderRefreshStampPrefix}_$resolvedUserId');
+    await prefs.remove('${_expertReminderRefreshStampPrefix}_$resolvedUserId');
+  }
+
+  static Future<void> syncForSubscriptionAccess({required bool active}) async {
+    if (!active) {
+      await cancelAccountNotifications();
+      return;
+    }
+    await refreshDailyJournalRemindersForCurrentUser();
+    await refreshExpertAiUpdatesReminderForCurrentUser();
+  }
+
   static Future<void> init() async {
     if (Platform.isAndroid) {
       // ignore: avoid_print
@@ -184,9 +214,8 @@ class NotificationService {
     // ignore: avoid_print
     print('[Notif] scheduleDailyJournalReminder()');
     final userId = await AccountStorage.getUserId();
-    if (userId == null) {
-      await _plugin.cancel(2);
-      await _plugin.cancel(3);
+    if (userId == null || !await _hasNotificationAccess()) {
+      await cancelAccountNotifications(userId: userId);
       return;
     }
     try {
@@ -287,9 +316,8 @@ class NotificationService {
     // ignore: avoid_print
     print('[Notif] refreshDailyJournalRemindersForCurrentUser()');
     final userId = await AccountStorage.getUserId();
-    if (userId == null) {
-      await _plugin.cancel(2);
-      await _plugin.cancel(3);
+    if (userId == null || !await _hasNotificationAccess()) {
+      await cancelAccountNotifications(userId: userId);
       return;
     }
     final alreadyRefreshedToday = await _hasRefreshedToday(
@@ -324,7 +352,8 @@ class NotificationService {
     print('[Notif] refreshExpertAiUpdatesReminderForCurrentUser()');
     final userId = await AccountStorage.getUserId();
     final isExpert = await AccountStorage.isExpert();
-    if (userId == null || !isExpert) {
+    final hasAccess = await _hasNotificationAccess();
+    if (userId == null || !isExpert || !hasAccess) {
       await _cancelExpertAiUpdateReminders();
       return;
     }
@@ -376,6 +405,10 @@ class NotificationService {
   static Future<void> rescheduleDailyJournalRemindersForTomorrow() async {
     // ignore: avoid_print
     print('[Notif] rescheduleDailyJournalRemindersForTomorrow()');
+    if (!await _hasNotificationAccess()) {
+      await cancelAccountNotifications();
+      return;
+    }
     await _plugin.cancel(2);
     await _plugin.cancel(3);
     await _plugin.cancel(4);

@@ -377,4 +377,56 @@ class RemotePushService {
       return;
     }
   }
+
+  static Future<void> unregisterTokenForCurrentUser() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+    final headers = await AccountStorage.getAuthHeaders();
+    if (!headers.containsKey('Authorization')) return;
+
+    String token = (_lastSyncedToken ?? '').trim();
+    if (token.isEmpty) {
+      try {
+        token = (await FirebaseMessaging.instance.getToken() ?? '').trim();
+      } catch (_) {
+        await _deleteTokenAfterLogout();
+        return;
+      }
+    }
+    if (token.isEmpty) {
+      await _deleteTokenAfterLogout();
+      return;
+    }
+
+    try {
+      final response = await http
+          .delete(
+            _uri('/push/device-token'),
+            headers: <String, String>{
+              ...headers,
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'token': token}),
+          )
+          .timeout(const Duration(seconds: 5));
+      await AccountStorage.handleAuthStatus(
+        response.statusCode,
+        responseBody: response.body,
+      );
+    } catch (_) {
+      // Logout must continue even if the device is temporarily offline.
+    }
+    await _deleteTokenAfterLogout();
+  }
+
+  static Future<void> _deleteTokenAfterLogout() async {
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {
+      // The backend entitlement guard still protects expired subscriptions.
+    } finally {
+      _lastSyncedUserId = null;
+      _lastSyncedToken = null;
+    }
+  }
 }

@@ -6,6 +6,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/timer_based_exercises.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../localization/app_localizations.dart';
 import '../cardio/cardio_exercise_utils.dart';
@@ -321,12 +322,17 @@ class ExerciseCard extends StatelessWidget {
         : null;
     final String rirLabel = overrideRir ?? exercise['rir'].toString();
     final String? weightLabel = _formatWeightLabel(_resolvedWeight(exercise));
+    final isTimerBased = isTimerBasedExercise(exercise);
     final metaTags = <(IconData, String)>[];
     if (!isCardio) {
-      metaTags.add((Icons.repeat, "$setsLabel x $repsLabel"));
-      metaTags.add((Icons.speed, "RIR $rirLabel"));
-      if (showWeight && weightLabel != null) {
-        metaTags.add((Icons.fitness_center, weightLabel));
+      if (isTimerBased) {
+        metaTags.add((Icons.timer_outlined, "$setsLabel × ${t.translate("training_time")}"));
+      } else {
+        metaTags.add((Icons.repeat, "$setsLabel x $repsLabel"));
+        metaTags.add((Icons.speed, "RIR $rirLabel"));
+        if (showWeight && weightLabel != null) {
+          metaTags.add((Icons.fitness_center, weightLabel));
+        }
       }
     }
 

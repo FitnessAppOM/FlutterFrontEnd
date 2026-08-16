@@ -21,6 +21,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../services/training/training_service.dart';
+import '../../services/training/timer_based_exercises.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_page_header.dart';
@@ -846,6 +847,8 @@ class _WorkoutLauncherExerciseCardState
   // the PREVIOUS column. Captured once at init from the exercise's prior data.
   Map<int, String> _previousBySetIndex = const {};
 
+  bool get _isTimerBased => isTimerBasedExercise(widget.exercise);
+
   @override
   void initState() {
     super.initState();
@@ -912,6 +915,10 @@ class _WorkoutLauncherExerciseCardState
             reps: _toInt(raw['reps'], fallback: widget.reps),
             rir: _toInt(raw['rir'], fallback: widget.rir),
             weightKg: _toDouble(raw['weight_kg'], fallback: 0),
+            performedTimeSeconds: _toInt(
+              raw['performed_time_seconds'],
+              fallback: 0,
+            ),
             done: _toBool(raw['completed']),
           ),
         );
@@ -1002,6 +1009,7 @@ class _WorkoutLauncherExerciseCardState
               'reps': row.reps,
               'rir': row.rir,
               'weight_kg': row.weightKg,
+              'performed_time_seconds': row.performedTimeSeconds,
               'completed': row.done,
             },
           )
@@ -1067,7 +1075,12 @@ class _WorkoutLauncherExerciseCardState
     if (_setInProgress) {
       final current = _rows[idx];
       if (!current.done) {
-        final doneRow = current.copyWith(done: true);
+        final doneRow = current.copyWith(
+          done: true,
+          performedTimeSeconds: _isTimerBased
+              ? _elapsedSecondsSince(_setStartedAtMs)
+              : current.performedTimeSeconds,
+        );
         final nextRows = List<_LauncherSetRow>.from(_rows);
         nextRows[idx] = doneRow;
         if (mounted) {
@@ -1118,7 +1131,12 @@ class _WorkoutLauncherExerciseCardState
           activeIdx < _rows.length &&
           !_rows[activeIdx].done) {
         final nextRows = List<_LauncherSetRow>.from(_rows);
-        nextRows[activeIdx] = nextRows[activeIdx].copyWith(done: true);
+        nextRows[activeIdx] = nextRows[activeIdx].copyWith(
+          done: true,
+          performedTimeSeconds: _isTimerBased
+              ? _elapsedSecondsSince(_setStartedAtMs)
+              : nextRows[activeIdx].performedTimeSeconds,
+        );
         if (mounted) {
           setState(() => _rows = nextRows);
         } else {
@@ -1138,6 +1156,10 @@ class _WorkoutLauncherExerciseCardState
       final performedSets = sourceRows.isNotEmpty ? sourceRows.length : 1;
       final performedReps = lastRow?.reps ?? widget.reps;
       final performedRir = lastRow?.rir ?? widget.rir;
+      final performedTimeSeconds = sourceRows.fold<int>(
+        0,
+        (total, row) => total + row.performedTimeSeconds,
+      );
       final durationSeconds = _elapsedSecondsSince(_exerciseStartedAtMs);
       // Heaviest weight among COMPLETED sets, so the finished card can show a
       // durable weight that persists across loads (weight_used).
@@ -1152,21 +1174,29 @@ class _WorkoutLauncherExerciseCardState
       // the day card shows done + weight/sets/reps IMMEDIATELY, without waiting
       // for the whole-day server refresh. (widget.exercise is the same map
       // object the parent reads.)
-      widget.exercise['set_rows'] = sourceRows
-          .map(
-            (row) => {
-              'set_index': row.setIndex,
-              'reps': row.reps,
-              'rir': row.rir,
-              'weight_kg': row.weightKg,
-              'completed': row.done,
-            },
-          )
-          .toList();
+      widget.exercise['set_rows'] = sourceRows.map((row) {
+        return {
+          'set_index': row.setIndex,
+          if (!_isTimerBased) 'reps': row.reps,
+          if (!_isTimerBased) 'rir': row.rir,
+          if (!_isTimerBased) 'weight_kg': row.weightKg,
+          if (_isTimerBased)
+            'performed_time_seconds': row.performedTimeSeconds,
+          'completed': row.done,
+        };
+      }).toList();
       widget.exercise['performed_sets'] = performedSets;
-      widget.exercise['performed_reps'] = performedReps;
-      widget.exercise['performed_rir'] = performedRir;
-      if (maxCompletedWeight > 0) {
+      if (_isTimerBased) {
+        widget.exercise.remove('performed_reps');
+        widget.exercise.remove('performed_rir');
+        widget.exercise.remove('weight_used');
+        widget.exercise.remove('weight_kg');
+        widget.exercise['performed_time_seconds'] = performedTimeSeconds;
+      } else {
+        widget.exercise['performed_reps'] = performedReps;
+        widget.exercise['performed_rir'] = performedRir;
+      }
+      if (!_isTimerBased && maxCompletedWeight > 0) {
         widget.exercise['weight_used'] = maxCompletedWeight;
         widget.exercise['weight_kg'] = maxCompletedWeight;
       }
@@ -1184,7 +1214,7 @@ class _WorkoutLauncherExerciseCardState
         for (final row in _rows) {
           await _persistUpsert(row);
         }
-        if (maxCompletedWeight > 0) {
+        if (!_isTimerBased && maxCompletedWeight > 0) {
           // Persist durably so the weight reappears on every future load.
           // Best-effort: failure here must not block finishing the exercise.
           try {
@@ -1199,8 +1229,8 @@ class _WorkoutLauncherExerciseCardState
             TrainingService.finishExercise(
               programExerciseId: programExerciseId,
               sets: performedSets > 0 ? performedSets : null,
-              reps: performedReps > 0 ? performedReps : null,
-              rir: performedRir >= 0 ? performedRir : null,
+              reps: !_isTimerBased && performedReps > 0 ? performedReps : null,
+              rir: !_isTimerBased && performedRir >= 0 ? performedRir : null,
               durationSeconds: durationSeconds,
               entryDate: now,
             ),
@@ -1212,8 +1242,8 @@ class _WorkoutLauncherExerciseCardState
             programExerciseId: programExerciseId,
             data: {
               "sets": performedSets,
-              "reps": performedReps,
-              "rir": performedRir,
+              if (!_isTimerBased) "reps": performedReps,
+              if (!_isTimerBased) "rir": performedRir,
               "duration_seconds": durationSeconds,
               "entry_date":
                   "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
@@ -1488,6 +1518,10 @@ class _WorkoutLauncherExerciseCardState
             reps: _toInt(raw['reps'], fallback: widget.reps),
             rir: _toInt(raw['rir'], fallback: widget.rir),
             weightKg: _toDouble(raw['weight_kg'], fallback: 0),
+            performedTimeSeconds: _toInt(
+              raw['performed_time_seconds'],
+              fallback: 0,
+            ),
             // Only show ticks when the exercise is actually finished (then the
             // set_rows 'completed' flags reflect which sets were done). For a
             // not-yet-done exercise, start un-ticked so a stale 'completed'
@@ -1510,6 +1544,7 @@ class _WorkoutLauncherExerciseCardState
         reps: widget.reps,
         rir: widget.rir,
         weightKg: 0,
+        performedTimeSeconds: 0,
         done: false,
       ),
     );
@@ -1523,10 +1558,13 @@ class _WorkoutLauncherExerciseCardState
         TrainingService.upsertExerciseSet(
           programExerciseId: programExerciseId,
           setIndex: row.setIndex,
-          reps: row.reps,
-          rir: row.rir,
-          weightKg: row.weightKg,
+          reps: _isTimerBased ? null : row.reps,
+          rir: _isTimerBased ? null : row.rir,
+          weightKg: _isTimerBased ? null : row.weightKg,
           completed: row.done,
+          performedTimeSeconds: _isTimerBased
+              ? row.performedTimeSeconds
+              : null,
         ),
         TrainingNetworkResilience.sheetMutation,
       );
@@ -1536,9 +1574,11 @@ class _WorkoutLauncherExerciseCardState
         programExerciseId: programExerciseId,
         data: {
           "set_index": row.setIndex,
-          "reps": row.reps,
-          "rir": row.rir,
-          "weight_kg": row.weightKg,
+          if (!_isTimerBased) "reps": row.reps,
+          if (!_isTimerBased) "rir": row.rir,
+          if (!_isTimerBased) "weight_kg": row.weightKg,
+          if (_isTimerBased)
+            "performed_time_seconds": row.performedTimeSeconds,
           "completed": row.done,
         },
       );
@@ -1552,6 +1592,7 @@ class _WorkoutLauncherExerciseCardState
       reps: last?.reps ?? widget.reps,
       rir: last?.rir ?? widget.rir,
       weightKg: last?.weightKg ?? 0,
+      performedTimeSeconds: 0,
       done: false,
     );
     if (mounted) {
@@ -1601,6 +1642,7 @@ class _WorkoutLauncherExerciseCardState
 
   Future<void> _editSetRow(int index) async {
     if (index < 0 || index >= _rows.length) return;
+    if (_isTimerBased) return;
     final current = _rows[index];
     final result = await showTaqaSetRowEditDialog(
       context: context,
@@ -1929,9 +1971,15 @@ class _WorkoutLauncherExerciseCardState
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        _suggestedTag("${_rows.length} x ${widget.reps}"),
-                        const SizedBox(width: 8),
-                        _suggestedTag("RIR ${widget.rir}"),
+                        if (_isTimerBased)
+                          _suggestedTag(
+                            "${_rows.length} × ${AppLocalizations.of(context).translate("training_time")}",
+                          )
+                        else ...[
+                          _suggestedTag("${_rows.length} x ${widget.reps}"),
+                          const SizedBox(width: 8),
+                          _suggestedTag("RIR ${widget.rir}"),
+                        ],
                       ],
                     ),
                   ],
@@ -2122,6 +2170,16 @@ class _WorkoutLauncherExerciseCardState
 
   Widget _tableHeader() {
     final t = AppLocalizations.of(context);
+    if (_isTimerBased) {
+      return Row(
+        children: [
+          Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
+          Expanded(flex: 5, child: _HeaderText(t.translate("training_time"))),
+          Expanded(flex: 2, child: _HeaderText(t.translate("training_done"))),
+          SizedBox(width: TaqaUiScale.w(26)),
+        ],
+      );
+    }
     return Row(
       children: [
         Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
@@ -2167,48 +2225,63 @@ class _WorkoutLauncherExerciseCardState
                 ),
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: Text(
-                _previousBySetIndex[row.setIndex] ?? "-",
-                style: TextStyle(
-                  color: previousColor,
-                  fontSize: TaqaUiScale.sp(
-                    _previousBySetIndex[row.setIndex] != null ? 13 : 18,
+            if (_isTimerBased)
+              Expanded(
+                flex: 5,
+                child: Text(
+                  row.performedTimeSeconds > 0
+                      ? _formatMmSs(row.performedTimeSeconds)
+                      : "-",
+                  style: TextStyle(
+                    color: rowTextColor,
+                    fontSize: TaqaUiScale.sp(18),
+                  ),
+                ),
+              )
+            else ...[
+              Expanded(
+                flex: 3,
+                child: Text(
+                  _previousBySetIndex[row.setIndex] ?? "-",
+                  style: TextStyle(
+                    color: previousColor,
+                    fontSize: TaqaUiScale.sp(
+                      _previousBySetIndex[row.setIndex] != null ? 13 : 18,
+                    ),
                   ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                row.weightKg <= 0 ? "0" : row.weightKg.toStringAsFixed(0),
-                style: TextStyle(
-                  color: rowTextColor,
-                  fontSize: TaqaUiScale.sp(18),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  row.weightKg <= 0 ? "0" : row.weightKg.toStringAsFixed(0),
+                  style: TextStyle(
+                    color: rowTextColor,
+                    fontSize: TaqaUiScale.sp(18),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                "${row.reps}",
-                style: TextStyle(
-                  color: rowTextColor,
-                  fontSize: TaqaUiScale.sp(18),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  "${row.reps}",
+                  style: TextStyle(
+                    color: rowTextColor,
+                    fontSize: TaqaUiScale.sp(18),
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                "${row.rir}",
-                style: TextStyle(
-                  color: rowTextColor,
-                  fontSize: TaqaUiScale.sp(18),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  "${row.rir}",
+                  style: TextStyle(
+                    color: rowTextColor,
+                    fontSize: TaqaUiScale.sp(18),
+                  ),
                 ),
               ),
-            ),
+            ],
             Expanded(
               flex: 2,
               child: Align(
@@ -2371,6 +2444,7 @@ class _LauncherSetRow {
     required this.reps,
     required this.rir,
     required this.weightKg,
+    required this.performedTimeSeconds,
     required this.done,
   });
 
@@ -2378,6 +2452,7 @@ class _LauncherSetRow {
   final int reps;
   final int rir;
   final double weightKg;
+  final int performedTimeSeconds;
   final bool done;
 
   _LauncherSetRow copyWith({
@@ -2385,6 +2460,7 @@ class _LauncherSetRow {
     int? reps,
     int? rir,
     double? weightKg,
+    int? performedTimeSeconds,
     bool? done,
   }) {
     return _LauncherSetRow(
@@ -2392,6 +2468,8 @@ class _LauncherSetRow {
       reps: reps ?? this.reps,
       rir: rir ?? this.rir,
       weightKg: weightKg ?? this.weightKg,
+      performedTimeSeconds:
+          performedTimeSeconds ?? this.performedTimeSeconds,
       done: done ?? this.done,
     );
   }
@@ -5060,7 +5138,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final sp = await SharedPreferences.getInstance();
     final key = "train_day_completed_popup_u${userId}_$dayKey";
     if (sp.getBool(key) == true) return;
-    await sp.setBool(key, true);
 
     if (!mounted) return;
     final label = _localizedTrainingDayLabel(
@@ -5078,6 +5155,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       backgroundColor: Colors.transparent,
       builder: (_) => TrainingDayCompleteSheet(dayLabel: label),
     );
+    await sp.setBool(key, true);
   }
 
   void _scheduleWeekRefreshIfNeeded() {
