@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 /// Shared pill on/off switch used across Taqa UI (group settings, dialogs,
 /// ...) so toggles stay visually consistent instead of falling back to the
@@ -25,8 +26,9 @@ class TaqaSwitch extends StatelessWidget {
     final trackWidth = width ?? TaqaUiScale.w(38);
     final trackHeight = height ?? TaqaUiScale.h(20);
     final thumbInset = TaqaUiScale.w(2);
-    return GestureDetector(
+    return TaqaPressable(
       onTap: onChanged == null ? null : () => onChanged!(!value),
+      pressedScale: 0.94,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         curve: Curves.easeOut,

@@ -4,6 +4,7 @@ import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 /// Expandable score-pillar card — big number + progress bar + optional
 /// source chip, tap to reveal a breakdown of detail rows. This is the exact
@@ -89,7 +90,7 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
         ? TaqaUiColors.lightGray.withValues(alpha: 0.85)
         : TaqaUiColors.graphite.withValues(alpha: 0.55);
 
-    return GestureDetector(
+    return TaqaPressable(
       onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

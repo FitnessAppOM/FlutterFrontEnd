@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../taqa_ui_colors.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
+import 'taqa_pressable.dart';
 
 enum TaqaWeekdayStatus { past, current, future }
 
@@ -28,9 +29,9 @@ class TaqaWeekdayDot extends StatelessWidget {
       TaqaWeekdayStatus.future => TaqaUiColors.weekdayFuture,
     };
 
-    return InkWell(
+    return TaqaPressable(
       onTap: onTap,
-      borderRadius: TaqaUiStyles.circleRadius,
+      pressedScale: 0.94,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

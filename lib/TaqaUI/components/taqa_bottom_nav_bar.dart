@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 class TaqaBottomNavItem {
   const TaqaBottomNavItem({required this.assetPath, required this.index});
@@ -76,9 +77,11 @@ class TaqaBottomNavBar extends StatelessWidget {
               return Positioned(
                 left: TaqaUiScale.w(centerX - _tapSize / 2),
                 top: TaqaUiScale.h(centerY - _tapSize / 2),
-                child: GestureDetector(
+                child: TaqaPressable(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => onTap(item.index),
+                  pressedScale: 0.9,
+                  pressedOpacity: 0.6,
                   child: SizedBox(
                     width: TaqaUiScale.w(_tapSize),
                     height: TaqaUiScale.h(_tapSize),

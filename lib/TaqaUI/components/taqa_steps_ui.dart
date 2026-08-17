@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 import 'taqa_value_dialog.dart' as taqa_value_dialog;
 
 class TaqaRangeTab extends StatelessWidget {
@@ -19,9 +20,8 @@ class TaqaRangeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return TaqaPressable(
       onTap: onTap,
-      borderRadius: TaqaUiScale.radius(5),
       child: Container(
         height: TaqaUiScale.h(45),
         alignment: Alignment.center,
@@ -69,9 +69,8 @@ class TaqaTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return TaqaPressable(
       onTap: onTap,
-      borderRadius: TaqaUiScale.radius(5),
       child: Container(
         padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
         decoration: BoxDecoration(

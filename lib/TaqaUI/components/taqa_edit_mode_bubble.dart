@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'taqa_pressable.dart';
+
 class TaqaEditModeBubble extends StatelessWidget {
-  const TaqaEditModeBubble({
-    super.key,
-    required this.visible,
-    this.onTap,
-  });
+  const TaqaEditModeBubble({super.key, required this.visible, this.onTap});
 
   final bool visible;
   final VoidCallback? onTap;
@@ -20,8 +18,9 @@ class TaqaEditModeBubble extends StatelessWidget {
         child: AnimatedScale(
           scale: visible ? 1.0 : 0.96,
           duration: const Duration(milliseconds: 180),
-          child: GestureDetector(
+          child: TaqaPressable(
             onTap: onTap,
+            pressedScale: 0.94,
             child: Container(
               constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 class TaqaTextField extends StatelessWidget {
   const TaqaTextField({
@@ -119,19 +120,17 @@ class TaqaPasswordVisibilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: visible ? 'Hide password' : 'Show password',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: Padding(
-          padding: TaqaUiScale.symmetric(horizontal: 4, vertical: 8),
-          child: Icon(
-            visible ? Icons.visibility_off : Icons.visibility,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-            size: TaqaUiScale.w(18),
-          ),
+    return TaqaPressable(
+      semanticLabel: visible ? 'Hide password' : 'Show password',
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      pressedScale: 0.86,
+      child: Padding(
+        padding: TaqaUiScale.symmetric(horizontal: 4, vertical: 8),
+        child: Icon(
+          visible ? Icons.visibility_off : Icons.visibility,
+          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+          size: TaqaUiScale.w(18),
         ),
       ),
     );

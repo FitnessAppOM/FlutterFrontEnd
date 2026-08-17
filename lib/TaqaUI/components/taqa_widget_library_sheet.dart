@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 class WidgetLibraryOption {
   final String keyName;
@@ -36,7 +37,10 @@ class WidgetLibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = min(MediaQuery.of(context).size.width * 0.84, TaqaUiScale.w(360));
+    final width = min(
+      MediaQuery.of(context).size.width * 0.84,
+      TaqaUiScale.w(360),
+    );
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
 
@@ -119,7 +123,8 @@ class WidgetLibrarySheet extends StatelessWidget {
                 Expanded(
                   child: ListView.separated(
                     itemCount: options.length,
-                    separatorBuilder: (_, _) => SizedBox(height: TaqaUiScale.h(10)),
+                    separatorBuilder: (_, _) =>
+                        SizedBox(height: TaqaUiScale.h(10)),
                     itemBuilder: (context, index) {
                       final option = options[index];
                       return _WidgetLibraryTile(
@@ -141,16 +146,12 @@ class _WidgetLibraryTile extends StatelessWidget {
   final WidgetLibraryOption option;
   final VoidCallback? onTap;
 
-  const _WidgetLibraryTile({
-    required this.option,
-    this.onTap,
-  });
+  const _WidgetLibraryTile({required this.option, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return TaqaPressable(
       onTap: onTap,
-      borderRadius: TaqaUiScale.radius(16),
       child: Container(
         padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(

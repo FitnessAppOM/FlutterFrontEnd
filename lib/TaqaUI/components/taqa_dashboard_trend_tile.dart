@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/dashboard/bar_trend.dart';
 import '../styles/taqa_ui_scale.dart';
+import 'taqa_pressable.dart';
 
 class TaqaDashboardTrendTile extends StatelessWidget {
   const TaqaDashboardTrendTile({
@@ -41,7 +42,7 @@ class TaqaDashboardTrendTile extends StatelessWidget {
         : BarTrend(title: title, data: data, accentColor: accentColor);
 
     if (onTap == null) return content;
-    return GestureDetector(
+    return TaqaPressable(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: content,

@@ -4,6 +4,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_popup_guard.dart';
+import 'taqa_pressable.dart';
 
 class ExercisePickerItem {
   const ExercisePickerItem({required this.id, required this.name});
@@ -95,8 +96,10 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                           ),
                           PositionedDirectional(
                             end: 0,
-                            child: GestureDetector(
+                            child: TaqaPressable(
                               onTap: () => Navigator.of(sheetContext).pop(),
+                              pressedScale: 0.82,
+                              semanticLabel: 'Close',
                               child: Icon(
                                 Icons.close,
                                 color: TaqaUiColors.charcoal,

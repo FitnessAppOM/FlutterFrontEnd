@@ -14,6 +14,7 @@ import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_log_entry_card.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_switch.dart';
+import '../TaqaUI/components/taqa_pressable.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../core/user_friendly_error.dart';
 import 'package:image_picker/image_picker.dart';
@@ -81,6 +82,8 @@ class _SettingsPageState extends State<SettingsPage>
   bool _currentPlanLoading = true;
   bool _currentPlanLoadFailed = false;
   bool _subscriptionManagementOpen = false;
+  bool _settingsRouteOpen = false;
+  bool _coachPlansResolving = false;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -128,9 +131,19 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _showReferralCode() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ReferralDashboardPage()));
+    await _pushSettingsRoute(
+      MaterialPageRoute(builder: (_) => const ReferralDashboardPage()),
+    );
+  }
+
+  Future<T?> _pushSettingsRoute<T>(Route<T> route) async {
+    if (_settingsRouteOpen || !mounted) return null;
+    _settingsRouteOpen = true;
+    try {
+      return await Navigator.of(context).push<T>(route);
+    } finally {
+      _settingsRouteOpen = false;
+    }
   }
 
   Future<void> _showJwtTokenDialog() async {
@@ -474,7 +487,8 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _openNormalPlans() async {
-    await Navigator.of(context).push(
+    if (_settingsRouteOpen) return;
+    await _pushSettingsRoute(
       MaterialPageRoute(
         builder: (_) =>
             const TaqaSubscriptionPage(plans: TaqaSubscriptionCatalog.plans),
@@ -484,12 +498,43 @@ class _SettingsPageState extends State<SettingsPage>
   }
 
   Future<void> _openCoachPlans() async {
-    if (!_expertFlagReady) {
-      await _loadExpertFlag();
-      if (!mounted) return;
+    if (_settingsRouteOpen || _coachPlansResolving) return;
+    _coachPlansResolving = true;
+    try {
+      await _resolveAndOpenCoachPlans();
+    } finally {
+      _coachPlansResolving = false;
     }
+  }
+
+  Future<void> _resolveAndOpenCoachPlans() async {
+    var applicationStatus = (_expertProfileStatus ?? "").trim().toLowerCase();
+    if (applicationStatus.isEmpty) {
+      applicationStatus =
+          (await AccountStorage.getCoachApplicationStatus() ?? "")
+              .trim()
+              .toLowerCase();
+    }
+    var isCoach = _isExpert || await AccountStorage.isExpert();
+    try {
+      final cachedProfile = await ProfileStorage.loadProfile();
+      final cachedStatus = (cachedProfile?["expert_profile_status"] ?? "")
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (cachedStatus.isNotEmpty) applicationStatus = cachedStatus;
+      isCoach =
+          isCoach ||
+          cachedProfile?["is_expert"] == true ||
+          cachedProfile?["account_type"]?.toString().trim().toLowerCase() ==
+              "coach";
+    } catch (_) {
+      // The account cache remains the fallback for instant navigation.
+    }
+    final canOpenCoachPlans = isCoach && applicationStatus == "approved";
+    if (!mounted) return;
     final t = AppLocalizations.of(context);
-    if (!_isExpert) {
+    if (!canOpenCoachPlans) {
       await showTaqaInfoDialog(
         context: context,
         title: t.translate('settings_coach_plan_requires_approval_title'),
@@ -498,7 +543,7 @@ class _SettingsPageState extends State<SettingsPage>
       );
       return;
     }
-    await Navigator.of(context).push(
+    await _pushSettingsRoute(
       MaterialPageRoute(
         builder: (_) => const TaqaSubscriptionPage(
           plans: TaqaSubscriptionCatalog.coachPlans,
@@ -1163,31 +1208,27 @@ class _SettingsPageState extends State<SettingsPage>
   Future<void> _pickAvatar() async {
     if (_updatingAvatar) return;
     final picker = ImagePicker();
-
-    // Request camera/photos permissions so the picker works smoothly
-    final granted = await ConsentManager.requestCameraOrGalleryForAvatar();
-    if (!granted) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        AppLocalizations.of(context).translate("permissions_required"),
-        type: AppToastType.error,
-      );
-      return;
-    }
-
     setState(() => _updatingAvatar = true);
     try {
+      // Request camera/photos permissions so the picker works smoothly.
+      final granted = await ConsentManager.requestCameraOrGalleryForAvatar();
+      if (!granted) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          AppLocalizations.of(context).translate("permissions_required"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+
       final picked = await picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 512,
         maxHeight: 512,
         imageQuality: 85,
       );
-      if (picked == null) {
-        setState(() => _updatingAvatar = false);
-        return;
-      }
+      if (picked == null) return;
       final userId = await AccountStorage.getUserId();
       if (userId == null) {
         if (!mounted) return;
@@ -1249,15 +1290,12 @@ class _SettingsPageState extends State<SettingsPage>
 
   Future<void> _promptChangeUsername() async {
     final t = AppLocalizations.of(context);
-    final userId = await AccountStorage.getUserId();
     String currentUsername = "";
-    if (userId != null && userId > 0) {
-      try {
-        final profile = await ProfileApi.fetchProfile(userId);
-        currentUsername = (profile["username"] ?? "").toString().trim();
-      } catch (_) {
-        // Fallback to cached display name if profile request fails.
-      }
+    try {
+      final cachedProfile = await ProfileStorage.loadProfile();
+      currentUsername = (cachedProfile?["username"] ?? "").toString().trim();
+    } catch (_) {
+      // Fall back to the locally stored account name below.
     }
     if (currentUsername.isEmpty) {
       final cachedName = (await AccountStorage.getName() ?? "").trim();
@@ -1593,7 +1631,9 @@ class _SettingsPageState extends State<SettingsPage>
                   _SettingsTile(
                     title: t.translate("settings_change_avatar"),
                     subtitle: t.translate("settings_change_avatar_sub"),
-                    onTap: _isDeactivated ? null : _pickAvatar,
+                    onTap: _isDeactivated || _updatingAvatar
+                        ? null
+                        : _pickAvatar,
                   ),
                   _SettingsTile(
                     title: t.translate("settings_referral_code"),
@@ -1606,7 +1646,7 @@ class _SettingsPageState extends State<SettingsPage>
                       subtitle: t.translate("settings_manage_subscription_sub"),
                       onTap: _isDeactivated
                           ? null
-                          : () => Navigator.of(context).push(
+                          : () => _pushSettingsRoute(
                               MaterialPageRoute(
                                 builder: (_) => const TaqaSubscriptionPage(
                                   plans:
@@ -1622,40 +1662,17 @@ class _SettingsPageState extends State<SettingsPage>
                       onTap: _isDeactivated
                           ? null
                           : () async {
-                              final userId = await AccountStorage.getUserId();
-                              if (userId == null) {
+                              if (_expertQuestionnaireDone) {
                                 AppToast.show(
                                   context,
-                                  t.translate("user_missing"),
-                                  type: AppToastType.error,
+                                  t.translate(
+                                    "expert_questionnaire_already_done",
+                                  ),
+                                  type: AppToastType.info,
                                 );
                                 return;
                               }
-                              try {
-                                final lang = AppLocalizations.of(
-                                  context,
-                                ).locale.languageCode;
-                                final profile = await ProfileApi.fetchProfile(
-                                  userId,
-                                  lang: lang,
-                                );
-                                final done =
-                                    profile["filled_expert_questionnaire"] ==
-                                    true;
-                                if (done) {
-                                  AppToast.show(
-                                    context,
-                                    t.translate(
-                                      "expert_questionnaire_already_done",
-                                    ),
-                                    type: AppToastType.info,
-                                  );
-                                  return;
-                                }
-                              } catch (_) {
-                                // If check fails, allow navigation so user can try
-                              }
-                              await Navigator.of(context).push(
+                              await _pushSettingsRoute(
                                 MaterialPageRoute(
                                   builder: (_) =>
                                       const ExpertQuestionnairePage(),
@@ -1675,7 +1692,7 @@ class _SettingsPageState extends State<SettingsPage>
                       subtitle: t.translate('habit_reminder_settings_sub'),
                       onTap: _isDeactivated
                           ? null
-                          : () => Navigator.of(context).push(
+                          : () => _pushSettingsRoute(
                               MaterialPageRoute(
                                 builder: (_) =>
                                     const TaqaHabitReminderSettingsPage(),
@@ -1693,8 +1710,7 @@ class _SettingsPageState extends State<SettingsPage>
                       onTap: _isDeactivated
                           ? null
                           : () {
-                              Navigator.push(
-                                context,
+                              _pushSettingsRoute(
                                 MaterialPageRoute(
                                   builder: (_) => ForgotPasswordPage(
                                     lockedEmail: _email,
@@ -1820,7 +1836,7 @@ class _SettingsPageState extends State<SettingsPage>
                   _SettingsTile(
                     title: t.translate('settings_taqa_tutorial'),
                     subtitle: t.translate('settings_taqa_tutorial_sub'),
-                    onTap: () => Navigator.of(context).push(
+                    onTap: () => _pushSettingsRoute(
                       MaterialPageRoute(
                         fullscreenDialog: true,
                         builder: (_) => const TaqaTutorialLibraryPage(),
@@ -1879,8 +1895,7 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(15),
+      child: TaqaPressable(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(

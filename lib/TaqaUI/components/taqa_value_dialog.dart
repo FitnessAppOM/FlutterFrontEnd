@@ -5,6 +5,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_popup_guard.dart';
+import 'taqa_pressable.dart';
 
 class TaqaPopupDialog extends StatelessWidget {
   const TaqaPopupDialog({
@@ -124,7 +125,7 @@ Future<bool> showTaqaConfirmDialog({
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: GestureDetector(
+                          child: TaqaPressable(
                             onTap: () => Navigator.pop(ctx, false),
                             child: Center(
                               child: Text(
@@ -378,7 +379,7 @@ Future<T?> showTaqaOptionDialog<T>({
                         ),
                       ),
                     ),
-                  GestureDetector(
+                  TaqaPressable(
                     onTap: () => Navigator.pop(ctx),
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
@@ -608,7 +609,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
               child: Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: TaqaPressable(
                       onTap: () => Navigator.of(context).pop(),
                       child: Center(
                         child: Text(
@@ -797,7 +798,7 @@ Future<String?> _showTaqaInputDialog({
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
-                            child: GestureDetector(
+                            child: TaqaPressable(
                               onTap: () => Navigator.pop(ctx),
                               child: Center(
                                 child: Text(

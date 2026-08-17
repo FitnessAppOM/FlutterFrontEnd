@@ -8,6 +8,7 @@ import '../components/taqa_community_option_picker_sheet.dart';
 import '../components/taqa_filled_button.dart';
 import '../components/taqa_page_app_bar.dart';
 import '../components/taqa_popup_guard.dart';
+import '../components/taqa_pressable.dart';
 import '../components/taqa_segmented_toggle_button.dart';
 import '../components/taqa_switch.dart';
 import '../components/taqa_toast.dart';
@@ -367,8 +368,7 @@ class _HabitReminderSelectField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: TaqaUiScale.radius(10),
+    return TaqaPressable(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(

@@ -4,6 +4,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 import 'taqa_outline_tag_button.dart';
+import 'taqa_pressable.dart';
 
 class TaqaTrainingDaySection extends StatelessWidget {
   const TaqaTrainingDaySection({
@@ -242,17 +243,15 @@ class TaqaTrainingRemoveIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Remove exercise',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: TaqaUiScale.w(8),
-          height: TaqaUiScale.h(8),
-          child: CustomPaint(painter: const _TaqaTrainingRemoveIconPainter()),
-        ),
+    return TaqaPressable(
+      semanticLabel: 'Remove exercise',
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      pressedScale: 0.8,
+      child: SizedBox(
+        width: TaqaUiScale.w(8),
+        height: TaqaUiScale.h(8),
+        child: CustomPaint(painter: const _TaqaTrainingRemoveIconPainter()),
       ),
     );
   }

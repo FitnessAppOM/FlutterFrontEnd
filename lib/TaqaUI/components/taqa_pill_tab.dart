@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 /// Lime pill tab used for multi-section switchers (e.g. Diet's Rest/Training
 /// day toggle, the expert dashboard's My Clients/Programs/Nutrition tabs) —
@@ -25,7 +26,7 @@ class TaqaPillTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TaqaPressable(
       onTap: onTap,
       child: Container(
         height: TaqaUiScale.h(45),

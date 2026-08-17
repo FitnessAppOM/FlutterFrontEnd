@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import 'taqa_pressable.dart';
 
 /// Two-state pill toggle (e.g. Weekly/Daily) — filled charcoal when
 /// selected, outlined when not. Shared so any settings-style schedule
@@ -21,8 +22,7 @@ class TaqaSegmentedToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: TaqaUiScale.radius(5),
+    return TaqaPressable(
       onTap: onTap,
       child: Container(
         height: TaqaUiScale.h(45),

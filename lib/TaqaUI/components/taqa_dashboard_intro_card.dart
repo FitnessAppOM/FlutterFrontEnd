@@ -10,6 +10,7 @@ import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
 import 'taqa_streak_tag.dart';
 import 'taqa_weekdays_row.dart';
+import 'taqa_pressable.dart';
 import '../../localization/app_localizations.dart';
 
 class TaqaDashboardIntroCard extends StatelessWidget {
@@ -98,8 +99,9 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                   Positioned(
                     left: leftInset,
                     top: avatarTop,
-                    child: GestureDetector(
+                    child: TaqaPressable(
                       onTap: onAvatarTap,
+                      pressedScale: 0.92,
                       child: TaqaProfileAvatar(
                         size: avatarSize,
                         child: profilePicture,
@@ -111,7 +113,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     top: nameTop,
                     width: math.max(0, cardWidth - nameLeft - leftInset),
                     height: nameHeight,
-                    child: GestureDetector(
+                    child: TaqaPressable(
                       onTap: onAvatarTap,
                       behavior: HitTestBehavior.opaque,
                       child: Directionality(
