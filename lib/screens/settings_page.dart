@@ -912,7 +912,7 @@ class _SettingsPageState extends State<SettingsPage>
         AccountStorage.notifyAccountChanged();
         try {
           await WhoopDailySync().forceBackfillRecent();
-          await DailyProviderPushService().pushIfAfterOneAmLocal();
+          await DailyProviderPushService().pushIfAfterOneAmLocal(force: true);
           WhoopLatestService.clear();
           AccountStorage.notifyWhoopChanged();
         } catch (_) {}

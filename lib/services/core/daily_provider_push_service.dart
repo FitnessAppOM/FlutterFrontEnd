@@ -2,10 +2,14 @@ import '../fitbit/fitbit_daily_sync.dart';
 import '../metrics/daily_metrics_sync.dart';
 import '../whoop/whoop_daily_sync.dart';
 import '../scores/taqa_score_api.dart';
+import '../../core/account_storage.dart';
 
 class DailyProviderPushService {
   static const int localStartHour = 1; // 1:00 AM local device time
-  static bool _inFlight = false;
+  static const Duration _minimumAttemptInterval = Duration(minutes: 5);
+  static Future<void>? _inFlight;
+  static String? _lastAttemptKey;
+  static DateTime? _lastAttemptAt;
 
   static DateTime effectiveLocalDay([DateTime? now]) {
     final reference = (now ?? DateTime.now()).subtract(
@@ -35,35 +39,57 @@ class DailyProviderPushService {
     return d == effectiveLocalDay(reference) || d == calendarToday;
   }
 
-  Future<void> pushIfAfterOneAmLocal({bool force = false}) async {
-    if (_inFlight) return;
+  Future<void> pushIfAfterOneAmLocal({bool force = false}) {
+    final active = _inFlight;
+    if (active != null) return active;
+
+    late final Future<void> operation;
+    operation = _pushIfAfterOneAmLocal(force: force);
+    _inFlight = operation;
+    return operation.whenComplete(() {
+      if (identical(_inFlight, operation)) _inFlight = null;
+    });
+  }
+
+  Future<void> _pushIfAfterOneAmLocal({required bool force}) async {
     if (!force && !_isAfterWindowStart(DateTime.now())) return;
-    _inFlight = true;
-    try {
-      try {
-        await DailyMetricsSync().pushIfNewDay();
-      } catch (e) {
-        // ignore: avoid_print
-        print("DailyProviderPushService: daily metrics sync failed: $e");
-      }
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
 
-      try {
-        await WhoopDailySync().pushIfNewDay();
-      } catch (e) {
-        // ignore: avoid_print
-        print("DailyProviderPushService: whoop sync failed: $e");
-      }
-
-      try {
-        await FitbitDailySync().pushIfNewDay();
-      } catch (e) {
-        // ignore: avoid_print
-        print("DailyProviderPushService: fitbit sync failed: $e");
-      }
-      TaqaScoreApi.clearCache();
-    } finally {
-      _inFlight = false;
+    final now = DateTime.now();
+    final day = effectiveLocalDay(now);
+    final attemptKey = '$userId:${day.year}-${day.month}-${day.day}';
+    final lastAttemptAt = _lastAttemptAt;
+    if (!force &&
+        _lastAttemptKey == attemptKey &&
+        lastAttemptAt != null &&
+        now.difference(lastAttemptAt) < _minimumAttemptInterval) {
+      return;
     }
+    _lastAttemptKey = attemptKey;
+    _lastAttemptAt = now;
+
+    try {
+      await DailyMetricsSync().pushIfNewDay(force: force);
+    } catch (e) {
+      // ignore: avoid_print
+      print("DailyProviderPushService: daily metrics sync failed: $e");
+    }
+
+    try {
+      await WhoopDailySync().pushIfNewDay();
+    } catch (e) {
+      // ignore: avoid_print
+      print("DailyProviderPushService: whoop sync failed: $e");
+    }
+
+    try {
+      await FitbitDailySync().pushIfNewDay();
+    } catch (e) {
+      // ignore: avoid_print
+      print("DailyProviderPushService: fitbit sync failed: $e");
+    }
+    TaqaScoreApi.clearCache();
   }
 
   bool _isAfterWindowStart(DateTime now) => now.hour >= localStartHour;

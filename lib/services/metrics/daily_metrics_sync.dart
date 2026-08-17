@@ -142,7 +142,7 @@ class DailyMetricsSync {
   }
 
   /// Pushes and reconciles historical metrics for the current effective local day.
-  Future<void> pushIfNewDay() async {
+  Future<void> pushIfNewDay({bool force = false}) async {
     if (_syncInFlight) return;
     _syncInFlight = true;
     try {
@@ -152,6 +152,7 @@ class DailyMetricsSync {
       final sp = await SharedPreferences.getInstance();
       final lastKey = _userScopedKey(userId);
       final todayKey = _dateKey(_effectiveLocalDay());
+      if (!force && sp.getString(lastKey) == todayKey) return;
 
       await pushYesterdayIfNewDay();
       final backfillSettled = await backfillMissingIfNeeded();

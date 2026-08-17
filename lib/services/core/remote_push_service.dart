@@ -30,6 +30,7 @@ class RemotePushService {
   static int? _lastSyncedUserId;
   static String? _lastSyncedToken;
   static String? _cachedDeviceId;
+  static Future<void> _tokenSyncQueue = Future<void>.value();
 
   static Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
 
@@ -289,6 +290,21 @@ class RemotePushService {
 
   static Future<void> syncTokenForCurrentUser({
     bool force = false,
+    String? tokenOverride,
+  }) {
+    // Serialize callers from startup, account changes, and FCM refreshes. A
+    // later normal call then sees the token recorded by the first call and
+    // exits without issuing another identical backend request.
+    final operation = _tokenSyncQueue.then(
+      (_) =>
+          _syncTokenForCurrentUser(force: force, tokenOverride: tokenOverride),
+    );
+    _tokenSyncQueue = operation.catchError((_) {});
+    return operation;
+  }
+
+  static Future<void> _syncTokenForCurrentUser({
+    required bool force,
     String? tokenOverride,
   }) async {
     final userId = await AccountStorage.getUserId();

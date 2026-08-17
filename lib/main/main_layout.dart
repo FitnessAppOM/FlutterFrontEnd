@@ -12,7 +12,6 @@ import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
-import '../services/core/remote_push_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
 import '../services/training/training_activity_service.dart';
 import '../screens/coach_page.dart';
@@ -235,7 +234,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
         }
       }
       unawaited(
-        _syncSubscriptionServicesInBackground(
+        _syncSubscriptionNotificationsInBackground(
           hasSubscriptionAccess: !subscriptionRequired,
         ),
       );
@@ -251,7 +250,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _syncSubscriptionServicesInBackground({
+  Future<void> _syncSubscriptionNotificationsInBackground({
     required bool hasSubscriptionAccess,
   }) async {
     try {
@@ -260,12 +259,6 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
     } catch (_) {
       // Subscription enforcement must not wait on notification maintenance.
-    }
-    if (!hasSubscriptionAccess) return;
-    try {
-      await RemotePushService.syncTokenForCurrentUser();
-    } catch (_) {
-      // Token sync is retried by the normal startup/resume flow.
     }
   }
 

@@ -2088,7 +2088,7 @@ class DashboardPageState extends State<DashboardPage>
     final futures = <Future<void>>[
       _loadUserInfo(),
       _loadNews(),
-      _loadSteps(),
+      _loadSteps(force: true),
       _loadSleep(),
       _loadCalories(),
       _loadWater(),
@@ -3171,19 +3171,19 @@ class DashboardPageState extends State<DashboardPage>
   /// reloading the rest of the dashboard.
   Future<void> refreshLiveSteps() async {
     if (!mounted || !_isToday() || _stepsLoading) return;
-    await _loadSteps();
+    await _loadSteps(force: true);
     if (!mounted) return;
     await _loadWeeklySteps();
   }
 
-  Future<void> _loadSteps() async {
+  Future<void> _loadSteps({bool force = false}) async {
     setState(() {
       _stepsLoading = true;
     });
     try {
       int? steps;
       if (_isToday()) {
-        steps = await StepsService().fetchTodaySteps();
+        steps = await StepsService().fetchTodaySteps(force: force);
       } else {
         final userId = await AccountStorage.getUserId();
         if (userId != null) {
@@ -5546,7 +5546,7 @@ class DashboardPageState extends State<DashboardPage>
                           ),
                         );
                         await _loadGoals();
-                        await _loadSteps();
+                        await _loadSteps(force: true);
                       },
                     );
                   case 'sleep':

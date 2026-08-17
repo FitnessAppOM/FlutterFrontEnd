@@ -9,6 +9,9 @@ import '../metrics/daily_metrics_sync.dart';
 class StepsService {
   final Health _health = Health();
   static const _manualKey = "manual_steps_entries";
+  static const Duration _todayCacheTtl = Duration(seconds: 30);
+  static final Map<String, _TodayStepsCacheEntry> _todayCache = {};
+  static final Map<String, Future<int>> _todayInFlight = {};
 
   num _valueToNum(dynamic value) {
     if (value is num) return value;
@@ -20,7 +23,37 @@ class StepsService {
     return num.tryParse(value.toString()) ?? 0;
   }
 
-  Future<int> fetchTodaySteps() async {
+  Future<int> fetchTodaySteps({bool force = false}) async {
+    final now = DateTime.now();
+    final userId = await AccountStorage.getUserId();
+    final cacheKey = _todayKey(userId, now);
+    final cached = _todayCache[cacheKey];
+    if (!force &&
+        cached != null &&
+        now.difference(cached.fetchedAt) < _todayCacheTtl) {
+      return cached.value;
+    }
+
+    final active = _todayInFlight[cacheKey];
+    if (active != null) return active;
+
+    final operation = _fetchTodayStepsUncached();
+    _todayInFlight[cacheKey] = operation;
+    try {
+      final value = await operation;
+      _todayCache[cacheKey] = _TodayStepsCacheEntry(
+        value: value,
+        fetchedAt: DateTime.now(),
+      );
+      return value;
+    } finally {
+      if (identical(_todayInFlight[cacheKey], operation)) {
+        _todayInFlight.remove(cacheKey);
+      }
+    }
+  }
+
+  Future<int> _fetchTodayStepsUncached() async {
     final manual = await _loadManualEntries();
     final now = DateTime.now();
     final todayKey = DateTime(now.year, now.month, now.day);
@@ -223,6 +256,7 @@ class StepsService {
     );
     final key = await _scopedKey(_manualKey);
     await sp.setString(key, jsonEncode(encoded));
+    await _invalidateTodayCacheIfNeeded(normalized);
   }
 
   Future<void> clearManualEntry(DateTime day) async {
@@ -230,6 +264,7 @@ class StepsService {
     final existing = await _loadManualEntries();
     final normalized = DateTime(day.year, day.month, day.day);
     if (existing.remove(normalized) == null) return;
+    await _invalidateTodayCacheIfNeeded(normalized);
     final key = await _scopedKey(_manualKey);
     if (existing.isEmpty) {
       await sp.remove(key);
@@ -282,4 +317,23 @@ class StepsService {
     if (userId == null) return base;
     return "${base}_u$userId";
   }
+
+  static String _todayKey(int? userId, DateTime day) {
+    return '${userId ?? 0}:${day.year}-${day.month}-${day.day}';
+  }
+
+  Future<void> _invalidateTodayCacheIfNeeded(DateTime day) async {
+    final now = DateTime.now();
+    final normalizedToday = DateTime(now.year, now.month, now.day);
+    if (day != normalizedToday) return;
+    final userId = await AccountStorage.getUserId();
+    _todayCache.remove(_todayKey(userId, now));
+  }
+}
+
+class _TodayStepsCacheEntry {
+  const _TodayStepsCacheEntry({required this.value, required this.fetchedAt});
+
+  final int value;
+  final DateTime fetchedAt;
 }

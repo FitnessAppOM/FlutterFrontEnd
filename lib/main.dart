@@ -228,7 +228,8 @@ Future<void> _bootstrap() async {
       // can begin once the first authenticated route has resolved its gates.
       await NavigationService.waitUntilStartupReady();
 
-      // Keep push listeners initialized, but don't sync token at startup.
+      // Initialize push listeners and let RemotePushService own the single
+      // startup token registration.
       try {
         await timed(
           'Deferred RemotePushService.init',
