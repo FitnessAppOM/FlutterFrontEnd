@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -10,7 +9,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:share_plus/share_plus.dart';
+
+import 'taqa_share_service.dart';
 
 class CardioShareService {
   static const MethodChannel _instagramChannel = MethodChannel(
@@ -94,15 +94,8 @@ class CardioShareService {
     final dir = await getTemporaryDirectory();
     final filePath = '${dir.path}/cardio_achievement.png';
     final file = await File(filePath).writeAsBytes(bytes, flush: true);
-    final box = context.findRenderObject() as RenderBox?;
-    final origin = box == null
-        ? Rect.fromLTWH(0, 0, 1, 1)
-        : box.localToGlobal(Offset.zero) & box.size;
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: text,
-      sharePositionOrigin: origin,
-    );
+    if (!context.mounted) return;
+    await TaqaShareService.shareFilePaths(context, [file.path], text: text);
   }
 
   static Future<bool> shareInstagramSticker(Uint8List bytes) async {

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../TaqaUI/components/taqa_empty_card.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -16,6 +15,7 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
 import '../services/referrals/referral_api.dart';
+import '../services/share/taqa_share_service.dart';
 
 class ReferralDashboardPage extends StatefulWidget {
   const ReferralDashboardPage({super.key});
@@ -29,6 +29,7 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
   bool _loading = true;
   bool _loadFailed = false;
   int? _claimingRewardId;
+  bool _sharing = false;
 
   bool get _submitting => _claimingRewardId != null;
 
@@ -154,13 +155,35 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
     );
   }
 
-  void _shareCode(ReferralSummary summary) {
-    Share.share(
-      _t('referral_dashboard_share_text', {
-        'url': summary.identity.shareUrl,
-        'code': summary.identity.code,
-      }),
-    );
+  Future<void> _shareCode(ReferralSummary summary) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      final opened = await TaqaShareService.shareText(
+        context,
+        subject: _t('referral_dashboard_title'),
+        text: _t('referral_dashboard_share_text', {
+          'url': summary.identity.shareUrl,
+          'code': summary.identity.code,
+        }),
+      );
+      if (!opened && mounted) {
+        AppToast.show(
+          context,
+          _t('referral_dashboard_share_failed'),
+          type: AppToastType.error,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        _t('referral_dashboard_share_failed'),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
   }
 
   @override
@@ -228,7 +251,8 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
             copyLabel: _t('settings_referral_copy'),
             shareLabel: _t('settings_referral_share'),
             onCopy: () => _copyCode(summary),
-            onShare: () => _shareCode(summary),
+            onShare: _sharing ? null : () => _shareCode(summary),
+            shareLoading: _sharing,
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           TaqaReferralStatsCard(

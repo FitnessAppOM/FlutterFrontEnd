@@ -1381,6 +1381,8 @@ class AppLocalizations {
           "This reward could not be prepared. Please try again.",
       "referral_dashboard_share_text":
           "Join me on Taqa Fitness.\n{url}\nReferral code: {code}",
+      "referral_dashboard_share_failed":
+          "Could not open sharing. Please try again.",
       "referral_dashboard_reward_free_month": "One free month",
       "referral_dashboard_reward_coach_monthly":
           "Coach monthly referral reward",
@@ -3724,6 +3726,8 @@ class AppLocalizations {
           "تعذر تجهيز هذه المكافأة. حاول مرة أخرى.",
       "referral_dashboard_share_text":
           "انضم إليّ على Taqa Fitness.\n{url}\nرمز الإحالة: {code}",
+      "referral_dashboard_share_failed":
+          "تعذر فتح خيارات المشاركة. حاول مرة أخرى.",
       "referral_dashboard_reward_free_month": "شهر مجاني واحد",
       "referral_dashboard_reward_coach_monthly":
           "مكافأة إحالة خطة المدرب الشهرية",

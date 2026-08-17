@@ -38,6 +38,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
     required this.shareLabel,
     required this.onCopy,
     required this.onShare,
+    this.shareLoading = false,
   });
 
   final String title;
@@ -47,7 +48,8 @@ class TaqaReferralHeroCard extends StatelessWidget {
   final String copyLabel;
   final String shareLabel;
   final VoidCallback onCopy;
-  final VoidCallback onShare;
+  final VoidCallback? onShare;
+  final bool shareLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +163,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                   icon: Icons.ios_share_rounded,
                   onTap: onShare,
                   backgroundColor: TaqaUiColors.lime,
+                  loading: shareLoading,
                 ),
               ),
             ],
@@ -456,12 +459,14 @@ class _TaqaReferralActionButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     required this.backgroundColor,
+    this.loading = false,
   });
 
   final String label;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final Color backgroundColor;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -475,21 +480,27 @@ class _TaqaReferralActionButton extends StatelessWidget {
           color: backgroundColor,
           borderRadius: TaqaUiScale.radius(5),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: TaqaUiScale.w(16), color: TaqaUiColors.charcoal),
-            SizedBox(width: TaqaUiScale.w(7)),
-            Flexible(
-              child: Text(
-                taqaUppercase(label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _TaqaReferralText.button,
+        child: loading
+            ? const TaqaLoadingIndicator(size: 16)
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: TaqaUiScale.w(16),
+                    color: TaqaUiColors.charcoal,
+                  ),
+                  SizedBox(width: TaqaUiScale.w(7)),
+                  Flexible(
+                    child: Text(
+                      taqaUppercase(label),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: _TaqaReferralText.button,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
