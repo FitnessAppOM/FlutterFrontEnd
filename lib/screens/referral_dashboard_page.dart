@@ -4,12 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../services/referrals/referral_api.dart';
+import '../TaqaUI/components/taqa_empty_card.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_referral_cards.dart';
+import '../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
-import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../localization/app_localizations.dart';
+import '../services/referrals/referral_api.dart';
 
 class ReferralDashboardPage extends StatefulWidget {
   const ReferralDashboardPage({super.key});
@@ -20,9 +26,11 @@ class ReferralDashboardPage extends StatefulWidget {
 
 class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
   ReferralSummary? _summary;
-  String? _error;
   bool _loading = true;
-  bool _submitting = false;
+  bool _loadFailed = false;
+  int? _claimingRewardId;
+
+  bool get _submitting => _claimingRewardId != null;
 
   @override
   void initState() {
@@ -30,27 +38,31 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool showPageLoading = true}) async {
+    if (showPageLoading && mounted) {
+      setState(() {
+        _loading = true;
+        _loadFailed = false;
+      });
+    }
     try {
       final summary = await ReferralApi.mySummary();
       if (!mounted) return;
-      setState(() => _summary = summary);
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      setState(() {
+        _summary = summary;
+        _loadFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadFailed = true);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && showPageLoading) setState(() => _loading = false);
     }
   }
 
   Future<void> _prepareClaim(ReferralReward reward) async {
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
+    if (_submitting) return;
+    setState(() => _claimingRewardId = reward.id);
     try {
       final preparation = await ReferralApi.prepareClaim(
         rewardId: reward.id,
@@ -70,382 +82,211 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
           ),
         ),
       );
-      if (completed == true) await _load();
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (completed == true) await _load(showPageLoading: false);
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        _t('referral_dashboard_claim_failed'),
+        type: AppToastType.error,
+      );
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _claimingRewardId = null);
     }
+  }
+
+  String _t(String key, [Map<String, Object> values = const {}]) {
+    var text = AppLocalizations.of(context).translate(key);
+    for (final entry in values.entries) {
+      text = text.replaceAll('{${entry.key}}', entry.value.toString());
+    }
+    return text;
   }
 
   String _rewardLabel(ReferralReward reward) {
     if (reward.type.startsWith('ordinary_')) {
-      return 'One free month';
+      return _t('referral_dashboard_reward_free_month');
     }
     if (reward.type.contains('yearly')) {
-      return 'Coach yearly referral reward';
+      return _t('referral_dashboard_reward_coach_yearly');
     }
-    return 'Coach monthly referral reward';
+    return _t('referral_dashboard_reward_coach_monthly');
   }
 
-  TextStyle _textStyle({
-    double size = 13,
-    FontWeight weight = FontWeight.w400,
-    Color color = TaqaUiColors.unnamedColor1c1d17,
-  }) {
-    return TextStyle(
-      fontFamily: TaqaUiFontFamilies.interTight,
-      fontSize: TaqaUiScale.sp(size),
-      fontWeight: weight,
-      color: color,
-      height: 1.3,
+  String _rewardStatus(ReferralReward reward) {
+    return switch (reward.status.toLowerCase()) {
+      'qualified' when reward.isClaimable => _t(
+        'referral_dashboard_status_claimable',
+      ),
+      'qualified' => _t('referral_dashboard_status_qualified'),
+      'claiming' => _t('referral_dashboard_status_claiming'),
+      'applied' => _t('referral_dashboard_status_applied'),
+      'voided' => _t('referral_dashboard_status_voided'),
+      _ => _t('referral_dashboard_status_unavailable'),
+    };
+  }
+
+  TaqaReferralRewardTone _rewardTone(ReferralReward reward) {
+    if (reward.status == 'applied') return TaqaReferralRewardTone.completed;
+    if (reward.isClaimable) return TaqaReferralRewardTone.available;
+    return TaqaReferralRewardTone.unavailable;
+  }
+
+  String _progressStatus(CoachReferralProgress progress) {
+    final count = progress.qualifiedCount;
+    if (count >= progress.freeThreshold) {
+      return _t('referral_dashboard_progress_free_unlocked');
+    }
+    if (count >= progress.discountThreshold) {
+      return _t('referral_dashboard_progress_half_unlocked');
+    }
+    return _t('referral_dashboard_progress_more_for_half', {
+      'count': progress.discountThreshold - count,
+    });
+  }
+
+  void _copyCode(ReferralSummary summary) {
+    Clipboard.setData(ClipboardData(text: summary.identity.code));
+    AppToast.show(
+      context,
+      _t('settings_referral_code_copied'),
+      type: AppToastType.success,
     );
   }
 
-  Widget _card({required Widget child}) {
-    return Container(
-      width: double.infinity,
-      padding: TaqaUiScale.insetsLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: TaqaUiColors.white,
-        borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _compactAction({
-    required String label,
-    required IconData icon,
-    required VoidCallback? onTap,
-    bool filled = false,
-  }) {
-    return Expanded(
-      child: Material(
-        color: filled ? TaqaUiColors.lime : TaqaUiColors.white,
-        borderRadius: TaqaUiScale.radius(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: TaqaUiScale.radius(8),
-          child: Container(
-            height: TaqaUiScale.h(44),
-            decoration: BoxDecoration(
-              borderRadius: TaqaUiScale.radius(8),
-              border: Border.all(
-                color: TaqaUiColors.unnamedColor1c1d17,
-                width: 1.2,
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: TaqaUiScale.w(17)),
-                SizedBox(width: TaqaUiScale.w(7)),
-                Text(label.toUpperCase(), style: _textStyle(size: 11, weight: FontWeight.w700)),
-              ],
-            ),
-          ),
-        ),
-      ),
+  void _shareCode(ReferralSummary summary) {
+    Share.share(
+      _t('referral_dashboard_share_text', {
+        'url': summary.identity.shareUrl,
+        'code': summary.identity.code,
+      }),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: const TaqaPageAppBar(title: 'Referrals and rewards'),
+      backgroundColor: TaqaUiColors.lightGray,
+      appBar: TaqaPageAppBar(title: _t('referral_dashboard_title')),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: TaqaUiColors.charcoal),
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 28),
-                children: [
-                  if (_error != null)
-                    Container(
-                      margin: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-                      padding: TaqaUiScale.insetsLTRB(12, 10, 12, 10),
-                      decoration: BoxDecoration(
-                        color: TaqaUiColors.recordRed.withValues(alpha: 0.10),
-                        borderRadius: TaqaUiScale.radius(10),
-                        border: Border.all(
-                          color: TaqaUiColors.recordRed.withValues(alpha: 0.45),
-                        ),
-                      ),
-                      child: Text(
-                        _error!,
-                        style: _textStyle(color: TaqaUiColors.recordRed),
-                      ),
-                    ),
-                  if (_summary != null) ...[
-                    _card(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('YOUR REFERRAL CODE', style: _textStyle(size: 11, weight: FontWeight.w700)),
-                          SizedBox(height: TaqaUiScale.h(6)),
-                          Text(
-                            'Share this code with new Taqa members.',
-                            style: _textStyle(
-                              size: 12,
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.62),
-                            ),
-                          ),
-                          SizedBox(height: TaqaUiScale.h(14)),
-                          Container(
-                            width: double.infinity,
-                            padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
-                            decoration: BoxDecoration(
-                              color: TaqaUiColors.unnamedColorE3e3e3.withValues(alpha: 0.55),
-                              borderRadius: TaqaUiScale.radius(10),
-                              border: Border.all(
-                                color: TaqaUiColors.unnamedColor1c1d17,
-                                width: 1.2,
-                              ),
-                            ),
-                            child: SelectableText(
-                              _summary!.identity.code,
-                              textAlign: TextAlign.center,
-                              style: _textStyle(size: 22, weight: FontWeight.w700),
-                            ),
-                          ),
-                          SizedBox(height: TaqaUiScale.h(12)),
-                          Row(
-                            children: [
-                              _compactAction(
-                                label: 'Copy',
-                                icon: Icons.copy_rounded,
-                                onTap: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: _summary!.identity.code),
-                                  );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Referral code copied.')),
-                                  );
-                                },
-                              ),
-                              SizedBox(width: TaqaUiScale.w(10)),
-                              _compactAction(
-                                label: 'Share',
-                                icon: Icons.ios_share_rounded,
-                                filled: true,
-                                onTap: () => Share.share(
-                                  'Join me on Taqa. Install the app here: ${_summary!.identity.shareUrl}\nReferral code: ${_summary!.identity.code}',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: TaqaUiScale.h(14)),
-                    _card(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _stat(
-                              'QUALIFIED',
-                              _summary!.qualifiedReferralCount.toString(),
-                            ),
-                          ),
-                          Container(
-                            width: 1,
-                            height: TaqaUiScale.h(42),
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.14),
-                          ),
-                          Expanded(
-                            child: _stat(
-                              'CLAIMABLE',
-                              _summary!.claimableCount.toString(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_summary!.rewards.any(
-                      (reward) => reward.type.startsWith('coach_'),
-                    )) ...[
-                      SizedBox(height: TaqaUiScale.h(18)),
-                      Text(
-                        'COACH REFERRAL PROGRESS',
-                        style: _textStyle(
-                          size: 12,
-                          weight: FontWeight.w700,
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(10)),
-                      _coachProgressCard(
-                        label: 'Monthly referrals',
-                        rewardText: r'$10 monthly discount',
-                        freeText: 'Free monthly payment',
-                        progress: _summary!.monthlyCoachProgress,
-                      ),
-                      SizedBox(height: TaqaUiScale.h(10)),
-                      _coachProgressCard(
-                        label: 'Yearly referrals',
-                        rewardText: r'$100 yearly discount',
-                        freeText: 'Free yearly payment',
-                        progress: _summary!.yearlyCoachProgress,
-                      ),
-                    ],
-                    SizedBox(height: TaqaUiScale.h(18)),
-                    Text('REWARDS', style: _textStyle(size: 12, weight: FontWeight.w700)),
-                    SizedBox(height: TaqaUiScale.h(10)),
-                    if (_summary!.rewards.isEmpty)
-                      _card(
-                        child: Text(
-                          'No referral rewards yet.',
-                          style: _textStyle(
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.62),
-                          ),
-                        ),
-                      )
-                    else
-                      ..._summary!.rewards.map(
-                        (reward) => Padding(
-                          padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
-                          child: _card(
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: TaqaUiScale.w(40),
-                                  height: TaqaUiScale.h(40),
-                                  decoration: const BoxDecoration(
-                                    color: TaqaUiColors.lime,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.card_giftcard_rounded),
-                                ),
-                                SizedBox(width: TaqaUiScale.w(12)),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(_rewardLabel(reward), style: _textStyle(weight: FontWeight.w700)),
-                                      SizedBox(height: TaqaUiScale.h(2)),
-                                      Text(
-                                        'Status: ${reward.status}',
-                                        style: _textStyle(
-                                          size: 11,
-                                          color: TaqaUiColors.charcoal.withValues(alpha: 0.58),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (reward.isClaimable)
-                                  TextButton(
-                                    onPressed: _submitting ? null : () => _prepareClaim(reward),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor: TaqaUiColors.charcoal,
-                                      backgroundColor: TaqaUiColors.lime,
-                                      shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(7)),
-                                    ),
-                                    child: Text('CLAIM', style: _textStyle(size: 10, weight: FontWeight.w700)),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              ),
+          ? const Center(child: TaqaLoadingIndicator())
+          : _summary == null
+          ? _buildUnavailableState()
+          : _buildDashboard(_summary!),
+    );
+  }
+
+  Widget _buildUnavailableState() {
+    return SafeArea(
+      child: Padding(
+        padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TaqaEmptyCard(
+              title: _t('referral_dashboard_load_error'),
+              subtitle: _t('referral_dashboard_load_error_sub'),
+              icon: Icons.wifi_off_rounded,
             ),
-    );
-  }
-
-  Widget _stat(String label, String value) {
-    return Column(
-      children: [
-        Text(value, style: _textStyle(size: 22, weight: FontWeight.w700)),
-        SizedBox(height: TaqaUiScale.h(2)),
-        Text(
-          label,
-          style: _textStyle(
-            size: 10,
-            weight: FontWeight.w600,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.58),
-          ),
+            SizedBox(height: TaqaUiScale.h(12)),
+            TaqaFilledButton(
+              label: _t('referral_dashboard_retry'),
+              onTap: _loading ? null : _load,
+              loading: _loading,
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _coachProgressCard({
-    required String label,
-    required String rewardText,
-    required String freeText,
-    required CoachReferralProgress progress,
-  }) {
-    final count = progress.qualifiedCount;
-    final progressValue =
-        (count / progress.freeThreshold).clamp(0.0, 1.0).toDouble();
-    final status = count >= progress.freeThreshold
-        ? '$freeText unlocked'
-        : count >= progress.discountThreshold
-        ? '$rewardText unlocked'
-        : '${progress.discountThreshold - count} more for $rewardText';
-    return _card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildDashboard(ReferralSummary summary) {
+    final coachRewards = summary.rewards.any(
+      (reward) => reward.type.startsWith('coach_'),
+    );
+
+    return TaqaRefreshIndicator(
+      onRefresh: () => _load(showPageLoading: false),
+      showCooldownToast: false,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: TaqaUiScale.insetsLTRB(16, 18, 16, 30),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: _textStyle(size: 13, weight: FontWeight.w700),
+          if (_loadFailed) ...[
+            TaqaReferralNoticeCard(
+              message: _t('referral_dashboard_refresh_error'),
+              actionLabel: _t('referral_dashboard_retry'),
+              onAction: () => _load(showPageLoading: false),
+            ),
+            SizedBox(height: TaqaUiScale.h(12)),
+          ],
+          TaqaReferralHeroCard(
+            title: _t('referral_dashboard_hero_title'),
+            description: _t('settings_referral_code_explanation'),
+            codeLabel: _t('referral_dashboard_your_code'),
+            code: summary.identity.code,
+            copyLabel: _t('settings_referral_copy'),
+            shareLabel: _t('settings_referral_share'),
+            onCopy: () => _copyCode(summary),
+            onShare: () => _shareCode(summary),
+          ),
+          SizedBox(height: TaqaUiScale.h(12)),
+          TaqaReferralStatsCard(
+            qualifiedLabel: _t('referral_dashboard_qualified'),
+            qualifiedValue: summary.qualifiedReferralCount.toString(),
+            claimableLabel: _t('referral_dashboard_claimable'),
+            claimableValue: summary.claimableCount.toString(),
+          ),
+          if (coachRewards) ...[
+            SizedBox(height: TaqaUiScale.h(22)),
+            TaqaReferralSectionTitle(
+              title: _t('referral_dashboard_coach_progress'),
+            ),
+            SizedBox(height: TaqaUiScale.h(9)),
+            TaqaReferralProgressCard(
+              title: _t('referral_dashboard_monthly_referrals'),
+              count: summary.monthlyCoachProgress.qualifiedCount,
+              target: summary.monthlyCoachProgress.freeThreshold,
+              status: _progressStatus(summary.monthlyCoachProgress),
+              milestones: _t('referral_dashboard_monthly_milestones'),
+            ),
+            SizedBox(height: TaqaUiScale.h(10)),
+            TaqaReferralProgressCard(
+              title: _t('referral_dashboard_yearly_referrals'),
+              count: summary.yearlyCoachProgress.qualifiedCount,
+              target: summary.yearlyCoachProgress.freeThreshold,
+              status: _progressStatus(summary.yearlyCoachProgress),
+              milestones: _t('referral_dashboard_yearly_milestones'),
+            ),
+          ],
+          SizedBox(height: TaqaUiScale.h(22)),
+          TaqaReferralSectionTitle(title: _t('referral_dashboard_rewards')),
+          SizedBox(height: TaqaUiScale.h(9)),
+          if (summary.rewards.isEmpty)
+            TaqaEmptyCard(
+              title: _t('referral_dashboard_no_rewards'),
+              subtitle: _t('referral_dashboard_no_rewards_sub'),
+              icon: Icons.card_giftcard_rounded,
+              minHeight: TaqaUiScale.h(148),
+            )
+          else
+            ...summary.rewards.map(
+              (reward) => Padding(
+                padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
+                child: TaqaReferralRewardCard(
+                  title: _rewardLabel(reward),
+                  status: _rewardStatus(reward),
+                  tone: _rewardTone(reward),
+                  claimLabel: _t('referral_dashboard_claim'),
+                  onClaim:
+                      reward.isClaimable &&
+                          (!_submitting || _claimingRewardId == reward.id)
+                      ? () => _prepareClaim(reward)
+                      : null,
+                  loading: _claimingRewardId == reward.id,
                 ),
               ),
-              Text(
-                '$count / ${progress.freeThreshold}',
-                style: _textStyle(size: 13, weight: FontWeight.w700),
-              ),
-            ],
-          ),
-          SizedBox(height: TaqaUiScale.h(10)),
-          ClipRRect(
-            borderRadius: TaqaUiScale.radius(8),
-            child: LinearProgressIndicator(
-              value: progressValue,
-              minHeight: TaqaUiScale.h(8),
-              backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                TaqaUiColors.lime,
-              ),
             ),
-          ),
-          SizedBox(height: TaqaUiScale.h(8)),
-          Text(
-            status,
-            style: _textStyle(
-              size: 11,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.65),
-            ),
-          ),
-          SizedBox(height: TaqaUiScale.h(3)),
-          Text(
-            'Claimable only with the matching Coach plan.',
-            style: _textStyle(
-              size: 10,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.50),
-            ),
-          ),
         ],
       ),
     );

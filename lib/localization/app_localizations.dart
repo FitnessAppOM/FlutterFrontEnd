@@ -1348,6 +1348,49 @@ class AppLocalizations {
       "settings_referral_share_message": "Join me on Taqa. My referral code is",
       "settings_referral_copy": "Copy",
       "settings_referral_share": "Share",
+      "referral_dashboard_title": "Referrals & rewards",
+      "referral_dashboard_hero_title": "Invite friends. Earn rewards.",
+      "referral_dashboard_your_code": "Your referral code",
+      "referral_dashboard_qualified": "Qualified",
+      "referral_dashboard_claimable": "Claimable",
+      "referral_dashboard_coach_progress": "Coach referral progress",
+      "referral_dashboard_monthly_referrals": "Monthly-plan referrals",
+      "referral_dashboard_yearly_referrals": "Yearly-plan referrals",
+      "referral_dashboard_monthly_milestones":
+          "10 referrals = 50% off one monthly payment • 20 = one monthly payment free",
+      "referral_dashboard_yearly_milestones":
+          "10 referrals = 50% off one yearly payment • 20 = one yearly payment free",
+      "referral_dashboard_progress_free_unlocked":
+          "Your free payment reward is unlocked.",
+      "referral_dashboard_progress_half_unlocked":
+          "Your 50% discount is unlocked.",
+      "referral_dashboard_progress_more_for_half":
+          "{count} more referrals to unlock 50% off.",
+      "referral_dashboard_rewards": "Rewards",
+      "referral_dashboard_no_rewards": "No referral rewards yet",
+      "referral_dashboard_no_rewards_sub":
+          "Share your code to begin earning rewards",
+      "referral_dashboard_claim": "Claim",
+      "referral_dashboard_load_error": "Could not load your referrals",
+      "referral_dashboard_load_error_sub":
+          "Check your connection and try again",
+      "referral_dashboard_refresh_error":
+          "Your referral information could not be refreshed.",
+      "referral_dashboard_retry": "Try again",
+      "referral_dashboard_claim_failed":
+          "This reward could not be prepared. Please try again.",
+      "referral_dashboard_share_text":
+          "Join me on Taqa Fitness.\n{url}\nReferral code: {code}",
+      "referral_dashboard_reward_free_month": "One free month",
+      "referral_dashboard_reward_coach_monthly":
+          "Coach monthly referral reward",
+      "referral_dashboard_reward_coach_yearly": "Coach yearly referral reward",
+      "referral_dashboard_status_claimable": "Ready to claim",
+      "referral_dashboard_status_qualified": "Qualified",
+      "referral_dashboard_status_claiming": "Processing",
+      "referral_dashboard_status_applied": "Used",
+      "referral_dashboard_status_voided": "Unavailable",
+      "referral_dashboard_status_unavailable": "Unavailable",
       "settings_change_username": "Change username",
       "settings_change_username_sub": "Update your public username",
       "username_updated": "Username updated",
@@ -3652,6 +3695,46 @@ class AppLocalizations {
           "انضم إليّ على Taqa. رمز الإحالة الخاص بي هو",
       "settings_referral_copy": "نسخ",
       "settings_referral_share": "مشاركة",
+      "referral_dashboard_title": "الإحالات والمكافآت",
+      "referral_dashboard_hero_title": "ادعُ أصدقاءك واكسب المكافآت",
+      "referral_dashboard_your_code": "رمز الإحالة الخاص بك",
+      "referral_dashboard_qualified": "الإحالات المؤهلة",
+      "referral_dashboard_claimable": "جاهزة للاستفادة",
+      "referral_dashboard_coach_progress": "تقدم إحالات المدرب",
+      "referral_dashboard_monthly_referrals": "إحالات الخطة الشهرية",
+      "referral_dashboard_yearly_referrals": "إحالات الخطة السنوية",
+      "referral_dashboard_monthly_milestones":
+          "10 إحالات = خصم 50% على دفعة شهرية واحدة • 20 = دفعة شهرية مجانية",
+      "referral_dashboard_yearly_milestones":
+          "10 إحالات = خصم 50% على دفعة سنوية واحدة • 20 = دفعة سنوية مجانية",
+      "referral_dashboard_progress_free_unlocked":
+          "تم فتح مكافأة الدفعة المجانية.",
+      "referral_dashboard_progress_half_unlocked": "تم فتح خصم 50%.",
+      "referral_dashboard_progress_more_for_half":
+          "تبقى {count} إحالة لفتح خصم 50%.",
+      "referral_dashboard_rewards": "المكافآت",
+      "referral_dashboard_no_rewards": "لا توجد مكافآت إحالة بعد",
+      "referral_dashboard_no_rewards_sub": "شارك رمزك للبدء في كسب المكافآت",
+      "referral_dashboard_claim": "استفد",
+      "referral_dashboard_load_error": "تعذر تحميل إحالاتك",
+      "referral_dashboard_load_error_sub": "تحقق من اتصالك وحاول مرة أخرى",
+      "referral_dashboard_refresh_error": "تعذر تحديث معلومات الإحالة.",
+      "referral_dashboard_retry": "حاول مجدداً",
+      "referral_dashboard_claim_failed":
+          "تعذر تجهيز هذه المكافأة. حاول مرة أخرى.",
+      "referral_dashboard_share_text":
+          "انضم إليّ على Taqa Fitness.\n{url}\nرمز الإحالة: {code}",
+      "referral_dashboard_reward_free_month": "شهر مجاني واحد",
+      "referral_dashboard_reward_coach_monthly":
+          "مكافأة إحالة خطة المدرب الشهرية",
+      "referral_dashboard_reward_coach_yearly":
+          "مكافأة إحالة خطة المدرب السنوية",
+      "referral_dashboard_status_claimable": "جاهزة للاستفادة",
+      "referral_dashboard_status_qualified": "مؤهلة",
+      "referral_dashboard_status_claiming": "قيد المعالجة",
+      "referral_dashboard_status_applied": "مستخدمة",
+      "referral_dashboard_status_voided": "غير متاحة",
+      "referral_dashboard_status_unavailable": "غير متاحة",
       "settings_change_username": "تغيير اسم المستخدم",
       "settings_change_username_sub": "تحديث اسمك العام",
       "username_updated": "تم تحديث اسم المستخدم",
