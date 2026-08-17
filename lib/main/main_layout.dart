@@ -25,6 +25,7 @@ import '../TaqaUI/screens/taqa_post_purchase_intro_page.dart';
 import '../services/purchases/apple_billing_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
 import '../auth/coach_application_status_page.dart';
+import '../widgets/taqa_bolt_loading_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({
@@ -233,12 +234,11 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
           // Keep the last verified state during a temporary backend outage.
         }
       }
-      await NotificationService.syncForSubscriptionAccess(
-        active: !subscriptionRequired,
+      unawaited(
+        _syncSubscriptionServicesInBackground(
+          hasSubscriptionAccess: !subscriptionRequired,
+        ),
       );
-      if (!subscriptionRequired) {
-        await RemotePushService.syncTokenForCurrentUser();
-      }
       if (!subscriptionRequired || !mounted) return;
 
       await Navigator.of(context).push<bool>(
@@ -251,13 +251,28 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _syncSubscriptionServicesInBackground({
+    required bool hasSubscriptionAccess,
+  }) async {
+    try {
+      await NotificationService.syncForSubscriptionAccess(
+        active: hasSubscriptionAccess,
+      );
+    } catch (_) {
+      // Subscription enforcement must not wait on notification maintenance.
+    }
+    if (!hasSubscriptionAccess) return;
+    try {
+      await RemotePushService.syncTokenForCurrentUser();
+    } catch (_) {
+      // Token sync is retried by the normal startup/resume flow.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_accessGatesResolved) {
-      return const Scaffold(
-        backgroundColor: AppColors.black,
-        body: SizedBox.expand(),
-      );
+      return const TaqaAppLaunchLoadingScreen();
     }
 
     final isDarkPage = _index == MainLayout._dietTab;

@@ -195,6 +195,29 @@ class TaqaAppLaunchLoader extends StatelessWidget {
   }
 }
 
+/// Full-page launch gate shared by the initial boot route and any immediately
+/// following access checks. Reusing one surface avoids a blank frame when the
+/// navigator swaps from [BootGate]-style startup work into the app shell.
+class TaqaAppLaunchLoadingScreen extends StatelessWidget {
+  const TaqaAppLaunchLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: TaqaBoltLoadingScreen.background,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: SafeArea(
+          child: Padding(
+            padding: TaqaUiScale.insetsLTRB(24, 24, 24, 24),
+            child: const Center(child: TaqaAppLaunchLoader()),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Dark-themed status/error card shown alongside [TaqaBoltLoadingScreen] for
 /// the non-loading states of plan generation: the retry-pending pause, the
 /// final error after retries are exhausted, and the profile-edit cooldown

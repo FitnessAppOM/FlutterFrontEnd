@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../../auth/expert_questionnaire.dart';
@@ -18,7 +17,6 @@ import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
-import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/taqa_bolt_loading_screen.dart';
 import '../account_restore_page.dart';
@@ -155,7 +153,7 @@ class _BootGateState extends State<BootGate> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 150), () {
         final ctx = NavigationService.navigatorKey.currentContext;
-        if (ctx == null) return;
+        if (ctx == null || !ctx.mounted) return;
         final t = AppLocalizations.of(ctx);
         AppToast.show(
           ctx,
@@ -302,17 +300,6 @@ class _BootGateState extends State<BootGate> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: TaqaBoltLoadingScreen.background,
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.light,
-        child: SafeArea(
-          child: Padding(
-            padding: TaqaUiScale.insetsLTRB(24, 24, 24, 24),
-            child: const Center(child: TaqaAppLaunchLoader()),
-          ),
-        ),
-      ),
-    );
+    return const TaqaAppLaunchLoadingScreen();
   }
 }
