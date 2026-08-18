@@ -239,22 +239,6 @@ Future<void> _bootstrap() async {
         print('[Main] RemotePushService deferred init skipped: $e');
       }
 
-      // Scheduling reminders can be deferred to avoid blocking cold start.
-      try {
-        await timed(
-          'Deferred NotificationService.refreshDailyJournalRemindersForCurrentUser',
-          () =>
-              NotificationService.refreshDailyJournalRemindersForCurrentUser(),
-        );
-        await timed(
-          'Deferred NotificationService.refreshExpertAiUpdatesReminderForCurrentUser',
-          () =>
-              NotificationService.refreshExpertAiUpdatesReminderForCurrentUser(),
-        );
-      } catch (e) {
-        print('[Main] Notification deferred refresh skipped: $e');
-      }
-
       if (Platform.isIOS) {
         await ConsentManager.requestStartupConsents();
       }

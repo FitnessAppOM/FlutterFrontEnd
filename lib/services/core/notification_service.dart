@@ -33,6 +33,8 @@ class NotificationService {
       'notif_daily_refresh_stamp_u';
   static const String _expertReminderRefreshStampPrefix =
       'notif_expert_refresh_stamp_u';
+  static final Map<int, Future<void>> _dailyReminderRefreshes = {};
+  static final Map<int, Future<void>> _expertReminderRefreshes = {};
   static const NotificationDetails _defaultDetails = NotificationDetails(
     android: AndroidNotificationDetails(
       _scheduledChannelId,
@@ -313,10 +315,33 @@ class NotificationService {
   /// - if no entry exists, ensure today's 6am/6pm reminders are scheduled
   /// - if no user is logged in, clear any pending reminders
   static Future<void> refreshDailyJournalRemindersForCurrentUser() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) {
+      await cancelAccountNotifications(userId: userId);
+      return;
+    }
+
+    final active = _dailyReminderRefreshes[userId];
+    if (active != null) {
+      await active;
+      return;
+    }
+
+    final operation = _refreshDailyJournalRemindersForUser(userId);
+    _dailyReminderRefreshes[userId] = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_dailyReminderRefreshes[userId], operation)) {
+        _dailyReminderRefreshes.remove(userId);
+      }
+    }
+  }
+
+  static Future<void> _refreshDailyJournalRemindersForUser(int userId) async {
     // ignore: avoid_print
     print('[Notif] refreshDailyJournalRemindersForCurrentUser()');
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || !await _hasNotificationAccess()) {
+    if (!await _hasNotificationAccess()) {
       await cancelAccountNotifications(userId: userId);
       return;
     }
@@ -348,12 +373,35 @@ class NotificationService {
   }
 
   static Future<void> refreshExpertAiUpdatesReminderForCurrentUser() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) {
+      await _cancelExpertAiUpdateReminders();
+      return;
+    }
+
+    final active = _expertReminderRefreshes[userId];
+    if (active != null) {
+      await active;
+      return;
+    }
+
+    final operation = _refreshExpertAiUpdatesReminderForUser(userId);
+    _expertReminderRefreshes[userId] = operation;
+    try {
+      await operation;
+    } finally {
+      if (identical(_expertReminderRefreshes[userId], operation)) {
+        _expertReminderRefreshes.remove(userId);
+      }
+    }
+  }
+
+  static Future<void> _refreshExpertAiUpdatesReminderForUser(int userId) async {
     // ignore: avoid_print
     print('[Notif] refreshExpertAiUpdatesReminderForCurrentUser()');
-    final userId = await AccountStorage.getUserId();
     final isExpert = await AccountStorage.isExpert();
     final hasAccess = await _hasNotificationAccess();
-    if (userId == null || !isExpert || !hasAccess) {
+    if (!isExpert || !hasAccess) {
       await _cancelExpertAiUpdateReminders();
       return;
     }
