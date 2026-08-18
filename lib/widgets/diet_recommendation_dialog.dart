@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
+import '../TaqaUI/components/taqa_popup_guard.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 /// Result of the recommendation fetch, surfaced to the dialog so it can swap the
 /// inline loader for real options (or a graceful message) without ever blocking
@@ -27,8 +33,9 @@ Future<void> showDietRecommendationDialog({
   Future<DietRecommendationResult>? optionsFuture,
 }) {
   final t = AppLocalizations.of(context);
-  return showDialog<void>(
+  return TaqaPopupGuard.dialogVoid(
     context: context,
+    barrierColor: const Color(0x66000000),
     builder: (ctx) {
       return _DietRecommendationDialog(
         title: title ?? t.translate('diet_suggestions_title'),
@@ -104,59 +111,40 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    return Dialog(
-      backgroundColor: AppColors.cardDark,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 520),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _message,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.7),
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildBody(),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.2),
-                      ),
-                    ),
-                  ),
-                  child: Text(t.translate('diet_suggestions_close')),
-                ),
-              ),
-            ],
+    return TaqaPopupDialog(
+      maxHeightFactor: 0.82,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w700,
+              fontSize: TaqaUiScale.sp(15),
+              height: 25 / 15,
+            ),
           ),
-        ),
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            _message,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              fontSize: TaqaUiScale.sp(13),
+              height: 18 / 13,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(14)),
+          _buildBody(),
+          SizedBox(height: TaqaUiScale.h(16)),
+          TaqaTextActionButton(
+            label: t.translate('diet_suggestions_close'),
+            onTap: () => Navigator.pop(context),
+          ),
+        ],
       ),
     );
   }
@@ -164,99 +152,121 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
   Widget _buildBody() {
     final t = AppLocalizations.of(context);
     if (_loadingOptions) {
-      return Row(
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: AppColors.accent,
+      return Container(
+        width: double.infinity,
+        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+          borderRadius: TaqaUiScale.radius(10),
+        ),
+        child: Row(
+          children: [
+            const TaqaLoadingIndicator(size: 16, color: TaqaUiColors.charcoal),
+            SizedBox(width: TaqaUiScale.w(10)),
+            Expanded(
+              child: Text(
+                t.translate('diet_suggestions_loading'),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                  fontSize: TaqaUiScale.sp(12),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            t.translate('diet_suggestions_loading'),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 12,
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (_options.isEmpty) {
-      return Text(
-        _failed
-            ? t.translate('diet_suggestions_failed')
-            : t.translate('diet_suggestions_empty'),
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 12,
+          ],
         ),
       );
     }
 
-    return Flexible(
-      child: ListView.separated(
-        shrinkWrap: true,
-        itemCount: _options.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) {
-          final opt = _options[i];
-          final title = (opt["title"] ?? t.translate('diet_suggestions_option'))
-              .toString();
-          final how = (opt["how_to_eat"] ?? "").toString();
-          final cals = opt["estimated_calories"] ?? 0;
-          final p = opt["estimated_protein_g"] ?? 0;
-          final c = opt["estimated_carbs_g"] ?? 0;
-          final f = opt["estimated_fat_g"] ?? 0;
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.black.withValues(alpha: 0.35),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+    if (_options.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 18),
+        decoration: BoxDecoration(
+          color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+          borderRadius: TaqaUiScale.radius(10),
+        ),
+        child: Text(
+          _failed
+              ? t.translate('diet_suggestions_failed')
+              : t.translate('diet_suggestions_empty'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontFamily: TaqaUiFontFamilies.interTight,
+            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+            fontSize: TaqaUiScale.sp(12),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        for (var i = 0; i < _options.length; i++) ...[
+          if (i > 0) SizedBox(height: TaqaUiScale.h(10)),
+          _buildOptionCard(t, _options[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildOptionCard(AppLocalizations t, Map<String, dynamic> option) {
+    final title = (option['title'] ?? t.translate('diet_suggestions_option'))
+        .toString();
+    final how = (option['how_to_eat'] ?? '').toString();
+    final cals = option['estimated_calories'] ?? 0;
+    final p = option['estimated_protein_g'] ?? 0;
+    final c = option['estimated_carbs_g'] ?? 0;
+    final f = option['estimated_fat_g'] ?? 0;
+    return Container(
+      width: double.infinity,
+      padding: TaqaUiScale.insetsLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+        borderRadius: TaqaUiScale.radius(10),
+        border: Border.all(
+          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              color: TaqaUiColors.charcoal,
+              fontWeight: FontWeight.w700,
+              fontSize: TaqaUiScale.sp(14),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                  ),
-                ),
-                if (how.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    how,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  t
-                      .translate('diet_suggestions_macros')
-                      .replaceAll('{calories}', '$cals')
-                      .replaceAll('{protein}', '$p')
-                      .replaceAll('{carbs}', '$c')
-                      .replaceAll('{fat}', '$f'),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          ),
+          if (how.isNotEmpty) ...[
+            SizedBox(height: TaqaUiScale.h(6)),
+            Text(
+              how,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                fontSize: TaqaUiScale.sp(12),
+              ),
             ),
-          );
-        },
+          ],
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            t
+                .translate('diet_suggestions_macros')
+                .replaceAll('{calories}', '$cals')
+                .replaceAll('{protein}', '$p')
+                .replaceAll('{carbs}', '$c')
+                .replaceAll('{fat}', '$f'),
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              fontSize: TaqaUiScale.sp(9),
+              height: 12 / 9,
+            ),
+          ),
+        ],
       ),
     );
   }

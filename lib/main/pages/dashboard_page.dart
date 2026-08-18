@@ -45,6 +45,7 @@ import '../../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../../TaqaUI/components/taqa_training_progress_widget.dart';
 import '../../TaqaUI/components/taqa_edit_mode_bubble.dart';
 import '../../TaqaUI/components/taqa_widget_library_sheet.dart';
+import '../../TaqaUI/components/taqa_empty_card.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../screens/whoop_insights_page.dart';
 import '../../screens/fitbit_insights_page.dart';
@@ -5394,16 +5395,10 @@ class DashboardPageState extends State<DashboardPage>
             minHeight: 2,
           ),
         if (noEntriesForSelectedDate)
-          CardContainer(
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Center(
-                child: Text(
-                  t("no_entries"),
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ),
-            ),
+          TaqaEmptyCard(
+            title: t("no_entries"),
+            icon: Icons.calendar_today_outlined,
+            minHeight: TaqaUiScale.h(112),
           )
         else ...[
           if (!_isToday() &&
@@ -5411,33 +5406,17 @@ class DashboardPageState extends State<DashboardPage>
               _sleepHours == null &&
               _todayCalories == null &&
               _waterIntake == null)
-            CardContainer(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Center(
-                  child: Text(
-                    t("no_entries"),
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ),
+            TaqaEmptyCard(
+              title: t("no_entries"),
+              icon: Icons.calendar_today_outlined,
+              minHeight: TaqaUiScale.h(112),
             ),
           if (_error != null)
-            CardContainer(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t("dash_news_tag"),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
+            TaqaEmptyCard(
+              title: _error!,
+              subtitle: t("dash_news_tag"),
+              icon: Icons.error_outline_rounded,
+              minHeight: TaqaUiScale.h(128),
             )
           else
             IgnorePointer(

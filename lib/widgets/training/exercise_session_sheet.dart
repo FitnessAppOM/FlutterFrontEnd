@@ -13,6 +13,7 @@ import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
 import 'exercise_instruction_dialog.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../services/training/training_completion_storage.dart';
 import '../../services/training/training_progress_storage.dart';
@@ -1410,38 +1411,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   Future<void> _setCustomRestPreset() async {
     final t = AppLocalizations.of(context);
-    final ctrl = TextEditingController(
-      text: _restPresetSeconds > 0 ? _restPresetSeconds.toString() : '',
-    );
-    final saved = await showDialog<bool>(
+    final value = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121727),
-        title: Text(
-          t.translate("training_custom_rest_seconds"),
-          style: TextStyle(color: Colors.white),
-        ),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: _inputStyle(t.translate("training_seconds")),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(t.translate("common_cancel")),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.translate("common_save")),
-          ),
-        ],
-      ),
+      title: t.translate("training_custom_rest_seconds"),
+      initialValue: _restPresetSeconds > 0 ? _restPresetSeconds.toString() : '',
+      unit: t.translate("training_seconds"),
+      confirmLabel: t.translate("common_save"),
     );
-    if (saved != true) return;
-    final next = int.tryParse(ctrl.text.trim()) ?? 0;
+    final next = int.tryParse(value?.trim() ?? '') ?? 0;
     if (next > 0) _setRestPreset(next);
   }
 

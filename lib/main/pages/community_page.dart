@@ -18,6 +18,7 @@ import '../../TaqaUI/components/taqa_community_section_header.dart';
 import '../../TaqaUI/components/taqa_community_group_card.dart';
 import '../../TaqaUI/components/taqa_community_group_hero_card.dart';
 import '../../TaqaUI/components/taqa_mute_notifications_card.dart';
+import '../../TaqaUI/components/taqa_mini_tag.dart';
 import '../../TaqaUI/components/taqa_settings_row_card.dart';
 import '../../TaqaUI/components/taqa_leaderboard_card.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
@@ -38,6 +39,9 @@ import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_page_header.dart';
 import '../../TaqaUI/components/taqa_search_field.dart';
 import '../../TaqaUI/components/taqa_switch.dart';
+import '../../TaqaUI/components/taqa_popup_guard.dart';
+import '../../TaqaUI/components/taqa_text_field.dart';
+import '../../TaqaUI/components/taqa_underline_field.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/styles/taqa_ui_styles.dart';
@@ -682,7 +686,7 @@ class _CommunityPageState extends State<CommunityPage> {
         actorAvatarUrl: item.actor.avatarUrl,
         chips: [
           item.group.name,
-          item.event.type.replaceAll('_', ' '),
+          taqaFormatTagLabel(item.event.type),
           if (item.event.occurredAt != null) _formatDate(item.event.occurredAt),
         ],
         title: item.event.title,
@@ -697,6 +701,7 @@ class _CommunityPageState extends State<CommunityPage> {
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_horiz, color: TaqaUiColors.charcoal),
           color: TaqaUiColors.white,
+          surfaceTintColor: Colors.transparent,
           onSelected: (value) async {
             if (value == 'report') {
               await _showReportSheet(
@@ -710,12 +715,16 @@ class _CommunityPageState extends State<CommunityPage> {
           itemBuilder: (_) => [
             PopupMenuItem<String>(
               value: 'report',
-              child: Text(t.translate('community_report')),
+              child: _CommunityPopupMenuLabel(
+                label: t.translate('community_report'),
+              ),
             ),
             if (isAdmin)
               PopupMenuItem<String>(
                 value: 'hide',
-                child: Text(t.translate('community_hide_from_group')),
+                child: _CommunityPopupMenuLabel(
+                  label: t.translate('community_hide_from_group'),
+                ),
               ),
           ],
         ),
@@ -3336,6 +3345,25 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
   }
 }
 
+class _CommunityPopupMenuLabel extends StatelessWidget {
+  const _CommunityPopupMenuLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        fontSize: TaqaUiScale.sp(14),
+        fontWeight: FontWeight.w500,
+        color: TaqaUiColors.charcoal,
+      ),
+    );
+  }
+}
+
 class _GroupFeedCard extends StatelessWidget {
   const _GroupFeedCard({
     required this.item,
@@ -3379,7 +3407,8 @@ class _GroupFeedCard extends StatelessWidget {
                   Icons.more_horiz,
                   color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                 ),
-                color: const Color(0xFF141414),
+                color: TaqaUiColors.white,
+                surfaceTintColor: Colors.transparent,
                 onSelected: (value) {
                   if (value == 'report') {
                     onReportTap?.call();
@@ -3390,12 +3419,16 @@ class _GroupFeedCard extends StatelessWidget {
                 itemBuilder: (_) => [
                   PopupMenuItem(
                     value: 'report',
-                    child: Text(t.translate('community_report')),
+                    child: _CommunityPopupMenuLabel(
+                      label: t.translate('community_report'),
+                    ),
                   ),
                   if (canAdminManage)
                     PopupMenuItem(
                       value: 'hide',
-                      child: Text(t.translate('community_hide')),
+                      child: _CommunityPopupMenuLabel(
+                        label: t.translate('community_hide'),
+                      ),
                     ),
                 ],
               ),
@@ -4011,7 +4044,8 @@ class _PinCard extends StatelessWidget {
                     Icons.more_horiz,
                     color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
                   ),
-                  color: const Color(0xFF141414),
+                  color: TaqaUiColors.white,
+                  surfaceTintColor: Colors.transparent,
                   onSelected: (value) {
                     if (value == 'edit') {
                       onEdit();
@@ -4022,11 +4056,15 @@ class _PinCard extends StatelessWidget {
                   itemBuilder: (_) => [
                     PopupMenuItem(
                       value: 'edit',
-                      child: Text(t.translate('community_edit')),
+                      child: _CommunityPopupMenuLabel(
+                        label: t.translate('community_edit'),
+                      ),
                     ),
                     PopupMenuItem(
                       value: 'delete',
-                      child: Text(t.translate('community_delete')),
+                      child: _CommunityPopupMenuLabel(
+                        label: t.translate('community_delete'),
+                      ),
                     ),
                   ],
                 ),
@@ -4738,79 +4776,92 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
   final t = AppLocalizations.of(context);
   final detailsController = TextEditingController();
   String reason = 'other';
-  final result = await showDialog<Map<String, String?>>(
+  final result = await TaqaPopupGuard.dialog<Map<String, String?>>(
     context: context,
-    builder: (context) {
+    barrierColor: const Color(0x66000000),
+    builder: (dialogContext) {
       return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: Text(
-              t.translate('community_report_content'),
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
+        builder: (dialogContext, setState) {
+          final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
+          return MediaQuery.removeViewInsets(
+            context: dialogContext,
+            removeBottom: true,
+            child: TaqaPopupDialog(
+              bottomInset: bottomInset,
+              onBackgroundTap: () =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  DropdownButtonFormField<String>(
+                  Text(
+                    t.translate('community_report_content'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  TaqaUnderlineDropdown(
+                    label: t.translate('community_report_content'),
                     value: reason,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'harassment',
-                        child: Text(t.translate('community_harassment')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'spam',
-                        child: Text(t.translate('community_spam')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'contact_info',
-                        child: Text(t.translate('community_contact_info')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'abuse',
-                        child: Text(t.translate('community_abuse')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'other',
-                        child: Text(t.translate('community_other')),
-                      ),
+                    options: const [
+                      'harassment',
+                      'spam',
+                      'contact_info',
+                      'abuse',
+                      'other',
                     ],
+                    itemLabelBuilder: (value) => switch (value) {
+                      'harassment' => t.translate('community_harassment'),
+                      'spam' => t.translate('community_spam'),
+                      'contact_info' => t.translate('community_contact_info'),
+                      'abuse' => t.translate('community_abuse'),
+                      _ => t.translate('community_other'),
+                    },
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => reason = value);
                     },
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  TaqaTextField(
                     controller: detailsController,
-                    style: const TextStyle(color: Colors.white),
+                    label: t.translate('community_optional_details'),
+                    hint: t.translate('community_optional_details'),
+                    minLines: 3,
                     maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: t.translate('community_optional_details'),
-                    ),
+                    backgroundColor: TaqaUiColors.lightGray,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TaqaTextActionButton(
+                          label: t.translate('common_cancel'),
+                          onTap: () => Navigator.pop(dialogContext),
+                        ),
+                      ),
+                      SizedBox(width: TaqaUiScale.w(8)),
+                      Expanded(
+                        child: TaqaFilledButton(
+                          label: t.translate('community_submit'),
+                          onTap: () => Navigator.pop(dialogContext, {
+                            'reason': reason,
+                            'details': detailsController.text.trim().isEmpty
+                                ? null
+                                : detailsController.text.trim(),
+                          }),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(t.translate('common_cancel')),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, {
-                  'reason': reason,
-                  'details': detailsController.text.trim().isEmpty
-                      ? null
-                      : detailsController.text.trim(),
-                }),
-                child: Text(t.translate('community_submit')),
-              ),
-            ],
           );
         },
       );
@@ -4878,95 +4929,110 @@ Future<_PinEditorResult?> _showPinEditor(
     text: '${existing?.sortOrder ?? 0}',
   );
   String pinType = existing?.pinType ?? 'expert_tip';
-  final result = await showDialog<_PinEditorResult>(
+  final result = await TaqaPopupGuard.dialog<_PinEditorResult>(
     context: context,
-    builder: (context) {
+    barrierColor: const Color(0x66000000),
+    builder: (dialogContext) {
       return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: AppColors.cardDark,
-            title: Text(
-              existing == null
-                  ? t.translate('community_create_pin')
-                  : t.translate('community_edit_pin'),
-              style: const TextStyle(color: Colors.white),
-            ),
-            content: SingleChildScrollView(
+        builder: (dialogContext, setState) {
+          final bottomInset = MediaQuery.viewInsetsOf(dialogContext).bottom;
+          return MediaQuery.removeViewInsets(
+            context: dialogContext,
+            removeBottom: true,
+            child: TaqaPopupDialog(
+              bottomInset: bottomInset,
+              onBackgroundTap: () =>
+                  FocusManager.instance.primaryFocus?.unfocus(),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  DropdownButtonFormField<String>(
+                  Text(
+                    existing == null
+                        ? t.translate('community_create_pin')
+                        : t.translate('community_edit_pin'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(15),
+                      fontWeight: FontWeight.w700,
+                      color: TaqaUiColors.charcoal,
+                    ),
+                  ),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  TaqaUnderlineDropdown(
                     value: pinType,
-                    dropdownColor: AppColors.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: [
-                      DropdownMenuItem(
-                        value: 'expert_tip',
-                        child: Text(t.translate('community_expert_tip')),
-                      ),
-                      DropdownMenuItem(
-                        value: 'challenge_rule',
-                        child: Text(t.translate('community_challenge_rule')),
-                      ),
-                    ],
+                    options: const ['expert_tip', 'challenge_rule'],
+                    itemLabelBuilder: (value) => value == 'expert_tip'
+                        ? t.translate('community_expert_tip')
+                        : t.translate('community_challenge_rule'),
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() => pinType = value);
                     },
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
+                  SizedBox(height: TaqaUiScale.h(14)),
+                  TaqaTextField(
                     controller: titleController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: t.translate('community_pin_title'),
-                    ),
+                    label: t.translate('community_pin_title'),
+                    hint: t.translate('community_pin_title'),
+                    backgroundColor: TaqaUiColors.lightGray,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
+                  SizedBox(height: TaqaUiScale.h(14)),
+                  TaqaTextField(
                     controller: bodyController,
-                    style: const TextStyle(color: Colors.white),
+                    label: t.translate('community_pinned_content'),
+                    hint: t.translate('community_pinned_content'),
+                    minLines: 3,
                     maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: t.translate('community_pinned_content'),
-                    ),
+                    backgroundColor: TaqaUiColors.lightGray,
                   ),
-                  const SizedBox(height: 12),
-                  TextField(
+                  SizedBox(height: TaqaUiScale.h(14)),
+                  TaqaTextField(
                     controller: sortOrderController,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: t.translate('community_sort_order'),
-                    ),
+                    label: t.translate('community_sort_order'),
+                    hint: t.translate('community_sort_order'),
+                    backgroundColor: TaqaUiColors.lightGray,
+                  ),
+                  SizedBox(height: TaqaUiScale.h(16)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TaqaTextActionButton(
+                          label: t.translate('common_cancel'),
+                          onTap: () => Navigator.pop(dialogContext),
+                        ),
+                      ),
+                      SizedBox(width: TaqaUiScale.w(8)),
+                      Expanded(
+                        child: TaqaFilledButton(
+                          label: t.translate('common_save'),
+                          onTap: () {
+                            final title = titleController.text.trim();
+                            final body = bodyController.text.trim();
+                            if (title.length < 3 || body.length < 3) return;
+                            Navigator.pop(
+                              dialogContext,
+                              _PinEditorResult(
+                                pinType: pinType,
+                                title: title,
+                                body: body,
+                                sortOrder:
+                                    int.tryParse(
+                                      sortOrderController.text.trim(),
+                                    ) ??
+                                    0,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(t.translate('common_cancel')),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final title = titleController.text.trim();
-                  final body = bodyController.text.trim();
-                  if (title.length < 3 || body.length < 3) return;
-                  Navigator.pop(
-                    context,
-                    _PinEditorResult(
-                      pinType: pinType,
-                      title: title,
-                      body: body,
-                      sortOrder:
-                          int.tryParse(sortOrderController.text.trim()) ?? 0,
-                    ),
-                  );
-                },
-                child: Text(t.translate('common_save')),
-              ),
-            ],
           );
         },
       );

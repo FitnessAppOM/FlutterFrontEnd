@@ -8,6 +8,11 @@ import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_progress_widget_card.dart';
 import '../TaqaUI/components/taqa_sleep_stages_wide_card.dart';
 import '../TaqaUI/components/taqa_steps_ui.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_mini_tag.dart';
+import '../TaqaUI/components/taqa_popup_guard.dart';
+import '../TaqaUI/components/taqa_profile_info_section.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart' show TaqaPopupDialog;
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -752,66 +757,56 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     final rangeLabel =
         "${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} → "
         "${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
-    showDialog<void>(
+    TaqaPopupGuard.dialogVoid(
       context: context,
+      barrierColor: const Color(0x66000000),
       builder: (ctx) {
-        return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: Text(
-            t("sleep_details_dialog_title"),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
+        return TaqaPopupDialog(
+          maxHeightFactor: 0.82,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                t("sleep_details_dialog_title"),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  color: TaqaUiColors.charcoal,
+                  fontSize: TaqaUiScale.sp(15),
+                  fontWeight: FontWeight.w700,
+                  height: 25 / 15,
+                ),
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TaqaMiniTag(label: rangeLabel),
+              ),
+              SizedBox(height: TaqaUiScale.h(14)),
+              if (rows.isEmpty)
+                TaqaEmptyCard(
+                  title: t("sleep_no_tracked_days"),
+                  minHeight: TaqaUiScale.h(112),
+                )
+              else
+                TaqaProfileInfoSection(
+                  items: rows
+                      .map(
+                        (row) => TaqaProfileInfoItem(
+                          label: row.key,
+                          value: _formatHours(row.value),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              TaqaTextActionButton(
+                label: t("common_close"),
+                onTap: () => Navigator.of(ctx).pop(),
+              ),
+            ],
           ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: rows.isEmpty
-                ? Text(
-                    t("sleep_no_tracked_days"),
-                    style: const TextStyle(color: Colors.white70),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: rows.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(color: Colors.white12, height: 16),
-                    itemBuilder: (ctx, i) {
-                      final label = rows[i].key;
-                      final hours = rows[i].value;
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            label,
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          Text(
-                            _formatHours(hours),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-          actionsPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          actions: [
-            Text(
-              rangeLabel,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(t("common_close")),
-            ),
-          ],
         );
       },
     );

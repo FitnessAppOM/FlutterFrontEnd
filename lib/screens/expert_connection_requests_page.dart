@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/user_friendly_error.dart';
+import '../localization/app_localizations.dart';
 import '../services/coach/coach_support_chat_service.dart';
 import '../services/coach/progression_review_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -8,6 +9,7 @@ import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/styles/taqa_ui_styles.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
@@ -55,7 +57,11 @@ class _ExpertConnectionRequestsPageState
       });
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -85,7 +91,11 @@ class _ExpertConnectionRequestsPageState
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -114,7 +124,11 @@ class _ExpertConnectionRequestsPageState
       );
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, userFriendlyErrorMessage(e), type: AppToastType.error);
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -140,59 +154,28 @@ class _ExpertConnectionRequestsPageState
   }
 
   Future<void> _sendBulkMessageToRedClients() async {
+    final t = AppLocalizations.of(context);
     if (_sendingBulkMessageToRed) return;
     if (_redStatusClientCount <= 0) {
       AppToast.show(
         context,
-        'No red-status clients right now.',
+        t.translate('coach_no_red_clients'),
         type: AppToastType.info,
       );
       return;
     }
 
-    final controller = TextEditingController();
-    final text = await showDialog<String>(
+    final text = await showTaqaMultilineTextDialog(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Bulk Message'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'This will send to $_redStatusClientCount red-status clients.',
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: controller,
-                minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  hintText: 'Write your message',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final value = controller.text.trim();
-                if (value.isEmpty) return;
-                Navigator.of(ctx).pop(value);
-              },
-              child: const Text('Confirm Send'),
-            ),
-          ],
-        );
-      },
+      title: t.translate('coach_bulk_message_title'),
+      message: t
+          .translate('coach_bulk_message_description')
+          .replaceAll('{count}', '$_redStatusClientCount'),
+      hintText: t.translate('coach_bulk_message_hint'),
+      confirmLabel: t.translate('coach_bulk_confirm_send'),
+      cancelLabel: t.translate('common_cancel'),
+      requiredMessage: t.translate('required'),
     );
-    controller.dispose();
 
     final message = (text ?? '').trim();
     if (message.isEmpty) return;
@@ -209,13 +192,16 @@ class _ExpertConnectionRequestsPageState
       if (sentCount <= 0) {
         AppToast.show(
           context,
-          'No red-status clients available at send time.',
+          t.translate('coach_bulk_none_available'),
           type: AppToastType.info,
         );
       } else {
         AppToast.show(
           context,
-          sentCount == 1 ? 'Sent to 1 client.' : 'Sent to $sentCount clients.',
+          (sentCount == 1
+                  ? t.translate('coach_bulk_sent_one')
+                  : t.translate('coach_bulk_sent_many'))
+              .replaceAll('{count}', '$sentCount'),
           type: AppToastType.success,
         );
       }

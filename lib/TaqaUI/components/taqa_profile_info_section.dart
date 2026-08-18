@@ -78,13 +78,23 @@ class TaqaProfileInfoRow extends StatelessWidget {
       padding: TaqaUiScale.symmetric(vertical: 5),
       child: Row(
         children: [
-          Text(label, style: style),
           Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          SizedBox(width: TaqaUiScale.w(8)),
+          Expanded(
+            flex: 5,
             child: Align(
               alignment: AlignmentDirectional.centerEnd,
               child: Text(
                 value,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end,
                 style: style,

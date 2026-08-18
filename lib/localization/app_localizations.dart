@@ -1836,6 +1836,20 @@ class AppLocalizations {
       "water_intake_hint": "e.g. 1.8",
       "common_cancel": "Cancel",
       "common_save": "Save",
+      "common_open_settings": "Open Settings",
+      "coach_bulk_message_title": "Bulk message",
+      "coach_bulk_message_description":
+          "This will send to {count} red-status clients.",
+      "coach_bulk_message_hint": "Write your message",
+      "coach_bulk_confirm_send": "Confirm send",
+      "coach_no_red_clients": "No red-status clients right now.",
+      "coach_bulk_none_available":
+          "No red-status clients are available at send time.",
+      "coach_bulk_sent_one": "Sent to 1 client.",
+      "coach_bulk_sent_many": "Sent to {count} clients.",
+      "expert_selfie_permission_title": "Permission required",
+      "expert_selfie_permission_message":
+          "Camera or Photos access is blocked. Enable both permissions in system settings to upload your selfie.",
       "dash_weekly_goal": "Weekly movement goal",
       "dash_7day_trends": "7-day trends",
       "dash_sleep_hrs": "Sleep (hrs)",
@@ -4157,6 +4171,20 @@ class AppLocalizations {
       "water_intake_hint": "مثال 1.8",
       "common_cancel": "إلغاء",
       "common_save": "حفظ",
+      "common_open_settings": "فتح الإعدادات",
+      "coach_bulk_message_title": "رسالة جماعية",
+      "coach_bulk_message_description":
+          "سيتم إرسال هذه الرسالة إلى {count} من العملاء ذوي الحالة الحمراء.",
+      "coach_bulk_message_hint": "اكتب رسالتك",
+      "coach_bulk_confirm_send": "تأكيد الإرسال",
+      "coach_no_red_clients": "لا يوجد عملاء ذوو حالة حمراء في الوقت الحالي.",
+      "coach_bulk_none_available":
+          "لم يعد هناك عملاء ذوو حالة حمراء عند الإرسال.",
+      "coach_bulk_sent_one": "تم الإرسال إلى عميل واحد.",
+      "coach_bulk_sent_many": "تم الإرسال إلى {count} عملاء.",
+      "expert_selfie_permission_title": "الإذن مطلوب",
+      "expert_selfie_permission_message":
+          "تم حظر الوصول إلى الكاميرا أو الصور. فعّل الإذنين من إعدادات النظام لرفع صورتك الشخصية.",
       "dash_weekly_goal": "هدف الحركة الأسبوعي",
       "dash_7day_trends": "اتجاهات 7 أيام",
       "dash_sleep_hrs": "النوم (س)",

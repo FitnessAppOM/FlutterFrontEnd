@@ -1180,8 +1180,7 @@ class _WorkoutLauncherExerciseCardState
           if (!_isTimerBased) 'reps': row.reps,
           if (!_isTimerBased) 'rir': row.rir,
           if (!_isTimerBased) 'weight_kg': row.weightKg,
-          if (_isTimerBased)
-            'performed_time_seconds': row.performedTimeSeconds,
+          if (_isTimerBased) 'performed_time_seconds': row.performedTimeSeconds,
           'completed': row.done,
         };
       }).toList();
@@ -1562,9 +1561,7 @@ class _WorkoutLauncherExerciseCardState
           rir: _isTimerBased ? null : row.rir,
           weightKg: _isTimerBased ? null : row.weightKg,
           completed: row.done,
-          performedTimeSeconds: _isTimerBased
-              ? row.performedTimeSeconds
-              : null,
+          performedTimeSeconds: _isTimerBased ? row.performedTimeSeconds : null,
         ),
         TrainingNetworkResilience.sheetMutation,
       );
@@ -1577,8 +1574,7 @@ class _WorkoutLauncherExerciseCardState
           if (!_isTimerBased) "reps": row.reps,
           if (!_isTimerBased) "rir": row.rir,
           if (!_isTimerBased) "weight_kg": row.weightKg,
-          if (_isTimerBased)
-            "performed_time_seconds": row.performedTimeSeconds,
+          if (_isTimerBased) "performed_time_seconds": row.performedTimeSeconds,
           "completed": row.done,
         },
       );
@@ -2468,8 +2464,7 @@ class _LauncherSetRow {
       reps: reps ?? this.reps,
       rir: rir ?? this.rir,
       weightKg: weightKg ?? this.weightKg,
-      performedTimeSeconds:
-          performedTimeSeconds ?? this.performedTimeSeconds,
+      performedTimeSeconds: performedTimeSeconds ?? this.performedTimeSeconds,
       done: done ?? this.done,
     );
   }
@@ -3165,51 +3160,16 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   Future<void> _setCustomExRestPreset() async {
     final t = AppLocalizations.of(context);
-    final ctrl = TextEditingController(
-      text: _exRestPresetSeconds > 0 ? _exRestPresetSeconds.toString() : '',
-    );
-    final saved = await showDialog<bool>(
+    final value = await showTaqaTextValueDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121727),
-        title: Text(
-          t.translate("training_custom_rest_seconds"),
-          style: TextStyle(color: Colors.white),
-        ),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: t.translate("training_seconds"),
-            labelStyle: const TextStyle(color: Colors.white70),
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.08)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.orangeAccent),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(t.translate("common_cancel")),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.translate("common_save")),
-          ),
-        ],
-      ),
+      title: t.translate("training_custom_rest_seconds"),
+      initialValue: _exRestPresetSeconds > 0
+          ? _exRestPresetSeconds.toString()
+          : '',
+      unit: t.translate("training_seconds"),
+      confirmLabel: t.translate("common_save"),
     );
-    if (saved != true) return;
-    final next = int.tryParse(ctrl.text.trim()) ?? 0;
+    final next = int.tryParse(value?.trim() ?? '') ?? 0;
     if (next > 0) _setExRestPreset(next);
   }
 

@@ -18,6 +18,7 @@ import 'package:file_picker/file_picker.dart';
 import '../../consents/consent_manager.dart';
 import '../../services/core/expert_questionnaire_service.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class ExpertQuestionnaireForm extends StatefulWidget {
@@ -1125,28 +1126,15 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final blocked = _isPermanentlyBlocked(cam) || _isPermanentlyBlocked(photos);
     if (!blocked) return;
 
-    await showDialog<void>(
+    final t = AppLocalizations.of(context);
+    final shouldOpenSettings = await showTaqaConfirmDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Permission required"),
-        content: const Text(
-          "Camera or Photos access is blocked. Enable both permissions in system settings to upload your selfie.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text("Cancel"),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(ctx).pop();
-              await openAppSettings();
-            },
-            child: const Text("Open Settings"),
-          ),
-        ],
-      ),
+      title: t.translate('expert_selfie_permission_title'),
+      message: t.translate('expert_selfie_permission_message'),
+      confirmLabel: t.translate('common_open_settings'),
+      cancelLabel: t.translate('common_cancel'),
     );
+    if (shouldOpenSettings) await openAppSettings();
   }
 
   Widget _choiceQuestionLabel(String label) {

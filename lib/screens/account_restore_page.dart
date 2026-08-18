@@ -6,8 +6,17 @@ import '../core/account_type.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/Typography/taqa_ui_typography.dart';
+import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_filled_button.dart';
+import '../TaqaUI/components/taqa_loading_indicator.dart';
+import '../TaqaUI/components/taqa_mini_tag.dart';
+import '../TaqaUI/components/taqa_pressable.dart';
+import '../TaqaUI/components/taqa_profile_info_section.dart';
+import '../TaqaUI/components/taqa_text_field.dart';
 import '../TaqaUI/components/taqa_toast.dart';
+import '../TaqaUI/styles/taqa_ui_scale.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import '../auth/questionnaire.dart';
 import '../auth/expert_questionnaire.dart';
 import '../screens/daily_journal.dart';
@@ -121,20 +130,17 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
   }
 
   Future<void> _requestCode() async {
+    final t = AppLocalizations.of(context);
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      AppToast.show(
-        context,
-        "Please enter your email.",
-        type: AppToastType.error,
-      );
+      AppToast.show(context, t.translate("required"), type: AppToastType.error);
       return;
     }
     setState(() => _requesting = true);
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId <= 0) {
-        throw Exception("Please log in and try again.");
+        throw Exception(t.translate("please_login_again"));
       }
       await ProfileApi.requestReactivation(userId);
       if (!mounted) return;
@@ -297,6 +303,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
+        if (!mounted) return;
         final target =
             directNotificationTarget ??
             (NavigationService.journalNotificationPending
@@ -360,233 +367,275 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final isCodeStep = _step == _RestoreStep.code;
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
         title: t.translate("account_restore_title"),
-        backgroundColor: AppColors.black,
-        titleColor: Colors.white,
-        trailing: TextButton(
-          onPressed: _closeRestorePrompt,
-          child: Text(t.translate("account_restore_not_now")),
-        ),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        leading: isCodeStep
+            ? TaqaBackButton(
+                onPressed: _requesting || _confirming
+                    ? () {}
+                    : () {
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() => _step = _RestoreStep.info);
+                      },
+              )
+            : null,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _step == _RestoreStep.info
-            ? _buildInfoStep(t)
-            : _buildCodeStep(t),
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: SafeArea(
+          top: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: 560,
+                      minHeight: constraints.maxHeight - TaqaUiScale.h(40),
+                    ),
+                    child: IntrinsicHeight(
+                      child: isCodeStep ? _buildCodeStep(t) : _buildInfoStep(t),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildInfoStep(AppLocalizations t) {
+    final busy = _requesting || _deleting;
+    final canRequest = !busy && _emailController.text.trim().isNotEmpty;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          t.translate("account_restore_subtitle"),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+        _RestoreIntroCard(
+          stepLabel: '1 / 2',
+          icon: Icons.restore_rounded,
+          title: t.translate("account_restore_subtitle"),
+          body: t.translate("account_restore_body"),
         ),
-        const SizedBox(height: 10),
-        Text(
-          t.translate("account_restore_body"),
-          style: const TextStyle(color: Colors.white70),
-        ),
+        SizedBox(height: TaqaUiScale.h(16)),
         if (_deadline != null) ...[
-          const SizedBox(height: 12),
-          _StatusRow(
-            label: t.translate("account_reactivable_until"),
-            value: _deadline!,
+          TaqaProfileInfoSection(
+            items: [
+              TaqaProfileInfoItem(
+                label: t.translate("account_reactivable_until"),
+                value: _deadline!,
+              ),
+            ],
           ),
+          SizedBox(height: TaqaUiScale.h(16)),
         ],
-        const SizedBox(height: 24),
-        Text(
-          t.translate("account_restore_email_label"),
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
-        ),
-        const SizedBox(height: 6),
-        TextField(
+        TaqaTextField(
           controller: _emailController,
+          label: t.translate("account_restore_email_label"),
+          hint: t.translate("email_hint"),
           keyboardType: TextInputType.emailAddress,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: t.translate("email_hint"),
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-            filled: true,
-            fillColor: const Color(0xFF1E1E1E),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
-            ),
-          ),
+          textInputAction: TextInputAction.done,
+          enabled: !busy,
+          autofillHints: const [AutofillHints.email],
+          onChanged: (_) => setState(() {}),
         ),
         const Spacer(),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _requesting ? null : _requestCode,
-            child: _requesting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(t.translate("account_restore_send_code")),
-          ),
+        SizedBox(height: TaqaUiScale.h(32)),
+        TaqaFilledButton(
+          label: t.translate("account_restore_send_code"),
+          loading: _requesting,
+          onTap: canRequest ? _requestCode : null,
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton(
-            onPressed: _closeRestorePrompt,
-            child: Text(t.translate("account_restore_not_now")),
-          ),
+        SizedBox(height: TaqaUiScale.h(6)),
+        TaqaTextActionButton(
+          label: t.translate("account_restore_not_now"),
+          onTap: busy ? null : _closeRestorePrompt,
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: _deleting ? null : _deleteAccount,
-            child: _deleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(t.translate("settings_delete_account")),
-          ),
+        SizedBox(height: TaqaUiScale.h(6)),
+        _RestoreDeleteButton(
+          label: t.translate("settings_delete_account"),
+          loading: _deleting,
+          onTap: busy ? null : _deleteAccount,
         ),
       ],
     );
   }
 
   Widget _buildCodeStep(AppLocalizations t) {
+    final busy = _confirming || _requesting;
+    final canConfirm = !busy && _codeController.text.trim().length == 6;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          t.translate("account_restore_code_title"),
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
+        _RestoreIntroCard(
+          stepLabel: '2 / 2',
+          icon: Icons.mark_email_read_outlined,
+          title: t.translate("account_restore_code_title"),
+          body:
+              '${t.translate("account_restore_code_body")} ${_emailController.text.trim()}',
         ),
-        const SizedBox(height: 10),
-        Text(
-          "${t.translate("account_restore_code_body")} ${_emailController.text.trim()}",
-          style: const TextStyle(color: Colors.white70),
-        ),
-        const SizedBox(height: 24),
-        TextField(
+        SizedBox(height: TaqaUiScale.h(20)),
+        TaqaTextField(
           controller: _codeController,
+          label: t.translate("account_restore_code_title"),
+          hint: t.translate("hint_code"),
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
           maxLength: 6,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            letterSpacing: 8,
-            fontWeight: FontWeight.w700,
-          ),
-          textAlign: TextAlign.center,
-          decoration: InputDecoration(
-            hintText: t.translate("hint_code"),
-            hintStyle: TextStyle(
-              color: Colors.white.withValues(alpha: 0.3),
-              fontSize: 16,
-              letterSpacing: 2,
-            ),
-            counterText: '',
-            filled: true,
-            fillColor: const Color(0xFF1E1E1E),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
-            ),
-          ),
+          enabled: !busy,
+          autofillHints: const [AutofillHints.oneTimeCode],
+          onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 16),
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _requesting ? null : _requestCode,
-            child: _requesting
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(
-                    t.translate("resend_btn"),
-                    style: const TextStyle(color: AppColors.accent),
-                  ),
-          ),
+        SizedBox(height: TaqaUiScale.h(6)),
+        TaqaTextActionButton(
+          label: t.translate("resend_btn"),
+          onTap: busy ? null : _requestCode,
         ),
         const Spacer(),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _confirming ? null : _confirmCode,
-            child: _confirming
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(t.translate("account_reactivate_action")),
-          ),
+        SizedBox(height: TaqaUiScale.h(32)),
+        TaqaFilledButton(
+          label: t.translate("account_reactivate_action"),
+          loading: _confirming,
+          onTap: canConfirm ? _confirmCode : null,
         ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton(
-            onPressed: _closeRestorePrompt,
-            child: Text(t.translate("account_restore_not_now")),
-          ),
+        SizedBox(height: TaqaUiScale.h(6)),
+        TaqaTextActionButton(
+          label: t.translate("account_restore_not_now"),
+          onTap: busy ? null : _closeRestorePrompt,
         ),
       ],
     );
   }
 }
 
-class _StatusRow extends StatelessWidget {
-  const _StatusRow({required this.label, required this.value});
+class _RestoreIntroCard extends StatelessWidget {
+  const _RestoreIntroCard({
+    required this.stepLabel,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
-  final String label;
-  final String value;
+  final String stepLabel;
+  final IconData icon;
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
+    return Container(
+      width: double.infinity,
+      padding: TaqaUiScale.insetsLTRB(18, 18, 18, 20),
+      decoration: BoxDecoration(
+        color: TaqaUiColors.white,
+        borderRadius: TaqaUiScale.radius(15),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(color: Colors.white70)),
+          Row(
+            children: [
+              Container(
+                width: TaqaUiScale.w(38),
+                height: TaqaUiScale.h(38),
+                decoration: const BoxDecoration(
+                  color: TaqaUiColors.charcoal,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  icon,
+                  color: TaqaUiColors.lime,
+                  size: TaqaUiScale.w(20),
+                ),
+              ),
+              const Spacer(),
+              TaqaMiniTag(label: stepLabel),
+            ],
           ),
+          SizedBox(height: TaqaUiScale.h(18)),
           Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+            title,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(25),
+              fontWeight: FontWeight.w700,
+              height: 1,
+              color: TaqaUiColors.charcoal,
+            ),
+          ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          Text(
+            body,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(15),
+              fontWeight: FontWeight.w300,
+              height: 18 / 15,
+              color: TaqaUiColors.charcoal,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RestoreDeleteButton extends StatelessWidget {
+  const _RestoreDeleteButton({
+    required this.label,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null && !loading;
+    return TaqaPressable(
+      semanticLabel: label,
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: double.infinity,
+        height: TaqaUiScale.h(45),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: TaqaUiColors.recordRed.withValues(alpha: enabled ? 1 : 0.35),
+          ),
+          borderRadius: TaqaUiScale.radius(5),
+        ),
+        child: loading
+            ? const TaqaLoadingIndicator(
+                size: 16,
+                color: TaqaUiColors.recordRed,
+              )
+            : Text(
+                taqaUppercase(label),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(10),
+                  fontWeight: FontWeight.w600,
+                  color: TaqaUiColors.recordRed.withValues(
+                    alpha: enabled ? 1 : 0.35,
+                  ),
+                ),
+              ),
       ),
     );
   }

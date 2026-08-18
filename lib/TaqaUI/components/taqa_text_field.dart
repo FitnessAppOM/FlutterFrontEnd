@@ -22,6 +22,10 @@ class TaqaTextField extends StatelessWidget {
     this.readOnly = false,
     this.inputFormatters,
     this.autofillHints,
+    this.minLines,
+    this.maxLines = 1,
+    this.autofocus = false,
+    this.backgroundColor = TaqaUiColors.white,
   });
 
   final TextEditingController controller;
@@ -37,6 +41,10 @@ class TaqaTextField extends StatelessWidget {
   final bool readOnly;
   final List<TextInputFormatter>? inputFormatters;
   final Iterable<String>? autofillHints;
+  final int? minLines;
+  final int? maxLines;
+  final bool autofocus;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +64,7 @@ class TaqaTextField extends StatelessWidget {
         SizedBox(height: TaqaUiScale.h(6)),
         Container(
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: backgroundColor,
             borderRadius: TaqaUiScale.radius(10),
           ),
           padding: TaqaUiScale.insetsLTRB(14, 2, 10, 2),
@@ -65,6 +73,9 @@ class TaqaTextField extends StatelessWidget {
             enabled: enabled,
             readOnly: readOnly,
             obscureText: obscureText,
+            minLines: minLines,
+            maxLines: maxLines,
+            autofocus: autofocus,
             keyboardType: keyboardType,
             textInputAction: textInputAction,
             onChanged: onChanged,
