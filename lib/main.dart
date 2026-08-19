@@ -47,6 +47,9 @@ Future<void> _bootstrap() async {
   final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.portraitUp,
+  ]);
 
   // The Android system navigation bar is painted solid white natively in
   // MainActivity.onCreate/onPostResume (window.navigationBarColor). We do that
