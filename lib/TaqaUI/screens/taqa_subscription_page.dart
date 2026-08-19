@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart'
-    show ReplacementMode;
+    show RecurrenceMode, ReplacementMode;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
@@ -40,6 +40,16 @@ import '../taqa_ui_colors.dart';
 enum _SubscriptionAccountAction { freeze, delete, logout }
 
 enum _RecoveryOutcome { activated, notFound, failed }
+
+class _SubscriptionPricePresentation {
+  const _SubscriptionPricePresentation({
+    required this.recurringPrice,
+    this.promotionText,
+  });
+
+  final String recurringPrice;
+  final String? promotionText;
+}
 
 /// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
 class TaqaSubscriptionPage extends StatefulWidget {
@@ -1088,13 +1098,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       final timing = effectiveDate == null
           ? 'your current paid period ends'
           : effectiveDate;
-      return 'Your current plan remains active until $timing. The new ${product.price} plan starts and is charged at the next renewal. Google Play will show the final terms before you confirm.';
+      return 'Your current plan remains active until $timing. The new ${_pricePresentation(product).recurringPrice} plan starts and is charged at the next renewal. Google Play will show the final terms before you confirm.';
     }
     if (change?.action == 'referral_reward') {
       return _tr('subscription_confirm_referral_body');
     }
     return _tr('subscription_confirm_purchase_body', {
-      'price': product.price,
+      'price': _pricePresentation(product).recurringPrice,
       'account': Platform.isAndroid ? 'Google Play' : 'Apple ID',
       'store': _storeName(),
     });
@@ -1103,6 +1113,57 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   String? _googleChangeEffectiveDate(DateTime? value) {
     if (value == null) return null;
     return MaterialLocalizations.of(context).formatMediumDate(value.toLocal());
+  }
+
+  _SubscriptionPricePresentation _pricePresentation(ProductDetails product) {
+    if (product is! GooglePlayProductDetails ||
+        product.subscriptionIndex == null) {
+      return _SubscriptionPricePresentation(recurringPrice: product.price);
+    }
+
+    final offers = product.productDetails.subscriptionOfferDetails;
+    final index = product.subscriptionIndex!;
+    if (offers == null || index < 0 || index >= offers.length) {
+      return _SubscriptionPricePresentation(recurringPrice: product.price);
+    }
+
+    final phases = offers[index].pricingPhases;
+    if (phases.isEmpty) {
+      return _SubscriptionPricePresentation(recurringPrice: product.price);
+    }
+
+    var recurringPhase = phases.last;
+    for (final phase in phases) {
+      if (phase.recurrenceMode == RecurrenceMode.infiniteRecurring) {
+        recurringPhase = phase;
+      }
+    }
+
+    final introductoryPhase = phases.first;
+    final hasIntroductoryPrice =
+        phases.length > 1 &&
+        introductoryPhase.priceAmountMicros < recurringPhase.priceAmountMicros;
+    String? promotionText;
+    if (hasIntroductoryPrice) {
+      if (widget.referralClaimToken != null) {
+        promotionText = introductoryPhase.priceAmountMicros == 0
+            ? _tr('subscription_referral_payment_free')
+            : _tr('subscription_referral_payment_price', {
+                'price': introductoryPhase.formattedPrice,
+              });
+      } else if (introductoryPhase.priceAmountMicros == 0) {
+        promotionText = _tr('subscription_first_month_free');
+      } else {
+        promotionText = _tr('subscription_intro_price', {
+          'price': introductoryPhase.formattedPrice,
+        });
+      }
+    }
+
+    return _SubscriptionPricePresentation(
+      recurringPrice: recurringPhase.formattedPrice,
+      promotionText: promotionText,
+    );
   }
 
   Future<String?> _refreshBillingStateForCheckout() async {
@@ -1649,6 +1710,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final selectedProduct = _selectedProductId == null
         ? null
         : _products[_selectedProductId];
+    final selectedPresentation = selectedProduct == null
+        ? null
+        : _pricePresentation(selectedProduct);
     final availablePlans = _catalogPlans
         .where((plan) => _products.containsKey(_storeProductIdForPlan(plan)))
         .toList(growable: false);
@@ -1763,7 +1827,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     ],
                     SizedBox(height: TaqaUiScale.h(16)),
                     _PremiumOverviewCard(
-                      selectedProduct: selectedProduct,
+                      selectedPrice: selectedPresentation?.recurringPrice,
+                      promotionText: selectedPresentation?.promotionText,
                       coachMembership: _coachMembership,
                       onChoosePlan: canChoosePlan
                           ? () => _showPlanPicker(availablePlans)
@@ -1774,7 +1839,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       label: selectedProduct == null
                           ? t.translate('subscription_choose_a_plan')
                           : _tr('subscription_subscribe_for', {
-                              'price': selectedProduct.price,
+                              'price': selectedPresentation!.recurringPrice,
                             }),
                       onTap: canSubscribe ? _subscribe : null,
                     ),
@@ -1820,10 +1885,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   Widget _buildPlanCard(TaqaSubscriptionPlan plan) {
     final productId = _storeProductIdForPlan(plan);
     final product = _products[productId];
+    final presentation = product == null ? null : _pricePresentation(product);
     return TaqaSubscriptionPlanCard(
       title: _planTitle(plan),
       period: _planPeriod(plan),
-      price: product?.price ?? '',
+      price: presentation?.recurringPrice ?? '',
+      promotionText: presentation?.promotionText,
       description: _planDescription(plan),
       student:
           plan == TaqaSubscriptionCatalog.studentMonthly ||
@@ -1922,19 +1989,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
 class _PremiumOverviewCard extends StatelessWidget {
   const _PremiumOverviewCard({
-    required this.selectedProduct,
+    required this.selectedPrice,
+    required this.promotionText,
     required this.coachMembership,
     required this.onChoosePlan,
   });
 
-  final ProductDetails? selectedProduct;
+  final String? selectedPrice;
+  final String? promotionText;
   final bool coachMembership;
   final VoidCallback? onChoosePlan;
 
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final selectedPrice = selectedProduct?.price;
+    final price = selectedPrice;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
@@ -2018,12 +2087,24 @@ class _PremiumOverviewCard extends StatelessWidget {
               ],
             ),
           SizedBox(height: TaqaUiScale.h(18)),
+          if (promotionText != null) ...[
+            Text(
+              promotionText!,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(12),
+                fontWeight: FontWeight.w700,
+                color: TaqaUiColors.accent,
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
+          ],
           _PlanChoiceButton(
-            label: selectedPrice == null
+            label: price == null
                 ? t.translate('subscription_choose_plan')
                 : t
                       .translate('subscription_change_plan')
-                      .replaceAll('{price}', selectedPrice),
+                      .replaceAll('{price}', price),
             onTap: onChoosePlan,
           ),
         ],

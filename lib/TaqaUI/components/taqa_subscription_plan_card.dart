@@ -12,6 +12,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
     required this.price,
     required this.period,
     this.description,
+    this.promotionText,
     this.student = false,
     this.selected = false,
     this.onTap,
@@ -21,6 +22,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
   final String price;
   final String period;
   final String? description;
+  final String? promotionText;
   final bool student;
   final bool selected;
   final VoidCallback? onTap;
@@ -90,6 +92,18 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                         color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
                       ),
                     ),
+                    if (promotionText != null) ...[
+                      SizedBox(height: TaqaUiScale.h(6)),
+                      Text(
+                        promotionText!,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(11),
+                          fontWeight: FontWeight.w700,
+                          color: TaqaUiColors.charcoal,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -1596,6 +1596,11 @@ class AppLocalizations {
       "subscription_choose_a_plan": "Choose a plan",
       "subscription_choose_plan": "Choose plan",
       "subscription_subscribe_for": "Subscribe for {price}",
+      "subscription_first_month_free": "First month free",
+      "subscription_intro_price": "Introductory payment: {price}",
+      "subscription_referral_payment_free": "Referral reward: next payment free",
+      "subscription_referral_payment_price":
+          "Referral reward: {price} for the next payment",
       "subscription_change_plan": "Change plan · {price}",
       "subscription_restore_purchases": "Restore Purchases",
       "subscription_payment_disclaimer":
@@ -3948,6 +3953,11 @@ class AppLocalizations {
       "subscription_choose_a_plan": "اختر خطة",
       "subscription_choose_plan": "اختيار الخطة",
       "subscription_subscribe_for": "اشترك مقابل {price}",
+      "subscription_first_month_free": "الشهر الأول مجاناً",
+      "subscription_intro_price": "الدفعة التمهيدية: {price}",
+      "subscription_referral_payment_free": "مكافأة الإحالة: الدفعة التالية مجانية",
+      "subscription_referral_payment_price":
+          "مكافأة الإحالة: {price} للدفعة التالية",
       "subscription_change_plan": "تغيير الخطة · {price}",
       "subscription_restore_purchases": "استعادة المشتريات",
       "subscription_payment_disclaimer":
