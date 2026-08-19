@@ -962,7 +962,11 @@ class _SettingsPageState extends State<SettingsPage>
         callbackUrlScheme: 'taqa',
       );
       final uri = Uri.tryParse(result);
-      final ok = uri != null && uri.scheme == 'taqa' && uri.host == 'fitbit';
+      final ok =
+          uri != null &&
+          uri.scheme == 'taqa' &&
+          uri.host == 'fitbit' &&
+          uri.queryParameters['linked'] == '1';
       setState(() => _fitbitLinked = ok);
       if (ok) {
         await AccountStorage.setFitbitLinked(true);
