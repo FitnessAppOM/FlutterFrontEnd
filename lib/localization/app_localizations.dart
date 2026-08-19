@@ -1089,6 +1089,7 @@ class AppLocalizations {
       "search_university": "Search universities",
       "search_affiliation": "Search gyms or hospitals",
       "search_by_name": "Type a name to filter the list",
+      "search_no_results": "No matching results found",
       "affiliation_other": "Other affiliation",
       "affiliation_other_hint": "Type the gym, clinic, or organization name",
       "affiliation_help":
@@ -3455,6 +3456,7 @@ class AppLocalizations {
       "search_university": "ابحث عن جامعة",
       "search_affiliation": "ابحث عن نادٍ أو مستشفى",
       "search_by_name": "اكتب الاسم لتصفية القائمة",
+      "search_no_results": "لم يتم العثور على نتائج مطابقة",
       "affiliation_other": "جهة أخرى",
       "affiliation_other_hint": "اكتب اسم النادي أو العيادة أو الجهة",
       "affiliation_help": "اختر من القائمة أو اكتبها إذا لم تجدها.",

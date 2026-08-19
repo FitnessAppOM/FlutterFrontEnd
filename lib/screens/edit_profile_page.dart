@@ -4,6 +4,7 @@ import '../core/user_friendly_error.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_searchable_picker_field.dart';
 import '../TaqaUI/components/taqa_selection_card.dart';
 import '../TaqaUI/components/taqa_underline_field.dart'
     show
@@ -1267,7 +1268,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               },
             ),
             SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
+            TaqaSearchablePickerField(
               label: _loading
                   ? t.translate("affiliation_loading")
                   : t.translate("affiliation"),
@@ -1282,6 +1283,10 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                 );
                 return match["name"]?.toString() ?? id;
               },
+              searchHint: t.translate("search_affiliation"),
+              noResultsText: t.translate("search_no_results"),
+              closeLabel: t.translate("common_close"),
+              enabled: !_loading && _affiliations.isNotEmpty,
               onChanged: _loading
                   ? null
                   : (val) {

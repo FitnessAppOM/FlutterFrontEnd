@@ -4,6 +4,7 @@ import '../../localization/app_localizations.dart';
 import 'cupertino_picker_field.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_searchable_picker_field.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/components/taqa_underline_field.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
@@ -29,10 +30,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _affiliationOtherCtrl = TextEditingController();
   final TextEditingController _chronicCtrl = TextEditingController();
-  final TextEditingController _universitySearchCtrl = TextEditingController();
-  final TextEditingController _affiliationSearchCtrl = TextEditingController();
-  String _universitySearch = "";
-  String _affiliationSearch = "";
 
   static const _totalSections = 7;
   List<String> _affiliationCategories = [];
@@ -57,8 +54,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   @override
   void dispose() {
     _affiliationOtherCtrl.dispose();
-    _universitySearchCtrl.dispose();
-    _affiliationSearchCtrl.dispose();
     for (final c in _otherControllers.values) {
       c.dispose();
     }
@@ -962,28 +957,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     final universityIdToName = {
       for (final u in _universities) u["id"].toString(): u["name"].toString(),
     };
-    final filteredUniversityIdToName = Map<String, String>.fromEntries(
-      universityIdToName.entries.where(
-        (entry) =>
-            entry.value.toLowerCase().contains(_universitySearch.toLowerCase()) ||
-            entry.key == _selectedUniversityId,
-      ),
-    );
     final affiliationIdToName = {
       for (final item in _affiliations)
         item["id"].toString(): item["name"]?.toString() ?? "",
       "custom": _t("didnt_find_affiliation"),
     };
-    final filteredAffiliationIdToName = Map<String, String>.fromEntries(
-      affiliationIdToName.entries.where(
-        (entry) =>
-            entry.key == "custom" ||
-            entry.key == selectedAffiliationId ||
-            entry.value
-                .toLowerCase()
-                .contains(_affiliationSearch.toLowerCase()),
-      ),
-    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -995,20 +973,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         ),
         if (_isUniversityStudent == true) ...[
           SizedBox(height: TaqaUiScale.h(12)),
-          TaqaUnderlineTextField(
-            controller: _universitySearchCtrl,
-            label: _t("search_university"),
-            hint: _t("search_by_name"),
-            onChanged: (value) {
-              setState(() => _universitySearch = value.trim());
-            },
-          ),
-          SizedBox(height: TaqaUiScale.h(12)),
-          TaqaUnderlineDropdown(
+          TaqaSearchablePickerField(
             label: _t("select_university"),
             value: _selectedUniversityId,
-            options: filteredUniversityIdToName.keys.toList(),
+            options: universityIdToName.keys.toList(),
             itemLabelBuilder: (id) => universityIdToName[id] ?? id,
+            searchHint: _t("search_university"),
+            noResultsText: _t("search_no_results"),
+            closeLabel: _t("common_close"),
+            enabled: !_universitiesLoading,
             validator: (val) {
               if (_isUniversityStudent == true &&
                   (val == null || val.isEmpty)) {
@@ -1016,14 +989,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               }
               return null;
             },
-            onChanged: _universitiesLoading
-                ? null
-                : (val) {
-                    setState(() {
-                      _selectedUniversityId = val;
-                      _values["university_id"] = val!;
-                    });
-                  },
+            onChanged: (val) {
+              setState(() {
+                _selectedUniversityId = val;
+                _values["university_id"] = val!;
+              });
+            },
           ),
         ],
         SizedBox(height: TaqaUiScale.h(16)),
@@ -1082,8 +1053,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                     setState(() {
                       _selectedAffiliationCategory = val;
                       _affiliations = [];
-                      _affiliationSearch = "";
-                      _affiliationSearchCtrl.clear();
                       _values.remove("affiliation_id");
                       _affiliationError = null;
                     });
@@ -1093,22 +1062,18 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   },
           ),
           SizedBox(height: TaqaUiScale.h(12)),
-          TaqaUnderlineTextField(
-            controller: _affiliationSearchCtrl,
-            label: _t("search_affiliation"),
-            hint: _t("search_by_name"),
-            onChanged: (value) {
-              setState(() => _affiliationSearch = value.trim());
-            },
-          ),
-          SizedBox(height: TaqaUiScale.h(12)),
-          TaqaUnderlineDropdown(
+          TaqaSearchablePickerField(
             label: _affiliationsLoading
                 ? _t("affiliation_loading")
                 : _t("affiliation_select"),
             value: selectedAffiliationId,
-            options: filteredAffiliationIdToName.keys.toList(),
+            options: affiliationIdToName.keys.toList(),
             itemLabelBuilder: (id) => affiliationIdToName[id] ?? id,
+            searchHint: _t("search_affiliation"),
+            noResultsText: _t("search_no_results"),
+            closeLabel: _t("common_close"),
+            pinnedValues: const {"custom"},
+            enabled: _affiliations.isNotEmpty && !_affiliationsLoading,
             validator: (val) {
               if (affiliationChoice == _t("yes") &&
                   (_affiliationOtherCtrl.text.trim().isEmpty) &&

@@ -9,6 +9,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/auth/affiliation_service.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_searchable_picker_field.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_selection_card.dart';
 import '../../TaqaUI/components/taqa_underline_field.dart';
@@ -1175,8 +1176,6 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   bool _loading = false;
   String? _error;
   final TextEditingController _otherCtrl = TextEditingController();
-  final TextEditingController _searchCtrl = TextEditingController();
-  String _search = "";
   bool _useCustomAffiliation = false;
 
   @override
@@ -1190,7 +1189,6 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   @override
   void dispose() {
     _otherCtrl.dispose();
-    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -1278,16 +1276,6 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final visibleAffiliationIds = _affiliations
-        .where((item) {
-          final id = item["id"].toString();
-          final name = item["name"]?.toString() ?? "";
-          return id == _selectedAffId ||
-              name.toLowerCase().contains(_search.toLowerCase());
-        })
-        .map((item) => item["id"].toString())
-        .toList(growable: false);
-
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: const TaqaPageAppBar(title: "Affiliation"),
@@ -1304,8 +1292,6 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               onChanged: (val) {
                 setState(() {
                   _selectedCategory = val;
-                  _search = "";
-                  _searchCtrl.clear();
                 });
                 if (val != null && val.isNotEmpty) {
                   _loadAffiliations(val);
@@ -1313,20 +1299,17 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
               },
             ),
             SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineTextField(
-              controller: _searchCtrl,
-              label: t.translate("search_affiliation"),
-              hint: t.translate("search_by_name"),
-              onChanged: (value) {
-                setState(() => _search = value.trim());
-              },
-            ),
-            SizedBox(height: TaqaUiScale.h(16)),
-            TaqaUnderlineDropdown(
+            TaqaSearchablePickerField(
               label: _loading ? "Loading..." : "Affiliation",
               value: _selectedAffId,
-              options: visibleAffiliationIds,
+              options: _affiliations
+                  .map((item) => item["id"].toString())
+                  .toList(growable: false),
               itemLabelBuilder: _affiliationName,
+              searchHint: t.translate("search_affiliation"),
+              noResultsText: t.translate("search_no_results"),
+              closeLabel: t.translate("common_close"),
+              enabled: !_loading && _affiliations.isNotEmpty,
               onChanged: _loading
                   ? null
                   : (val) {
