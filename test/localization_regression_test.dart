@@ -41,6 +41,12 @@ void main() {
       'journal_notification_body',
       'expert_updates_notification_title',
       'expert_updates_notification_body',
+      'error_generic',
+      'error_connection',
+      'settings_delete_account_failed',
+      'settings_deactivate_account_failed',
+      'account_restore_expired',
+      'account_request_failed',
       'post_purchase_intro_dashboard_explore_title',
     ];
 

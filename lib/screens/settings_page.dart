@@ -1420,7 +1420,7 @@ class _SettingsPageState extends State<SettingsPage>
         context,
         userFriendlyErrorMessage(
           e,
-          fallback: 'Could not delete account. Please try again.',
+          fallback: t.translate('settings_delete_account_failed'),
         ),
         type: AppToastType.error,
       );
@@ -1465,9 +1465,7 @@ class _SettingsPageState extends State<SettingsPage>
       });
       AppToast.show(
         context,
-        (result["message"]?.toString().trim().isNotEmpty ?? false)
-            ? result["message"].toString()
-            : t.translate("settings_deactivate_account_success"),
+        t.translate("settings_deactivate_account_success"),
         type: AppToastType.success,
       );
     } catch (e) {
@@ -1476,7 +1474,7 @@ class _SettingsPageState extends State<SettingsPage>
         context,
         userFriendlyErrorMessage(
           e,
-          fallback: 'Could not deactivate account. Please try again.',
+          fallback: t.translate('settings_deactivate_account_failed'),
         ),
         type: AppToastType.error,
       );
