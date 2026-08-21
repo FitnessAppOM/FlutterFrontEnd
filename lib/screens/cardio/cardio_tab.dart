@@ -239,6 +239,7 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
 
   bool _isCardioSession(Map<String, dynamic>? session) {
     if (session == null) return false;
+    if (session['kind'] == 'cardio') return true;
     final distance = session['distanceKm'];
     final pace = session['paceMinKm'];
     return distance is num || pace is num;

@@ -282,10 +282,10 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                                 style: _outlinedStyle,
                                 child: Text(
                                   _sharing
-                                      ? 'Sharing...'
+                                      ? t.translate('training_sharing')
                                       : !mapReadyForCurrent
-                                      ? 'Preparing map...'
-                                      : 'Share',
+                                      ? t.translate('training_preparing')
+                                      : t.translate('training_share'),
                                   style: _actionTextStyle,
                                 ),
                               ),
@@ -302,8 +302,8 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                                 style: _outlinedStyle,
                                 child: Text(
                                   !mapReadyForCurrent
-                                      ? 'Preparing map...'
-                                      : 'IG Sticker',
+                                      ? t.translate('training_preparing')
+                                      : t.translate('training_ig_sticker'),
                                   style: _actionTextStyle,
                                 ),
                               ),
@@ -322,10 +322,10 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                           style: _elevatedStyle,
                           child: Text(
                             _saving
-                                ? 'Saving...'
+                                ? t.translate('training_saving')
                                 : !mapReadyForCurrent
-                                ? 'Preparing map...'
-                                : 'Save to Photos',
+                                ? t.translate('training_preparing')
+                                : t.translate('training_save_to_photos'),
                             style: _actionTextStyle,
                           ),
                         ),
@@ -343,7 +343,9 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                                 onPressed: _sharing ? null : _shareCurrentPage,
                                 style: _outlinedStyle,
                                 child: Text(
-                                  _sharing ? 'Sharing...' : 'Share',
+                                  _sharing
+                                      ? t.translate('training_sharing')
+                                      : t.translate('training_share'),
                                   style: _actionTextStyle,
                                 ),
                               ),
@@ -359,7 +361,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                                     : _shareInstagramOnly,
                                 style: _outlinedStyle,
                                 child: Text(
-                                  'IG Sticker',
+                                  t.translate('training_ig_sticker'),
                                   style: _actionTextStyle,
                                 ),
                               ),
@@ -375,7 +377,9 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
                           onPressed: _saving ? null : _saveCurrentPage,
                           style: _elevatedStyle,
                           child: Text(
-                            _saving ? 'Saving...' : 'Save to Photos',
+                            _saving
+                                ? t.translate('training_saving')
+                                : t.translate('training_save_to_photos'),
                             style: _actionTextStyle,
                           ),
                         ),

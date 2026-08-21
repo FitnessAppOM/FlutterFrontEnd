@@ -65,6 +65,7 @@ class ModelMetricsColumn extends StatelessWidget {
     required this.distanceLabel,
     required this.paceLabel,
     this.elevationLabel,
+    this.foregroundColor = Colors.white,
   });
 
   final String durationLabel;
@@ -72,6 +73,7 @@ class ModelMetricsColumn extends StatelessWidget {
   final String distanceLabel;
   final String paceLabel;
   final String? elevationLabel;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -82,17 +84,24 @@ class ModelMetricsColumn extends StatelessWidget {
         ModelMetricPill(
           label: t.translate("training_duration"),
           value: durationLabel,
+          foregroundColor: foregroundColor,
         ),
         if (showDistance)
           ModelMetricPill(
             label: t.translate("training_distance"),
             value: distanceLabel,
+            foregroundColor: foregroundColor,
           ),
-        ModelMetricPill(label: t.translate("training_pace"), value: paceLabel),
+        ModelMetricPill(
+          label: t.translate("training_pace"),
+          value: paceLabel,
+          foregroundColor: foregroundColor,
+        ),
         if (elevationLabel != null && elevationLabel!.trim().isNotEmpty)
           ModelMetricPill(
             label: t.translate("training_elevation"),
             value: elevationLabel!,
+            foregroundColor: foregroundColor,
           ),
       ],
     );
@@ -105,11 +114,13 @@ class ModelHeader extends StatelessWidget {
     required this.appName,
     required this.userName,
     required this.dateLabel,
+    this.foregroundColor = Colors.white,
   });
 
   final String appName;
   final String? userName;
   final String dateLabel;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +144,7 @@ class ModelHeader extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(14),
-                  color: Colors.white,
+                  color: foregroundColor,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.3,
                 ),
@@ -141,11 +152,13 @@ class ModelHeader extends StatelessWidget {
               Text(
                 userName != null && userName!.trim().isNotEmpty
                     ? userName!
-                    : 'Cardio Achievement',
+                    : AppLocalizations.of(
+                        context,
+                      ).translate('training_cardio_achievement'),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(11),
-                  color: Colors.white70,
+                  color: foregroundColor.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -162,7 +175,7 @@ class ModelHeader extends StatelessWidget {
             dateLabel,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              color: Colors.white70,
+              color: foregroundColor.withValues(alpha: 0.7),
               fontSize: TaqaUiScale.sp(10),
             ),
           ),
@@ -173,10 +186,16 @@ class ModelHeader extends StatelessWidget {
 }
 
 class ModelMetricPill extends StatelessWidget {
-  const ModelMetricPill({super.key, required this.label, required this.value});
+  const ModelMetricPill({
+    super.key,
+    required this.label,
+    required this.value,
+    this.foregroundColor = Colors.white,
+  });
 
   final String label;
   final String value;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -187,17 +206,19 @@ class ModelMetricPill extends StatelessWidget {
           label.toUpperCase(),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-            color: Colors.white.withValues(alpha: 0.6),
+            color: foregroundColor.withValues(alpha: 0.6),
             fontSize: TaqaUiScale.sp(9),
             fontWeight: FontWeight.w400,
             letterSpacing: 0.6,
-            shadows: const [
-              Shadow(
-                color: Colors.black54,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
+            shadows: foregroundColor == Colors.black
+                ? null
+                : const [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 8,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
           ),
         ),
         SizedBox(height: TaqaUiScale.h(3)),
@@ -205,16 +226,18 @@ class ModelMetricPill extends StatelessWidget {
           value,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            color: Colors.white,
+            color: foregroundColor,
             fontWeight: FontWeight.w800,
             fontSize: TaqaUiScale.sp(16),
-            shadows: const [
-              Shadow(
-                color: Colors.black54,
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
+            shadows: foregroundColor == Colors.black
+                ? null
+                : const [
+                    Shadow(
+                      color: Colors.black54,
+                      blurRadius: 10,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
           ),
         ),
       ],

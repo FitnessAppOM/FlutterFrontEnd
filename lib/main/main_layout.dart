@@ -651,14 +651,22 @@ class _MinimizedWorkoutBarState extends State<_MinimizedWorkoutBar> {
     if (m > 0) {
       return "${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}";
     }
-    return "${sec}s";
+    return "00:${sec.toString().padLeft(2, '0')}";
   }
 
   @override
   Widget build(BuildContext context) {
     final session = _session;
     if (session == null) return const SizedBox.shrink();
+    final t = AppLocalizations.of(context);
     final name = (session['name'] ?? '').toString().trim();
+    final isCardio =
+        session['kind'] == 'cardio' ||
+        session['distanceKm'] is num ||
+        session['paceMinKm'] is num;
+    final progressLabel = t.translate(
+      isCardio ? 'training_cardio_in_progress' : 'training_workout_in_progress',
+    );
 
     return Material(
       color: const Color(0xFF1C1D17),
@@ -683,7 +691,7 @@ class _MinimizedWorkoutBarState extends State<_MinimizedWorkoutBar> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Workout  ${_formatElapsed(_elapsed)}",
+                      "$progressLabel  ${_formatElapsed(_elapsed)}",
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -705,12 +713,12 @@ class _MinimizedWorkoutBarState extends State<_MinimizedWorkoutBar> {
                 ),
               ),
               IconButton(
-                tooltip: "Reopen workout",
+                tooltip: t.translate('training_reopen_workout'),
                 onPressed: () => unawaited(widget.onExpand()),
                 icon: const Icon(Icons.keyboard_arrow_up, color: Colors.white),
               ),
               IconButton(
-                tooltip: "Discard workout",
+                tooltip: t.translate('training_discard_workout'),
                 onPressed: () => unawaited(widget.onDiscard()),
                 icon: Icon(
                   Icons.delete_outline,

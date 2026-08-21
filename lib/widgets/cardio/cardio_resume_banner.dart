@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
+
 class CardioResumeBanner extends StatelessWidget {
   const CardioResumeBanner({
     super.key,
@@ -16,11 +18,16 @@ class CardioResumeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = paused ? "Cardio paused" : "Cardio in progress";
+    final t = AppLocalizations.of(context);
+    final title = paused
+        ? t.translate('training_cardio_paused')
+        : t.translate('training_cardio_in_progress');
     final subtitle = paused
-        ? "Continue or cancel the cardio exercise you left."
-        : "Return or cancel the cardio exercise you left.";
-    final primaryLabel = paused ? "Continue" : "Return";
+        ? t.translate('training_cardio_resume_body')
+        : t.translate('training_cardio_return_body');
+    final primaryLabel = paused
+        ? t.translate('training_continue')
+        : t.translate('training_return');
     final icon = paused
         ? Icons.pause_circle_filled
         : Icons.play_circle_fill_rounded;
@@ -91,7 +98,11 @@ class CardioResumeBanner extends StatelessWidget {
           const SizedBox(width: 10),
           _ActionChip(label: primaryLabel, filled: true, onTap: onContinue),
           const SizedBox(width: 8),
-          _ActionChip(label: "Cancel", filled: false, onTap: onCancel),
+          _ActionChip(
+            label: t.translate('training_cancel'),
+            filled: false,
+            onTap: onCancel,
+          ),
         ],
       ),
     );

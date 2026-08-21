@@ -1530,6 +1530,7 @@ class _SettingsPageState extends State<SettingsPage>
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: TaqaBackButton(
+                      color: TaqaUiColors.charcoal,
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),

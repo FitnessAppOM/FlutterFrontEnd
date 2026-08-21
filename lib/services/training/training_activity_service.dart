@@ -4,7 +4,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/locale_controller.dart';
 import 'training_foreground_task_handler.dart';
+import 'training_notification_copy.dart';
 
 class TrainingActivityService {
   static bool _active = false;
@@ -28,9 +30,14 @@ class TrainingActivityService {
   static const _kSessionRoutePoints = 'training_session_route_points';
   static const _kSessionPaused = 'training_session_paused';
   static const _kSessionPausedSeconds = 'training_session_paused_seconds';
+  static const _kSessionLanguageCode = 'training_session_language_code';
+  static const _kSessionKind = 'training_session_kind';
+
+  static String get _languageCode =>
+      localeController.locale.languageCode == 'ar' ? 'ar' : 'en';
 
   static String _buildTitle(String exerciseName) {
-    return "Training • $exerciseName";
+    return TrainingNotificationCopy.title(_languageCode, exerciseName);
   }
 
   static String _buildBody({
@@ -40,15 +47,27 @@ class TrainingActivityService {
     double? distanceKm,
     double? paceMinKm,
   }) {
+    final languageCode = _languageCode;
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
     final ss = (seconds % 60).toString().padLeft(2, '0');
+    final time = '$mm:$ss';
     if (distanceKm != null || paceMinKm != null) {
       final d = (distanceKm ?? 0).toStringAsFixed(2);
       final avgPace = _avgPaceMinKm(distanceKm, seconds) ?? paceMinKm;
-      final pace = _paceLabel(avgPace);
-      return "Timer $mm:$ss • $d km • $pace";
+      final pace = _paceLabel(avgPace, languageCode);
+      return TrainingNotificationCopy.cardioBody(
+        languageCode,
+        time: time,
+        distance: d,
+        pace: pace,
+      );
     }
-    return "Timer $mm:$ss • $sets x $reps";
+    return TrainingNotificationCopy.timerBody(
+      languageCode,
+      time: time,
+      sets: sets,
+      reps: reps,
+    );
   }
 
   static double? _avgPaceMinKm(double? distanceKm, int seconds) {
@@ -57,14 +76,18 @@ class TrainingActivityService {
     return (seconds / 60.0) / distanceKm;
   }
 
-  static String _paceLabel(double? paceMinKm) {
-    if (paceMinKm == null || paceMinKm <= 0.1) return "--:-- /km";
+  static String _paceLabel(double? paceMinKm, String languageCode) {
+    final unit = TrainingNotificationCopy.text(
+      languageCode,
+      'training_pace_unit',
+    );
+    if (paceMinKm == null || paceMinKm <= 0.1) return "--:-- $unit";
     final paceMin = paceMinKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
     final mm = paceMinutes.toString().padLeft(2, '0');
     final ss = paceSeconds.toString().padLeft(2, '0');
-    return "$mm:$ss /km";
+    return "$mm:$ss $unit";
   }
 
   static Future<void> startSession({
@@ -359,7 +382,69 @@ class TrainingActivityService {
       'routePoints': routePoints,
       'paused': sp.getBool(_kSessionPaused) ?? false,
       'pausedSeconds': sp.getInt(_kSessionPausedSeconds),
+      'languageCode': sp.getString(_kSessionLanguageCode) ?? _languageCode,
+      'kind': sp.getString(_kSessionKind),
     };
+  }
+
+  /// Refreshes every active-session surface when the user changes language.
+  static Future<void> refreshLocalization() async {
+    final sp = await SharedPreferences.getInstance();
+    if (!(sp.getBool(_kSessionActive) ?? false)) return;
+    await sp.setString(_kSessionLanguageCode, _languageCode);
+
+    final session = await getActiveSession();
+    if (session == null) return;
+    final name = (session['name'] ?? '').toString().trim();
+    final exerciseName = name.isEmpty
+        ? TrainingNotificationCopy.text(_languageCode, 'training_workout')
+        : name;
+    final sets = (session['sets'] as num?)?.toInt() ?? 0;
+    final reps = (session['reps'] as num?)?.toInt() ?? 0;
+    final distanceKm = (session['distanceKm'] as num?)?.toDouble();
+    final paceMinKm = (session['paceMinKm'] as num?)?.toDouble();
+    final paused = session['paused'] == true;
+    final pausedSeconds = (session['pausedSeconds'] as num?)?.toInt() ?? 0;
+    final startMs = (session['startMs'] as num?)?.toInt();
+    final seconds = paused
+        ? pausedSeconds
+        : startMs == null
+        ? 0
+        : ((DateTime.now().millisecondsSinceEpoch - startMs) / 1000)
+              .round()
+              .clamp(0, 1 << 31);
+
+    if (Platform.isAndroid) {
+      final title = _buildTitle(exerciseName);
+      final body = _buildBody(
+        seconds: seconds,
+        sets: sets,
+        reps: reps,
+        distanceKm: distanceKm,
+        paceMinKm: paceMinKm,
+      );
+      try {
+        await FlutterForegroundTask.updateService(
+          notificationTitle: title,
+          notificationText: body,
+        );
+        _androidServiceRunning = true;
+      } catch (_) {
+        _androidServiceRunning = false;
+      }
+    }
+    if (Platform.isIOS) {
+      await _updateLiveActivity(
+        exerciseName: exerciseName,
+        sets: sets,
+        reps: reps,
+        seconds: seconds,
+        distanceKm: distanceKm,
+        paceMinKm: paceMinKm,
+        startMs: startMs,
+        paused: paused,
+      );
+    }
   }
 
   static Future<void> _startForegroundService({
@@ -410,6 +495,7 @@ class TrainingActivityService {
         'speedKmh': avgPace,
         'startMs': startMs,
         'paused': paused,
+        ..._liveActivityLocalizedState(sets: sets, reps: reps),
       });
       // ignore: avoid_print
       print('[LiveActivity] start result: $ok');
@@ -438,6 +524,7 @@ class TrainingActivityService {
         'speedKmh': avgPace,
         'startMs': startMs,
         'paused': paused,
+        ..._liveActivityLocalizedState(sets: sets, reps: reps),
       });
       // ignore: avoid_print
       print('[LiveActivity] update result: $ok');
@@ -453,6 +540,29 @@ class TrainingActivityService {
     _liveActivitySessionId = null;
   }
 
+  static Map<String, String> _liveActivityLocalizedState({
+    required int sets,
+    required int reps,
+  }) {
+    final languageCode = _languageCode;
+    return {
+      'setsText': TrainingNotificationCopy.setsLabel(languageCode, sets),
+      'repsText': TrainingNotificationCopy.repsLabel(languageCode, reps),
+      'liveText': TrainingNotificationCopy.text(
+        languageCode,
+        'training_notification_live',
+      ),
+      'distanceUnit': TrainingNotificationCopy.text(
+        languageCode,
+        'training_distance_unit',
+      ),
+      'paceUnit': TrainingNotificationCopy.text(
+        languageCode,
+        'training_pace_unit',
+      ),
+    };
+  }
+
   static Future<void> _persistSession({
     required String exerciseName,
     required int sets,
@@ -465,6 +575,13 @@ class TrainingActivityService {
   }) async {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kSessionActive, true);
+    await sp.setString(_kSessionLanguageCode, _languageCode);
+    final isCardio =
+        distanceKm != null ||
+        paceMinKm != null ||
+        steps != null ||
+        routePoints != null;
+    await sp.setString(_kSessionKind, isCardio ? 'cardio' : 'strength');
     if (startMs != null) {
       await sp.setInt(_kSessionStartMs, startMs);
     } else if (!sp.containsKey(_kSessionStartMs)) {
@@ -510,6 +627,8 @@ class TrainingActivityService {
     await sp.remove(_kSessionRoutePoints);
     await sp.remove(_kSessionPaused);
     await sp.remove(_kSessionPausedSeconds);
+    await sp.remove(_kSessionLanguageCode);
+    await sp.remove(_kSessionKind);
   }
 
   static bool _hasSignificantDelta(

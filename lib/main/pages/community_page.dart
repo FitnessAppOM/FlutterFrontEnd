@@ -48,6 +48,36 @@ import '../../TaqaUI/styles/taqa_ui_styles.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/components/taqa_steps_ui.dart' show TaqaRangeTab;
 
+String _localizedCommunityGroupKind(AppLocalizations t, String? rawValue) {
+  final raw = (rawValue ?? '').trim().toLowerCase();
+  return switch (raw) {
+    'general' => t.translate('community_general'),
+    'gym' => t.translate('community_gym'),
+    'coach' => t.translate('community_coach'),
+    'city' => t.translate('community_city'),
+    'country' => t.translate('community_country'),
+    'sport' => t.translate('community_sport'),
+    'private' => t.translate('community_private'),
+    'public' => t.translate('community_public'),
+    'auto_created' ||
+    'auto-created' ||
+    'auto created' => t.translate('community_auto_created'),
+    _ =>
+      rawValue?.trim().isNotEmpty == true
+          ? rawValue!.trim()
+          : t.translate('community_group'),
+  };
+}
+
+String _localizedCommunityDescription(AppLocalizations t, String? rawValue) {
+  final raw = (rawValue ?? '').trim();
+  if (t.locale.languageCode != 'ar' || raw.isEmpty) return raw;
+  if (RegExp(r'^auto[- ]created\b', caseSensitive: false).hasMatch(raw)) {
+    return t.translate('community_auto_created');
+  }
+  return raw;
+}
+
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
 
@@ -556,10 +586,9 @@ class _CommunityPageState extends State<CommunityPage> {
   Widget _buildJoinedGroupCard(CommunityGroupSummary group) {
     final t = AppLocalizations.of(context);
     return TaqaCommunityGroupCard(
-      tag:
-          group.groupKind ?? group.visibility ?? t.translate('community_group'),
+      tag: _localizedCommunityGroupKind(t, group.groupKind ?? group.visibility),
       name: group.name,
-      description: group.description ?? '',
+      description: _localizedCommunityDescription(t, group.description),
       memberCount: group.memberCount,
       onTap: () async {
         await Navigator.push(
@@ -938,12 +967,15 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                   (group) => Padding(
                     padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                     child: TaqaCommunityGroupListCard(
-                      tag:
-                          group.groupKind ??
-                          group.visibility ??
-                          t.translate('community_group'),
+                      tag: _localizedCommunityGroupKind(
+                        t,
+                        group.groupKind ?? group.visibility,
+                      ),
                       name: group.name,
-                      description: group.description ?? '',
+                      description: _localizedCommunityDescription(
+                        t,
+                        group.description,
+                      ),
                       memberCount: group.memberCount,
                       trailing: group.isJoined
                           ? TaqaOutlineTagButton(
@@ -1427,12 +1459,15 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               )
             else if (detail != null) ...[
               TaqaCommunityGroupHeroCard(
-                tag:
-                    detail.groupKind ??
-                    detail.visibility ??
-                    t.translate('community_group'),
+                tag: _localizedCommunityGroupKind(
+                  t,
+                  detail.groupKind ?? detail.visibility,
+                ),
                 name: detail.name,
-                description: detail.description ?? '',
+                description: _localizedCommunityDescription(
+                  t,
+                  detail.description,
+                ),
                 membersValue: '${detail.memberCount}',
                 leaderboardValue: detail.leaderboardMetric ?? '-',
                 onMembersTap: detail.isJoined ? _openMembers : null,
@@ -1662,12 +1697,15 @@ class CommunityMyGroupsPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final group = groups[index];
                   return TaqaCommunityGroupHeroCard(
-                    tag:
-                        group.groupKind ??
-                        group.visibility ??
-                        t.translate('community_group'),
+                    tag: _localizedCommunityGroupKind(
+                      t,
+                      group.groupKind ?? group.visibility,
+                    ),
                     name: group.name,
-                    description: group.description ?? '',
+                    description: _localizedCommunityDescription(
+                      t,
+                      group.description,
+                    ),
                     membersValue: '${group.memberCount}',
                     leaderboardValue: group.leaderboardMetric ?? '-',
                     onTap: () => _openGroupDetail(context, group),
@@ -3352,12 +3390,14 @@ class _CommunityPopupMenuLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Text(
       label,
       style: TextStyle(
         fontFamily: TaqaUiFontFamilies.interTight,
         fontSize: TaqaUiScale.sp(14),
         fontWeight: FontWeight.w500,
+        height: isArabic ? 1.45 : 1.2,
         color: TaqaUiColors.charcoal,
       ),
     );
@@ -3382,6 +3422,8 @@ class _GroupFeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final isArabic = t.locale.languageCode == 'ar';
+    final arabicHeight = isArabic ? 1.45 : null;
     return _LightCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3399,7 +3441,7 @@ class _GroupFeedCard extends StatelessWidget {
                   style: const TextStyle(
                     color: TaqaUiColors.charcoal,
                     fontWeight: FontWeight.w800,
-                  ),
+                  ).copyWith(height: arabicHeight),
                 ),
               ),
               PopupMenuButton<String>(
@@ -3437,18 +3479,22 @@ class _GroupFeedCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             item.event.title,
-            style: const TextStyle(
+            textAlign: TextAlign.start,
+            style: TextStyle(
               color: TaqaUiColors.charcoal,
               fontSize: 16,
               fontWeight: FontWeight.w800,
+              height: isArabic ? 1.45 : 1.2,
             ),
           ),
           if ((item.event.subtitle ?? '').isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
               item.event.subtitle!,
+              textAlign: TextAlign.start,
               style: TextStyle(
                 color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+                height: isArabic ? 1.45 : 1.3,
               ),
             ),
           ],
@@ -4887,7 +4933,10 @@ Future<int?> _showGroupPicker(
               id: group.id,
               name: group.name,
               memberCount: group.memberCount,
-              description: group.description,
+              description: _localizedCommunityDescription(
+                AppLocalizations.of(context),
+                group.description,
+              ),
             ),
           )
           .toList(growable: false),

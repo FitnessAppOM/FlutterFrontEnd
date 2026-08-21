@@ -5,6 +5,7 @@ import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_cardio_stat_panel.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
+import '../../localization/app_localizations.dart';
 
 class CardioMapControls extends StatefulWidget {
   const CardioMapControls({
@@ -153,30 +154,46 @@ class _CardioMapControlsState extends State<CardioMapControls> {
   String get _time =>
       "${_elapsed.inMinutes.toString().padLeft(2, '0')}:${(_elapsed.inSeconds % 60).toString().padLeft(2, '0')}";
 
-  String _paceLabel() {
-    if (_elapsed.inSeconds < 30) return "--:-- /km";
+  String _paceLabel(AppLocalizations t) {
+    final paceUnit = t.translate("training_pace_unit");
+    if (_elapsed.inSeconds < 30) return "--:-- $paceUnit";
     final distanceKm = widget.distanceKm ?? 0.0;
-    if (distanceKm <= 0.001) return "--:-- /km";
+    if (distanceKm <= 0.001) return "--:-- $paceUnit";
     final paceMin = (_elapsed.inSeconds / 60.0) / distanceKm;
     final paceMinutes = paceMin.floor();
     final paceSeconds = ((paceMin - paceMinutes) * 60).round().clamp(0, 59);
-    return "${paceMinutes.toString().padLeft(2, '0')}:${paceSeconds.toString().padLeft(2, '0')} /km";
+    return "${paceMinutes.toString().padLeft(2, '0')}:${paceSeconds.toString().padLeft(2, '0')} $paceUnit";
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final distanceLabel = (widget.distanceKm ?? 0).toStringAsFixed(2);
-    final paceLabel = _paceLabel();
+    final distanceUnit = t.translate("training_distance_unit");
+    final paceLabel = _paceLabel(t);
     final stepsLabel = widget.steps?.toString() ?? "0";
     final metrics = <TaqaCardioStatMetric>[
       if (widget.showTimePill)
-        TaqaCardioStatMetric(label: "Time", value: _time, accent: true),
+        TaqaCardioStatMetric(
+          label: t.translate("training_time"),
+          value: _time,
+          accent: true,
+        ),
       if (widget.showDistancePill)
-        TaqaCardioStatMetric(label: "Distance", value: "$distanceLabel km"),
+        TaqaCardioStatMetric(
+          label: t.translate("training_distance"),
+          value: "$distanceLabel $distanceUnit",
+        ),
       if (widget.showPacePill)
-        TaqaCardioStatMetric(label: "Pace", value: paceLabel),
+        TaqaCardioStatMetric(
+          label: t.translate("training_pace"),
+          value: paceLabel,
+        ),
       if (widget.showStepsPill)
-        TaqaCardioStatMetric(label: "Steps", value: stepsLabel),
+        TaqaCardioStatMetric(
+          label: t.translate("training_steps"),
+          value: stepsLabel,
+        ),
     ];
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -324,7 +341,9 @@ class _CardioActionButton extends StatelessWidget {
               child ??
               Icon(
                 icon,
-                color: isPrimary ? TaqaUiColors.unnamedColor1c1d17 : Colors.white,
+                color: isPrimary
+                    ? TaqaUiColors.unnamedColor1c1d17
+                    : Colors.white,
                 size: TaqaUiScale.sp(24),
               ),
         ),
@@ -332,4 +351,3 @@ class _CardioActionButton extends StatelessWidget {
     );
   }
 }
-

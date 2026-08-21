@@ -22,11 +22,10 @@ class DietProgressCard extends StatelessWidget {
     final t = AppLocalizations.of(context).translate;
     final total = targetCalories ?? 0;
     final consumed = consumedCalories ?? 0;
-    final ratio =
-        total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
+    final ratio = total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
     final percent = (ratio * 100).round();
     final subtitle = total > 0
-        ? "$consumed / $total kcal"
+        ? "$consumed / $total ${t('diet_kcal_unit')}"
         : t("diet_progress_no_target");
     final dayLabel = _dayTypeLabel(dayType, t);
 
@@ -41,9 +40,9 @@ class DietProgressCard extends StatelessWidget {
                 Text(
                   t("diet_progress_title"),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const Spacer(),
                 if (loading)
@@ -58,9 +57,9 @@ class DietProgressCard extends StatelessWidget {
                 else
                   Text(
                     total > 0 ? "$percent%" : "—",
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelMedium?.copyWith(color: Colors.white70),
                   ),
               ],
             ),
@@ -69,10 +68,7 @@ class DietProgressCard extends StatelessWidget {
               children: [
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 if (dayLabel != null) ...[
                   const SizedBox(width: 8),

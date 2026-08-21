@@ -45,6 +45,45 @@ void main() {
     expect(await AccountStorage.isCoachMembershipActive(), isFalse);
   });
 
+  test('cached access allows an unexpired verified subscription', () async {
+    await AccountStorage.setVerifiedSubscriptionAccess(
+      required: false,
+      expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+    );
+
+    expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isTrue);
+  });
+
+  test('cached access rejects an expired subscription', () async {
+    await AccountStorage.setVerifiedSubscriptionAccess(
+      required: false,
+      expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+    );
+
+    expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isFalse);
+  });
+
+  test('cached access rejects an explicit subscription gate', () async {
+    await AccountStorage.setVerifiedSubscriptionAccess(required: true);
+
+    expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isFalse);
+  });
+
+  test('cached access is unknown before server verification', () async {
+    expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isNull);
+  });
+
+  test('cached access does not leak to another account', () async {
+    await AccountStorage.setVerifiedSubscriptionAccess(
+      required: false,
+      expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+    );
+
+    SharedPreferences.setMockInitialValues({'user_id': userId + 1});
+
+    expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isNull);
+  });
+
   test('queues and completes the post-purchase intro per account', () async {
     await AccountStorage.schedulePostPurchaseIntro();
     expect(await AccountStorage.shouldShowPostPurchaseIntro(), isTrue);

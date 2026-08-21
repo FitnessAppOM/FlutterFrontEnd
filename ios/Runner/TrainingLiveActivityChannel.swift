@@ -13,6 +13,11 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var speedKmh: Double?
         var startMs: Int?
         var paused: Bool
+        var setsText: String?
+        var repsText: String?
+        var liveText: String?
+        var distanceUnit: String?
+        var paceUnit: String?
     }
 
     var sessionId: String
@@ -59,6 +64,11 @@ final class TrainingLiveActivityChannel {
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
         let startMs = (args["startMs"] as? Int) ?? (args["startMs"] as? NSNumber)?.intValue
         let paused = (args["paused"] as? Bool) ?? false
+        let setsText = args["setsText"] as? String
+        let repsText = args["repsText"] as? String
+        let liveText = args["liveText"] as? String
+        let distanceUnit = args["distanceUnit"] as? String
+        let paceUnit = args["paceUnit"] as? String
         let sessionId = (args["sessionId"] as? String) ?? UUID().uuidString
 
         let attributes = TrainingActivityAttributes(sessionId: sessionId)
@@ -70,7 +80,12 @@ final class TrainingLiveActivityChannel {
             distanceKm: distanceKm,
             speedKmh: speedKmh,
             startMs: startMs,
-            paused: paused
+            paused: paused,
+            setsText: setsText,
+            repsText: repsText,
+            liveText: liveText,
+            distanceUnit: distanceUnit,
+            paceUnit: paceUnit
         )
 
         do {
@@ -108,6 +123,11 @@ final class TrainingLiveActivityChannel {
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
         let startMs = (args["startMs"] as? Int) ?? (args["startMs"] as? NSNumber)?.intValue
         let paused = (args["paused"] as? Bool) ?? false
+        let setsText = args["setsText"] as? String
+        let repsText = args["repsText"] as? String
+        let liveText = args["liveText"] as? String
+        let distanceUnit = args["distanceUnit"] as? String
+        let paceUnit = args["paceUnit"] as? String
 
         let contentState = TrainingActivityAttributes.ContentState(
             exerciseName: exerciseName,
@@ -117,7 +137,12 @@ final class TrainingLiveActivityChannel {
             distanceKm: distanceKm,
             speedKmh: speedKmh,
             startMs: startMs,
-            paused: paused
+            paused: paused,
+            setsText: setsText,
+            repsText: repsText,
+            liveText: liveText,
+            distanceUnit: distanceUnit,
+            paceUnit: paceUnit
         )
         Task {
             await activity.update(using: contentState)

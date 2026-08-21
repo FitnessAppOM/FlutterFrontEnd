@@ -42,6 +42,7 @@ class ModelAPage extends StatelessWidget {
                   appName: "Taqa Fitness",
                   userName: userName,
                   dateLabel: dateLabel,
+                  foregroundColor: Colors.black,
                 ),
               ),
               Positioned.fill(
@@ -52,6 +53,7 @@ class ModelAPage extends StatelessWidget {
                     showDistance: showDistance,
                     distanceLabel: distanceLabel,
                     paceLabel: paceLabel,
+                    foregroundColor: Colors.black,
                   ),
                 ),
               ),

@@ -26,24 +26,21 @@ class NotificationService {
   static const String expertAiUpdatesPayload = 'expert_ai_updates';
 
   static const String _scheduledChannelId = 'scheduled_channel';
-  static const String _scheduledChannelName = 'Scheduled Notifications';
-  static const String _scheduledChannelDescription =
-      'Reminders and scheduled notifications.';
   static const String _dailyReminderRefreshStampPrefix =
       'notif_daily_refresh_stamp_u';
   static const String _expertReminderRefreshStampPrefix =
       'notif_expert_refresh_stamp_u';
   static final Map<int, Future<void>> _dailyReminderRefreshes = {};
   static final Map<int, Future<void>> _expertReminderRefreshes = {};
-  static const NotificationDetails _defaultDetails = NotificationDetails(
+  static NotificationDetails get _defaultDetails => NotificationDetails(
     android: AndroidNotificationDetails(
       _scheduledChannelId,
-      _scheduledChannelName,
-      channelDescription: _scheduledChannelDescription,
+      _localized('notification_channel_name'),
+      channelDescription: _localized('notification_channel_description'),
       importance: Importance.max,
       priority: Priority.high,
     ),
-    iOS: DarwinNotificationDetails(
+    iOS: const DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
@@ -121,15 +118,36 @@ class NotificationService {
         >();
     if (androidPlugin == null) return;
 
-    const channel = AndroidNotificationChannel(
+    final channel = AndroidNotificationChannel(
       _scheduledChannelId,
-      _scheduledChannelName,
-      description: _scheduledChannelDescription,
+      _localized('notification_channel_name'),
+      description: _localized('notification_channel_description'),
       importance: Importance.max,
     );
     await androidPlugin.createNotificationChannel(channel);
     // ignore: avoid_print
     print('[Notif] Android channel "$_scheduledChannelId" created/ensured');
+  }
+
+  /// Recreates and reschedules app-owned notifications after a language
+  /// change so already-pending reminders do not keep their previous copy.
+  static Future<void> refreshLocalization() async {
+    if (Platform.isAndroid) {
+      await _createAndroidChannel();
+    }
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return;
+
+    final activeDailyRefresh = _dailyReminderRefreshes[userId];
+    if (activeDailyRefresh != null) await activeDailyRefresh;
+    final activeExpertRefresh = _expertReminderRefreshes[userId];
+    if (activeExpertRefresh != null) await activeExpertRefresh;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('${_dailyReminderRefreshStampPrefix}_$userId');
+    await prefs.remove('${_expertReminderRefreshStampPrefix}_$userId');
+    await refreshDailyJournalRemindersForCurrentUser();
+    await refreshExpertAiUpdatesReminderForCurrentUser();
   }
 
   static Future<void> _setLocalTimeZone() async {
@@ -252,8 +270,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       2,
-      'Daily Journal',
-      'Please complete your daily journal if you haven\'t already.',
+      _localized('journal_notification_title'),
+      _localized('journal_notification_body'),
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
@@ -265,8 +283,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       3,
-      'Daily Journal',
-      'Please complete your daily journal if you haven\'t already.',
+      _localized('journal_notification_title'),
+      _localized('journal_notification_body'),
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
@@ -436,8 +454,8 @@ class NotificationService {
       );
       await _plugin.zonedSchedule(
         notificationId,
-        'AI Updates Reminder',
-        'Check AI updates for your clients or generate new suggestions.',
+        _localized('expert_updates_notification_title'),
+        _localized('expert_updates_notification_body'),
         scheduledAt,
         _defaultDetails,
         payload: expertAiUpdatesPayload,
@@ -482,8 +500,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       2,
-      'Daily Journal',
-      'Please complete your daily journal if you haven\'t already.',
+      _localized('journal_notification_title'),
+      _localized('journal_notification_body'),
       nextSixAm,
       _defaultDetails,
       payload: dailyJournalPayload,
@@ -494,8 +512,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       3,
-      'Daily Journal',
-      'Please complete your daily journal if you haven\'t already.',
+      _localized('journal_notification_title'),
+      _localized('journal_notification_body'),
       nextSixPm,
       _defaultDetails,
       payload: dailyJournalPayload,
@@ -618,8 +636,8 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       999,
-      'Daily Journal (Test)',
-      'Reminder to fill in your daily journal.',
+      '${_localized('journal_notification_title')} (${_localized('notification_test_suffix')})',
+      _localized('journal_notification_test_body'),
       scheduledTime,
       _defaultDetails,
       payload: dailyJournalPayload,
@@ -672,15 +690,15 @@ class NotificationService {
     print('[Notif] showDebugJournalAndDietNow()');
     await _plugin.show(
       910001,
-      'Daily Journal (Test)',
-      'Tap to open your journal.',
+      '${_localized('journal_notification_title')} (${_localized('notification_test_suffix')})',
+      _localized('journal_notification_open_body'),
       _defaultDetails,
       payload: dailyJournalPayload,
     );
     await _plugin.show(
       910002,
-      '${_localized('diet_checkin_notification_title')} (Test)',
-      'Tap to open your diet module.',
+      '${_localized('diet_checkin_notification_title')} (${_localized('notification_test_suffix')})',
+      _localized('diet_notification_open_body'),
       _defaultDetails,
       payload: dietPayload,
     );
@@ -697,7 +715,9 @@ class NotificationService {
 
     await _plugin.show(
       DateTime.now().millisecondsSinceEpoch % 2147483647,
-      normalizedTitle.isEmpty ? 'New notification' : normalizedTitle,
+      normalizedTitle.isEmpty
+          ? _localized('notification_new_title')
+          : normalizedTitle,
       normalizedBody,
       _defaultDetails,
       payload: payload,

@@ -2051,6 +2051,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                   ),
                 ),
               ),
+              SizedBox(width: TaqaUiScale.w(15)),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2577,118 +2578,144 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(8),
-        onTap: () {
-          if (!done && !isActive) {
-            _startSet(setIndex);
-          } else {
-            _openSetEditDialog(row);
-          }
-        },
-        onLongPress: _setRows.length > 1 ? () => _deleteSetRow(setIndex) : null,
-        child: Container(
-          padding: TaqaUiScale.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isActive
-                ? Colors.white.withValues(alpha: 0.12)
-                : (done
-                      ? const Color(0xFFE4E93B).withValues(alpha: 0.12)
-                      : Colors.white.withValues(alpha: 0.05)),
-            borderRadius: TaqaUiScale.radius(8),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: TaqaUiScale.w(34),
-                child: Text(
-                  "$setIndex",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: TaqaUiScale.sp(12),
-                  ),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              borderRadius: TaqaUiScale.radius(8),
+              onTap: () {
+                if (!done && !isActive) {
+                  _startSet(setIndex);
+                } else {
+                  _openSetEditDialog(row);
+                }
+              },
+              child: Container(
+                padding: TaqaUiScale.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : (done
+                            ? const Color(0xFFE4E93B).withValues(alpha: 0.12)
+                            : Colors.white.withValues(alpha: 0.05)),
+                  borderRadius: TaqaUiScale.radius(8),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: TaqaUiScale.w(34),
+                      child: Text(
+                        "$setIndex",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: TaqaUiScale.sp(12),
+                        ),
+                      ),
+                    ),
+                    if (isTimer)
+                      Expanded(
+                        child: Text(
+                          timeLabel,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                            fontSize: TaqaUiScale.sp(12),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      SizedBox(
+                        width: TaqaUiScale.w(62),
+                        child: Text(
+                          weightLabel,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                            fontSize: TaqaUiScale.sp(12),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          repsVal,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w600,
+                            fontSize: TaqaUiScale.sp(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                    GestureDetector(
+                      onTap: () async {
+                        final wasActive = _activeSetIndex == setIndex;
+                        if (!done && wasActive) {
+                          _pauseActiveSetTimer();
+                        }
+                        await _upsertSetRow(
+                          setIndex: setIndex,
+                          completed: !done,
+                          performedTimeSeconds: wasActive
+                              ? _activeSetElapsedSeconds
+                              : null,
+                          restAfterSeconds: wasActive
+                              ? _activeSetRestSeconds
+                              : null,
+                        );
+                        if (!mounted) return;
+                        if (!done) {
+                          final nextSet = _nextPendingSetIndex();
+                          setState(() {
+                            _activeSetIndex = nextSet ?? setIndex;
+                            _activeSetElapsedSeconds = 0;
+                            _activeSetRestSeconds = _restPresetSeconds;
+                            _hideRestPresetAfterStart = false;
+                          });
+                        } else {
+                          setState(() {
+                            _hideRestPresetAfterStart = false;
+                          });
+                          _stopRestCountdown();
+                        }
+                      },
+                      child: Container(
+                        width: TaqaUiScale.w(10),
+                        height: TaqaUiScale.h(8),
+                        decoration: BoxDecoration(
+                          color: done
+                              ? const Color(0xFFE4E93B)
+                              : Colors.transparent,
+                          border: done
+                              ? null
+                              : Border.all(color: Colors.white, width: 0.5),
+                          borderRadius: TaqaUiScale.radius(2),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (isTimer)
-                Expanded(
-                  child: Text(
-                    timeLabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w600,
-                      fontSize: TaqaUiScale.sp(12),
-                    ),
-                  ),
-                )
-              else ...[
-                SizedBox(
-                  width: TaqaUiScale.w(62),
-                  child: Text(
-                    weightLabel,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w600,
-                      fontSize: TaqaUiScale.sp(12),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    repsVal,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w600,
-                      fontSize: TaqaUiScale.sp(12),
-                    ),
-                  ),
-                ),
-              ],
-              GestureDetector(
-                onTap: () async {
-                  final wasActive = _activeSetIndex == setIndex;
-                  if (!done && wasActive) {
-                    _pauseActiveSetTimer();
-                  }
-                  await _upsertSetRow(
-                    setIndex: setIndex,
-                    completed: !done,
-                    performedTimeSeconds: wasActive
-                        ? _activeSetElapsedSeconds
-                        : null,
-                    restAfterSeconds: wasActive ? _activeSetRestSeconds : null,
-                  );
-                  if (!mounted) return;
-                  if (!done) {
-                    final nextSet = _nextPendingSetIndex();
-                    setState(() {
-                      _activeSetIndex = nextSet ?? setIndex;
-                      _activeSetElapsedSeconds = 0;
-                      _activeSetRestSeconds = _restPresetSeconds;
-                      _hideRestPresetAfterStart = false;
-                    });
-                  } else {
-                    setState(() {
-                      _hideRestPresetAfterStart = false;
-                    });
-                    _stopRestCountdown();
-                  }
-                },
-                child: Container(
-                  width: TaqaUiScale.w(10),
-                  height: TaqaUiScale.h(8),
-                  decoration: BoxDecoration(
-                    color: done ? const Color(0xFFE4E93B) : Colors.transparent,
-                    border: done
-                        ? null
-                        : Border.all(color: Colors.white, width: 0.5),
-                    borderRadius: TaqaUiScale.radius(2),
-                  ),
+            ),
+          ),
+          if (_setRows.length > 1) ...[
+            SizedBox(width: TaqaUiScale.w(4)),
+            SizedBox(
+              width: TaqaUiScale.w(44),
+              height: TaqaUiScale.h(40),
+              child: IconButton(
+                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                onPressed: () => _deleteSetRow(setIndex),
+                padding: EdgeInsets.zero,
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: TaqaUiScale.w(20),
+                  color: Colors.white70,
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }

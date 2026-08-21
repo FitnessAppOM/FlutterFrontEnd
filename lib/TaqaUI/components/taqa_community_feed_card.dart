@@ -42,6 +42,15 @@ class TaqaCommunityFeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final padding = TaqaUiScale.w(14);
     final gap = TaqaUiScale.w(6);
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final titleStyle = TaqaUiStyles.dailyOutlookTitle.copyWith(
+      fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
+      height: isArabic ? 1.45 : null,
+    );
+    final descriptionStyle = TaqaUiStyles.dailyOutlookDescription.copyWith(
+      fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
+      height: isArabic ? 1.45 : null,
+    );
 
     return Container(
       width: double.infinity,
@@ -66,7 +75,7 @@ class TaqaCommunityFeedCard extends StatelessWidget {
                       actorLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.dailyOutlookTitle,
+                      style: titleStyle,
                     ),
                     if (chips.isNotEmpty) ...[
                       SizedBox(height: TaqaUiScale.h(6)),
@@ -85,10 +94,14 @@ class TaqaCommunityFeedCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: TaqaUiScale.h(16)),
-          Text(title, style: TaqaUiStyles.dailyOutlookTitle),
+          Text(title, textAlign: TextAlign.start, style: titleStyle),
           if ((subtitle ?? '').trim().isNotEmpty) ...[
             SizedBox(height: TaqaUiScale.h(8)),
-            Text(subtitle!, style: TaqaUiStyles.dailyOutlookDescription),
+            Text(
+              subtitle!,
+              textAlign: TextAlign.start,
+              style: descriptionStyle,
+            ),
           ],
           if (payloadEntries.isNotEmpty) ...[
             SizedBox(height: TaqaUiScale.h(12)),
@@ -168,6 +181,11 @@ class _TaqaFeedPayloadChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final labelStyle = TaqaUiStyles.dailyOutlookTag.copyWith(
+      fontFamily: isArabic ? null : TaqaUiFontFamilies.iaWriterMonoS,
+      height: isArabic ? 1.45 : null,
+    );
     return Container(
       padding: TaqaUiScale.insetsLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
@@ -177,11 +195,11 @@ class _TaqaFeedPayloadChip extends StatelessWidget {
       child: RichText(
         text: TextSpan(
           children: [
-            TextSpan(text: '$label: ', style: TaqaUiStyles.dailyOutlookTag),
+            TextSpan(text: '$label: ', style: labelStyle),
             TextSpan(
               text: value,
-              style: TaqaUiStyles.dailyOutlookTag.copyWith(
-                fontFamily: TaqaUiFontFamilies.interTight,
+              style: labelStyle.copyWith(
+                fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -208,6 +226,7 @@ class _TaqaFeedActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const color = TaqaUiColors.charcoal;
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Material(
       color: Colors.transparent,
@@ -227,7 +246,11 @@ class _TaqaFeedActionButton extends StatelessWidget {
               SizedBox(width: TaqaUiScale.w(6)),
               Text(
                 label,
-                style: TaqaUiStyles.dailyOutlookButton.copyWith(color: color),
+                style: TaqaUiStyles.dailyOutlookButton.copyWith(
+                  color: color,
+                  fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
+                  height: isArabic ? 1.4 : null,
+                ),
               ),
             ],
           ),

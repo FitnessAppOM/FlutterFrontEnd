@@ -32,6 +32,7 @@ import '../../TaqaUI/components/taqa_record_dot.dart';
 import '../../TaqaUI/components/taqa_community_option_picker_sheet.dart';
 import '../../TaqaUI/components/taqa_empty_card.dart';
 import '../../TaqaUI/components/taqa_selection_card.dart';
+import '../../TaqaUI/components/taqa_loading_indicator.dart';
 import '../../core/user_friendly_error.dart';
 
 class DietPage extends StatefulWidget {
@@ -2025,15 +2026,16 @@ class DietPageState extends State<DietPage> {
   }
 
   String _targetMetricLabel(String metric) {
+    final t = AppLocalizations.of(context);
     switch (metric.trim().toLowerCase()) {
       case 'calories':
-        return 'Kcal';
+        return t.translate('diet_target_metric_calories');
       case 'protein_g':
-        return 'Protein';
+        return t.translate('diet_target_metric_protein');
       case 'carbs_g':
-        return 'Carbs';
+        return t.translate('diet_target_metric_carbs');
       case 'fat_g':
-        return 'Fat';
+        return t.translate('diet_target_metric_fat');
       default:
         return metric;
     }
@@ -2046,7 +2048,9 @@ class DietPageState extends State<DietPage> {
     final toVal = detail['to']?.toString() ?? '-';
     if (scope == 'training_day') {
       final dayLabel = (detail['day_label'] ?? '').toString().trim();
-      final day = dayLabel.isEmpty ? 'Day' : dayLabel;
+      final day = dayLabel.isEmpty
+          ? AppLocalizations.of(context).translate('diet_target_change_day')
+          : dayLabel;
       return '$day • $metric: $fromVal -> $toVal';
     }
     return 'Rest • $metric: $fromVal -> $toVal';
@@ -2160,27 +2164,12 @@ class DietPageState extends State<DietPage> {
   Future<void> _showUploadedPlansSheet() async {
     if (_loadingUploadedPlans) return;
     setState(() => _loadingUploadedPlans = true);
+    var plans = const <DietCoachPlanDocument>[];
+    var targetChanges = const <DietTargetChangeEvent>[];
+    Object? loadError;
+    var sheetLoading = true;
+    var loadStarted = false;
     try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) {
-        throw Exception('User not found.');
-      }
-      final plans = await DietService.fetchCoachPlanDocuments(
-        userId: userId,
-        markSeen: true,
-      );
-      final targetPayload = await DietService.fetchDietTargetChanges(
-        userId: userId,
-        markSeen: true,
-      );
-      final targetChanges =
-          (targetPayload['items'] as List<DietTargetChangeEvent>? ?? const [])
-              .toList(growable: false);
-      if (mounted) {
-        setState(() {
-          _unseenDietTargetChangeCount = 0;
-        });
-      }
       if (!mounted) return;
       await showModalBottomSheet<void>(
         context: context,
@@ -2195,6 +2184,52 @@ class DietPageState extends State<DietPage> {
           final openingIds = <int>{};
           return StatefulBuilder(
             builder: (ctx, setSheetState) {
+              if (!loadStarted) {
+                loadStarted = true;
+                unawaited(
+                  Future<void>(() async {
+                    try {
+                      final userId = await AccountStorage.getUserId();
+                      if (userId == null || userId <= 0) {
+                        throw Exception('User not found.');
+                      }
+                      final results = await Future.wait<Object>([
+                        DietService.fetchCoachPlanDocuments(
+                          userId: userId,
+                          markSeen: true,
+                        ),
+                        DietService.fetchDietTargetChanges(
+                          userId: userId,
+                          markSeen: true,
+                        ),
+                      ]);
+                      final loadedPlans =
+                          results[0] as List<DietCoachPlanDocument>;
+                      final targetPayload = results[1] as Map<String, dynamic>;
+                      final loadedTargetChanges =
+                          (targetPayload['items']
+                                      as List<DietTargetChangeEvent>? ??
+                                  const [])
+                              .toList(growable: false);
+                      if (mounted) {
+                        setState(() => _unseenDietTargetChangeCount = 0);
+                      }
+                      if (!sheetContext.mounted) return;
+                      setSheetState(() {
+                        plans = loadedPlans;
+                        targetChanges = loadedTargetChanges;
+                        sheetLoading = false;
+                      });
+                    } catch (error) {
+                      if (!sheetContext.mounted) return;
+                      setSheetState(() {
+                        loadError = error;
+                        sheetLoading = false;
+                      });
+                    }
+                  }),
+                );
+              }
               return SafeArea(
                 child: Padding(
                   padding: TaqaUiScale.insetsLTRB(16, 16, 16, 20),
@@ -2209,7 +2244,9 @@ class DietPageState extends State<DietPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Uploaded Plans',
+                                AppLocalizations.of(
+                                  context,
+                                ).translate('diet_uploaded_plans'),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(18),
@@ -2229,11 +2266,31 @@ class DietPageState extends State<DietPage> {
                           ],
                         ),
                         SizedBox(height: TaqaUiScale.h(8)),
-                        if (targetChanges.isEmpty && plans.isEmpty)
+                        if (sheetLoading)
+                          const Expanded(
+                            child: Center(child: TaqaLoadingIndicator()),
+                          )
+                        else if (loadError != null)
                           Expanded(
                             child: Center(
                               child: Text(
-                                'No plan updates yet.',
+                                userFriendlyErrorMessage(loadError!),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: TaqaUiFontFamilies.interTight,
+                                  color: TaqaUiColors.unnamedColor1c1d17
+                                      .withValues(alpha: 0.65),
+                                ),
+                              ),
+                            ),
+                          )
+                        else if (targetChanges.isEmpty && plans.isEmpty)
+                          Expanded(
+                            child: Center(
+                              child: Text(
+                                AppLocalizations.of(
+                                  context,
+                                ).translate('diet_no_plan_updates'),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   color: TaqaUiColors.unnamedColor1c1d17
@@ -2248,7 +2305,9 @@ class DietPageState extends State<DietPage> {
                               children: [
                                 if (targetChanges.isNotEmpty) ...[
                                   Text(
-                                    'Target Updates',
+                                    AppLocalizations.of(
+                                      context,
+                                    ).translate('diet_target_updates'),
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(12),
@@ -2260,7 +2319,9 @@ class DietPageState extends State<DietPage> {
                                   ),
                                   SizedBox(height: TaqaUiScale.h(4)),
                                   Text(
-                                    'Note: Today\'s visible calories can include added burn surplus.',
+                                    AppLocalizations.of(
+                                      context,
+                                    ).translate('diet_target_updates_note'),
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(11),
@@ -2346,7 +2407,14 @@ class DietPageState extends State<DietPage> {
                                             ],
                                             if (event.details.length > 4)
                                               Text(
-                                                '+${event.details.length - 4} more changes',
+                                                AppLocalizations.of(context)
+                                                    .translate(
+                                                      'diet_more_changes',
+                                                    )
+                                                    .replaceAll(
+                                                      '{count}',
+                                                      '${event.details.length - 4}',
+                                                    ),
                                                 style: TextStyle(
                                                   fontFamily: TaqaUiFontFamilies
                                                       .interTight,
@@ -2367,7 +2435,9 @@ class DietPageState extends State<DietPage> {
                                   if (targetChanges.isNotEmpty)
                                     SizedBox(height: TaqaUiScale.h(8)),
                                   Text(
-                                    'Uploaded Plans',
+                                    AppLocalizations.of(
+                                      context,
+                                    ).translate('diet_uploaded_plans'),
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(12),
@@ -2580,7 +2650,13 @@ class DietPageState extends State<DietPage> {
                                                                     ),
                                                               ),
                                                               Text(
-                                                                'OPEN',
+                                                                AppLocalizations.of(
+                                                                      context,
+                                                                    )
+                                                                    .translate(
+                                                                      'diet_open',
+                                                                    )
+                                                                    .toUpperCase(),
                                                                 style: TextStyle(
                                                                   fontFamily:
                                                                       TaqaUiFontFamilies
@@ -2816,8 +2892,8 @@ class DietPageState extends State<DietPage> {
                     TaqaTagButton(
                       icon: Icons.description_outlined,
                       label: _unseenDietTargetChangeCount > 0
-                          ? "Plans $_unseenDietTargetChangeCount"
-                          : "Plans",
+                          ? "${t.translate('diet_plans')} $_unseenDietTargetChangeCount"
+                          : t.translate('diet_plans'),
                       onTap: _showUploadedPlansSheet,
                     ),
                     SizedBox(width: TaqaUiScale.w(8)),
@@ -4132,7 +4208,7 @@ class _EditDietTargetsEditorPageState extends State<TaqaDietTargetsEditorPage> {
                         borderRadius: TaqaUiScale.radius(15),
                       ),
                       child: Text(
-                        'Client-visible calorie targets may appear higher than entered values for today because burned calories are added automatically.',
+                        t.translate('diet_edit_targets_notice'),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(10),
@@ -4262,15 +4338,24 @@ class _EditDietTargetsEditorPageState extends State<TaqaDietTargetsEditorPage> {
                           color: TaqaUiColors.unnamedColor1c1d17,
                           borderRadius: TaqaUiScale.radius(5),
                         ),
-                        child: Text(
-                          t.translate("diet_edit_targets_save").toUpperCase(),
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: TaqaUiScale.sp(10),
-                            fontWeight: FontWeight.w700,
-                            color: TaqaUiColors.white,
-                            height: 12 / 10,
-                            letterSpacing: 0,
+                        child: Padding(
+                          padding: TaqaUiScale.symmetric(horizontal: 8),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              t
+                                  .translate("diet_edit_targets_save")
+                                  .toUpperCase(),
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(10),
+                                fontWeight: FontWeight.w700,
+                                color: TaqaUiColors.white,
+                                height: 1.35,
+                                letterSpacing: 0,
+                              ),
+                            ),
                           ),
                         ),
                       ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
@@ -354,21 +355,9 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
   }
 
   String _defaultWeekLabel(DateTime weekStart) {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return "Week of ${months[weekStart.month - 1]} ${weekStart.day}, ${weekStart.year}";
+    final t = AppLocalizations.of(context);
+    final date = DateFormat.yMMMd(t.locale.languageCode).format(weekStart);
+    return t.translate('training_week_of').replaceAll('{date}', date);
   }
 
   List<_TrainingHistoryPlanGroup> _groupEntriesByPlan(
@@ -389,7 +378,8 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
       );
       builder.add(entry);
     }
-    final out = grouped.values.map((b) => b.build()).toList()
+    final t = AppLocalizations.of(context);
+    final out = grouped.values.map((b) => b.build(t)).toList()
       ..sort((a, b) {
         final aIsCurrent =
             currentProgramId != null &&
@@ -409,26 +399,35 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     BuildContext context,
     _TrainingHistoryEntry entry,
   ) {
+    final t = AppLocalizations.of(context);
     final displayStatus = _displayStatusForEntry(entry);
+    final completedLabel = t
+        .translate('training_done_count')
+        .replaceAll('{count}', '${entry.completedCount}');
+    final weekLabel = _localizedWeekLabel(entry.weekStart);
     return TaqaLogEntryCard(
       title: _titleCase(entry.label),
       badgeText: displayStatus.toUpperCase(),
-      subtitle: _titleCase(
-        "${entry.completedCount} Done, ${entry.weekLabel.replaceFirst('Week of', 'Week Of')}",
-      ),
+      subtitle: '$completedLabel • $weekLabel',
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => TrainingHistoryDayDetailPage(
               dayLabel: entry.label,
               statusText: displayStatus,
-              weekLabel: entry.weekLabel,
+              weekLabel: weekLabel,
               completedExercises: entry.completedExercises,
             ),
           ),
         );
       },
     );
+  }
+
+  String _localizedWeekLabel(DateTime weekStart) {
+    final t = AppLocalizations.of(context);
+    final date = DateFormat.yMMMd(t.locale.languageCode).format(weekStart);
+    return t.translate('training_week_of').replaceAll('{date}', date);
   }
 
   String _displayStatusForEntry(_TrainingHistoryEntry entry) {
@@ -1100,9 +1099,7 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
               children: [
                 SizedBox(height: TaqaUiScale.h(25)),
                 Text(
-                  group.title
-                      .replaceAll('days plan', 'Days Plan')
-                      .replaceAll('Week of', 'Week Of'),
+                  group.title,
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
@@ -1365,6 +1362,7 @@ class _TrainingHistoryPlanGroupBuilder {
   int? _planDaysPerWeek;
   DateTime? _latestDate;
   String? _weekLabel;
+  DateTime? _weekStart;
 
   void add(_TrainingHistoryEntry entry) {
     _entries.add(entry);
@@ -1374,17 +1372,32 @@ class _TrainingHistoryPlanGroupBuilder {
     if ((_weekLabel ?? '').isEmpty) {
       _weekLabel = entry.weekLabel;
     }
+    _weekStart ??= entry.weekStart;
     if (_latestDate == null || entry.latestDate.isAfter(_latestDate!)) {
       _latestDate = entry.latestDate;
     }
   }
 
-  _TrainingHistoryPlanGroup build() {
+  _TrainingHistoryPlanGroup build(AppLocalizations t) {
     final daysPerWeek = _planDaysPerWeek;
     final baseTitle = (daysPerWeek != null && daysPerWeek > 0)
-        ? "$daysPerWeek days plan"
-        : (programId != null ? "Plan #$programId" : "Training plan");
-    final weekLabel = (_weekLabel ?? '').trim();
+        ? t
+              .translate('training_days_plan')
+              .replaceAll('{count}', '$daysPerWeek')
+        : (programId != null
+              ? t
+                    .translate('training_plan_number')
+                    .replaceAll('{number}', '$programId')
+              : t.translate('training_plan'));
+    final weekStart = _weekStart;
+    final weekLabel = weekStart == null
+        ? (_weekLabel ?? '').trim()
+        : t
+              .translate('training_week_of')
+              .replaceAll(
+                '{date}',
+                DateFormat.yMMMd(t.locale.languageCode).format(weekStart),
+              );
     final title = weekLabel.isNotEmpty ? "$baseTitle • $weekLabel" : baseTitle;
     _entries.sort((a, b) => b.latestDate.compareTo(a.latestDate));
     final latestDate = _latestDate ?? DateTime.fromMillisecondsSinceEpoch(0);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+import '../../localization/app_localizations.dart';
 
 class TaqaCommunityGroupPickerOption {
   const TaqaCommunityGroupPickerOption({
@@ -33,6 +34,8 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final isRtl = Directionality.of(context) == TextDirection.rtl;
     return SafeArea(
       top: false,
       child: Container(
@@ -60,7 +63,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
             ),
             SizedBox(height: TaqaUiScale.h(18)),
             Text(
-              'CHOOSE A GROUP',
+              t.translate('community_choose_group').toUpperCase(),
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                 fontSize: TaqaUiScale.sp(10),
@@ -118,7 +121,16 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                                   ),
                                   SizedBox(height: TaqaUiScale.h(4)),
                                   Text(
-                                    '${option.memberCount} MEMBER${option.memberCount == 1 ? '' : 'S'}',
+                                    t
+                                        .translate(
+                                          option.memberCount == 1
+                                              ? 'community_member_count_one'
+                                              : 'community_member_count_many',
+                                        )
+                                        .replaceAll(
+                                          '{count}',
+                                          '${option.memberCount}',
+                                        ),
                                     style: TextStyle(
                                       fontFamily:
                                           TaqaUiFontFamilies.iaWriterMonoS,
@@ -135,7 +147,9 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                             Icon(
                               selected
                                   ? Icons.check_circle
-                                  : Icons.chevron_right,
+                                  : (isRtl
+                                        ? Icons.chevron_left
+                                        : Icons.chevron_right),
                               size: TaqaUiScale.w(20),
                               color: TaqaUiColors.charcoal,
                             ),

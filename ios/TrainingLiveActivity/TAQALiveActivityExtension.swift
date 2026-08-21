@@ -19,6 +19,11 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var speedKmh: Double?
         var startMs: Int?
         var paused: Bool
+        var setsText: String?
+        var repsText: String?
+        var liveText: String?
+        var distanceUnit: String?
+        var paceUnit: String?
     }
 
     var sessionId: String
@@ -68,14 +73,14 @@ struct TrainingLiveActivityWidget: Widget {
                         }
                         HStack(spacing: 8) {
                             if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
-                                badge(String(format: "%.2f km", dist))
-                                badge(paceLabel(speed))
+                                badge(String(format: "%.2f", dist) + " " + (context.state.distanceUnit ?? "km"))
+                                badge(paceLabel(speed, unit: context.state.paceUnit ?? "/km"))
                             } else {
-                                badge("\(context.state.sets) sets")
-                                badge("\(context.state.reps) reps")
+                                badge(context.state.setsText ?? "\(context.state.sets) sets")
+                                badge(context.state.repsText ?? "\(context.state.reps) reps")
                             }
                             Spacer()
-                            Text("Live")
+                            Text(context.state.liveText ?? "Live")
                                 .font(.caption2)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -117,13 +122,13 @@ struct TrainingLiveActivityWidget: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
                         if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
-                            Text(String(format: "%.2f km", dist))
+                            Text(String(format: "%.2f", dist) + " " + (context.state.distanceUnit ?? "km"))
                             Text("•")
-                            Text(paceLabel(speed))
+                            Text(paceLabel(speed, unit: context.state.paceUnit ?? "/km"))
                         } else {
-                            Text("\(context.state.sets) sets")
+                            Text(context.state.setsText ?? "\(context.state.sets) sets")
                             Text("•")
-                            Text("\(context.state.reps) reps")
+                            Text(context.state.repsText ?? "\(context.state.reps) reps")
                         }
                     }
                     .font(.caption2)
@@ -180,13 +185,13 @@ struct TrainingLiveActivityWidget: Widget {
     }
 
     // NOTE: We now send pace (min/km) from Flutter, but keep the field name for compatibility.
-    private func paceLabel(_ paceMinKm: Double) -> String {
-        if paceMinKm <= 0.1 { return "--:-- /km" }
+    private func paceLabel(_ paceMinKm: Double, unit: String) -> String {
+        if paceMinKm <= 0.1 { return "--:-- \(unit)" }
         let paceMin = paceMinKm
         let minutes = Int(paceMin)
         let rawSeconds = Int((paceMin - Double(minutes)) * 60.0)
         let seconds = max(0, min(59, rawSeconds))
-        return String(format: "%02d:%02d /km", minutes, seconds)
+        return String(format: "%02d:%02d", minutes, seconds) + " " + unit
     }
 
     private func elapsedSeconds(from startMs: Int?, now: Date, fallback: Int) -> Int {

@@ -54,6 +54,7 @@ class TaqaMiniTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     return Container(
       padding: TaqaUiScale.insetsLTRB(8, 4, 8, 4),
       decoration: BoxDecoration(
@@ -64,7 +65,9 @@ class TaqaMiniTag extends StatelessWidget {
         label,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TaqaUiStyles.dailyOutlookDescription,
+        style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+          height: isArabic ? 1.45 : null,
+        ),
       ),
     );
   }

@@ -53,9 +53,19 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
           children: [
             if (showBackButton)
               PositionedDirectional(
-                top: TaqaUiScale.h(8),
-                start: TaqaUiScale.w(8),
-                child: leading ?? const TaqaBackButton(),
+                top: TaqaUiScale.h(4),
+                start: TaqaUiScale.w(4),
+                child:
+                    leading ??
+                    TaqaBackButton(
+                      color:
+                          ThemeData.estimateBrightnessForColor(
+                                backgroundColor,
+                              ) ==
+                              Brightness.dark
+                          ? TaqaUiColors.white
+                          : TaqaUiColors.charcoal,
+                    ),
               ),
             Positioned(
               top: TaqaUiScale.h(12),

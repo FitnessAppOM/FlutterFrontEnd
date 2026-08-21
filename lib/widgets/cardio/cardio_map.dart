@@ -8,6 +8,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../localization/app_localizations.dart';
 import 'cardio_map_controls.dart';
 
 class CardioMap extends StatefulWidget {
@@ -428,13 +429,15 @@ class _CardioMapState extends State<CardioMap> with WidgetsBindingObserver {
     _positionSub?.cancel();
     final geo.LocationSettings settings;
     if (Platform.isAndroid) {
+      if (!mounted || _disposed) return;
+      final t = AppLocalizations.of(context);
       settings = geo.AndroidSettings(
         accuracy: geo.LocationAccuracy.high,
         distanceFilter: 5,
         intervalDuration: const Duration(seconds: 1),
-        foregroundNotificationConfig: const geo.ForegroundNotificationConfig(
-          notificationTitle: "Cardio session running",
-          notificationText: "Tracking your route in the background",
+        foregroundNotificationConfig: geo.ForegroundNotificationConfig(
+          notificationTitle: t.translate('training_cardio_notification_title'),
+          notificationText: t.translate('training_cardio_notification_body'),
           enableWakeLock: true,
           setOngoing: true,
         ),

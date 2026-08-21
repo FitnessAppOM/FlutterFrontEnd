@@ -2309,15 +2309,16 @@ class _WorkoutLauncherExerciseCardState
               ),
             ),
             SizedBox(
-              width: TaqaUiScale.w(26),
+              width: TaqaUiScale.w(44),
               child: _rows.length > 1
                   ? GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () => unawaited(_deleteSetRow(index)),
                       child: Padding(
-                        padding: EdgeInsets.all(TaqaUiScale.w(4)),
+                        padding: EdgeInsets.all(TaqaUiScale.w(12)),
                         child: Icon(
                           Icons.delete_outline,
-                          size: TaqaUiScale.w(18),
+                          size: TaqaUiScale.w(20),
                           color: highlightFirst
                               ? TaqaUiColors.unnamedColor1c1d17
                               : Colors.white70,
@@ -2509,6 +2510,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _cardioLibraryFetchedFromNetwork = false;
   List<Map<String, dynamic>> _trainExercises = const [];
   bool _trainingDayRouteOpen = false;
+  bool _activeSessionLauncherOpen = false;
   final Set<String> _preloadedThumbs = <String>{};
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
@@ -2868,6 +2870,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   bool _isCardioSession(Map<String, dynamic>? session) {
     if (session == null) return false;
+    if (session['kind'] == 'cardio') return true;
     final distance = session['distanceKm'];
     final pace = session['paceMinKm'];
     return distance is num || pace is num;
@@ -4084,30 +4087,91 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return out;
   }
 
-  // Public entry used by the app-shell minimized workout bar: open the
-  // in-progress day's exercises page (same destination as START WORKOUT).
-  Future<void> openActiveWorkoutLauncher() async {
+  Map<String, dynamic>? _findCardioExerciseByName(
+    String? rawName,
+    List<Map<String, dynamic>> exercises,
+  ) {
+    final targetName = _normalizeName(rawName);
+    if (targetName.isEmpty) return null;
+    for (final exercise in exercises) {
+      if (_normalizeName(exercise['exercise_name']?.toString()) == targetName) {
+        return exercise;
+      }
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _availableCardioExercises() {
     final days = program?['days'];
-    if (days is! List || days.isEmpty) return;
-    int dayIndex =
-        _workoutDayIndex ??
-        (selectedDay >= 0 && selectedDay < days.length ? selectedDay : 0);
-    if (dayIndex < 0 || dayIndex >= days.length) dayIndex = 0;
-    final day = days[dayIndex];
-    final rawDayLabel =
-        (day is Map
-                ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
-                : 'Day ${dayIndex + 1}')
-            .toString();
-    final dayLabel = _localizedTrainingDayLabel(rawDayLabel);
-    await _openTrainingDayExercisesPage(
-      days: days,
-      dayIndex: dayIndex,
-      dayLabel: dayLabel,
-      // From the minimized bar: go straight into the sets flow, not just the
-      // day list.
-      autoOpenLauncher: true,
-    );
+    final planned = days is List
+        ? _allCardioExercisesForProgram(days)
+        : const <Map<String, dynamic>>[];
+    if (planned.isNotEmpty) return planned;
+    if (_cardioLibrary.isNotEmpty) return _cardioLibrary;
+    return _fallbackCardioLibrary;
+  }
+
+  Future<void> _openActiveCardioSession(Map<String, dynamic> session) async {
+    final rawName = session['name']?.toString();
+    setState(() {
+      _tabIndex = 1;
+      _cardioBuilt = true;
+      _hasCardioSession = true;
+      _cardioSessionPaused = session['paused'] == true;
+      _sessionExerciseName = rawName;
+    });
+
+    var match = _findCardioExerciseByName(rawName, _availableCardioExercises());
+    if (match == null && !_cardioLibraryFetchedFromNetwork) {
+      await _loadCardioLibrary();
+      if (!mounted) return;
+      match = _findCardioExerciseByName(rawName, _availableCardioExercises());
+    }
+    if (match != null && mounted) {
+      await _openCardioExerciseSession(match);
+    }
+  }
+
+  // Public entry used by the app-shell minimized workout bar. Cardio resumes
+  // its cardio sheet; strength training resumes the active day/sets flow.
+  Future<void> openActiveWorkoutLauncher() async {
+    if (_activeSessionLauncherOpen || !mounted) return;
+    _activeSessionLauncherOpen = true;
+    try {
+      final session = await TrainingActivityService.getActiveSession();
+      final rawName = session?['name']?.toString();
+      final isCardio =
+          session != null &&
+          (_isCardioSession(session) || _isKnownCardioExerciseName(rawName));
+      if (isCardio) {
+        await _openActiveCardioSession(session);
+        return;
+      }
+
+      final days = program?['days'];
+      if (days is! List || days.isEmpty) return;
+      int dayIndex =
+          _workoutDayIndex ??
+          (selectedDay >= 0 && selectedDay < days.length ? selectedDay : 0);
+      if (dayIndex < 0 || dayIndex >= days.length) dayIndex = 0;
+      final day = days[dayIndex];
+      final rawDayLabel =
+          (day is Map
+                  ? (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
+                  : 'Day ${dayIndex + 1}')
+              .toString();
+      final dayLabel = _localizedTrainingDayLabel(rawDayLabel);
+      await _openTrainingDayExercisesPage(
+        days: days,
+        dayIndex: dayIndex,
+        dayLabel: dayLabel,
+        // From the minimized bar: go straight into the sets flow, not just the
+        // day list.
+        autoOpenLauncher: true,
+      );
+    } finally {
+      _activeSessionLauncherOpen = false;
+    }
   }
 
   Future<void> _openTrainingDayExercisesPage({

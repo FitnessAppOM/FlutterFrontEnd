@@ -43,10 +43,39 @@ Future<void> main() {
   );
 }
 
+void _configureTrainingForegroundTask() {
+  final t = AppLocalizations(localeController.locale);
+  FlutterForegroundTask.init(
+    androidNotificationOptions: AndroidNotificationOptions(
+      channelId: 'training_session',
+      channelName: t.translate('training_notification_channel_name'),
+      channelDescription: t.translate(
+        'training_notification_channel_description',
+      ),
+      channelImportance: NotificationChannelImportance.LOW,
+      priority: NotificationPriority.LOW,
+      enableVibration: false,
+      playSound: false,
+    ),
+    iosNotificationOptions: IOSNotificationOptions(
+      showNotification: false,
+      playSound: false,
+    ),
+    foregroundTaskOptions: ForegroundTaskOptions(
+      interval: 5000,
+      isOnceEvent: false,
+      autoRunOnBoot: false,
+      allowWakeLock: true,
+      allowWifiLock: true,
+    ),
+  );
+}
+
 Future<void> _bootstrap() async {
   final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
+  await localeController.loadSaved();
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
   ]);
@@ -90,28 +119,7 @@ Future<void> _bootstrap() async {
     }
   }
 
-  FlutterForegroundTask.init(
-    androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'training_session',
-      channelName: 'Training Session',
-      channelDescription: 'Ongoing training session timer.',
-      channelImportance: NotificationChannelImportance.LOW,
-      priority: NotificationPriority.LOW,
-      enableVibration: false,
-      playSound: false,
-    ),
-    iosNotificationOptions: IOSNotificationOptions(
-      showNotification: false,
-      playSound: false,
-    ),
-    foregroundTaskOptions: ForegroundTaskOptions(
-      interval: 5000,
-      isOnceEvent: false,
-      autoRunOnBoot: false,
-      allowWakeLock: true,
-      allowWifiLock: true,
-    ),
-  );
+  _configureTrainingForegroundTask();
 
   // Firebase (REQUIRED for Google Sign-In)
   await timed(
@@ -192,7 +200,6 @@ Future<void> _bootstrap() async {
     });
   };
 
-  await localeController.loadSaved();
   print('[BOOT] Pre-runApp total ${bootWatch.elapsedMilliseconds}ms');
   runApp(WithForegroundTask(child: MyApp(initialPayload: launchPayload)));
   WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -288,6 +295,9 @@ class _MyAppState extends State<MyApp> {
 
   void _handleLocaleChange() {
     if (mounted) setState(() {});
+    _configureTrainingForegroundTask();
+    unawaited(TrainingActivityService.refreshLocalization());
+    unawaited(NotificationService.refreshLocalization());
   }
 
   void _handleLifecycle() async {
