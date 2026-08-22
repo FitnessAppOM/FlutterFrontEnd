@@ -39,6 +39,8 @@ import '../taqa_ui_colors.dart';
 
 enum _SubscriptionAccountAction { freeze, delete, logout }
 
+enum _GoogleAccountMismatchAction { signOut, manage }
+
 enum _RecoveryOutcome { activated, notFound, failed }
 
 class _SubscriptionPricePresentation {
@@ -276,13 +278,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
       for (final purchase in response.pastPurchases.reversed) {
         if (!_storeProductIds.contains(purchase.productID)) continue;
+        // A mandatory coach paywall must only be dismissed by a coach
+        // purchase. Regular and student plans grant app_full access, but they
+        // do not grant the coach_tools entitlement required for Expert Side.
+        if (!_isProductForCurrentMembership(purchase.productID)) continue;
         final token = purchase.verificationData.serverVerificationData.trim();
         if (token.isEmpty) continue;
         try {
           final entitlement = await AppleBillingService.verifyGooglePurchase(
             productId: purchase.productID,
             purchaseToken: token,
-            entitlementCode: 'app_full',
+            entitlementCode: _entitlementCodeForProduct(purchase.productID),
           );
           if (!entitlement.active) continue;
           if (purchase.pendingCompletePurchase) {
@@ -290,7 +296,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
           }
           await _finishMandatorySubscription();
           return true;
-        } on AppleBillingException {
+        } on AppleBillingException catch (error) {
+          if (_isGooglePurchaseAccountMismatch(error.message)) {
+            await _showGooglePurchaseAccountMismatch();
+            return false;
+          }
           // A stale or differently-bound purchase must not prevent another
           // owned Google purchase from being checked.
         }
@@ -507,6 +517,67 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         normalized.contains('duplicate_product');
   }
 
+  bool _isGooglePurchaseAccountMismatch(String message) {
+    if (!Platform.isAndroid) return false;
+    final normalized = message.toLowerCase().replaceAll('-', ' ');
+    return normalized.contains('does not match this account') ||
+        normalized.contains("doesn't match this account") ||
+        normalized.contains('different taqa account') ||
+        normalized.contains('another taqa account') ||
+        normalized.contains('belongs to another account') ||
+        normalized.contains('linked to another account') ||
+        normalized.contains('already linked') ||
+        normalized.contains('account binding');
+  }
+
+  Future<void> _showGooglePurchaseAccountMismatch() async {
+    if (!mounted) return;
+    _setStoreOperationIdle();
+    final message = _tr('subscription_google_account_mismatch_body');
+    setState(() {
+      _loading = false;
+      _message = message;
+    });
+
+    final action = await showTaqaOptionDialog<_GoogleAccountMismatchAction>(
+      context: context,
+      title: _tr('subscription_google_account_mismatch_title'),
+      cancelLabel: _tr('subscription_google_account_mismatch_dismiss'),
+      options: [
+        TaqaDialogOption(
+          value: _GoogleAccountMismatchAction.signOut,
+          title: _tr('subscription_google_account_mismatch_sign_out'),
+          subtitle: message,
+        ),
+        TaqaDialogOption(
+          value: _GoogleAccountMismatchAction.manage,
+          title: _tr('subscription_google_account_mismatch_manage'),
+          subtitle: _tr('subscription_google_account_mismatch_manage_sub'),
+        ),
+      ],
+    );
+    if (action == null || !mounted) return;
+    if (action == _GoogleAccountMismatchAction.signOut) {
+      await _logout();
+      return;
+    }
+
+    var opened = false;
+    try {
+      opened = await launchUrl(
+        Uri.https('play.google.com', '/store/account/subscriptions', {
+          'package': 'com.taqaapp.fitness',
+        }),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      opened = false;
+    }
+    if (!opened && mounted) {
+      _setMessage(_tr('settings_manage_renewal_failed'));
+    }
+  }
+
   Future<void> _completePurchaseInBackground(PurchaseDetails purchase) async {
     try {
       await _store.completePurchase(purchase);
@@ -550,6 +621,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         verifiedProductId: purchase?.productID ?? entitlement.productId ?? '',
       );
     } on AppleBillingException catch (error) {
+      if (_isGooglePurchaseAccountMismatch(error.message)) {
+        await _showGooglePurchaseAccountMismatch();
+        return false;
+      }
       _setMessage(error.message);
       return false;
     } on TimeoutException {
@@ -801,6 +876,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       }
       return _RecoveryOutcome.activated;
     } on AppleBillingException catch (error) {
+      if (_isGooglePurchaseAccountMismatch(error.message)) {
+        await _showGooglePurchaseAccountMismatch();
+        return _RecoveryOutcome.failed;
+      }
       _setStoreOperationIdle();
       _setMessage(error.message);
       return _RecoveryOutcome.failed;
