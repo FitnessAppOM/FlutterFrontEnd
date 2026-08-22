@@ -461,6 +461,7 @@ class DashboardPageState extends State<DashboardPage>
 
   bool? _fitbitLinkedHint;
   bool _fitbitLinked = false;
+  bool _fitbitSignalRefreshInFlight = false;
   bool? _stravaLinkedHint;
   bool _stravaLinked = false;
   bool _stravaActivitiesLoading = false;
@@ -682,6 +683,7 @@ class DashboardPageState extends State<DashboardPage>
     WidgetsBinding.instance.addObserver(this);
     _ensureWiggle();
     AccountStorage.whoopChange.addListener(_onWhoopChanged);
+    AccountStorage.fitbitChange.addListener(_onFitbitChanged);
     AccountStorage.stravaChange.addListener(_onStravaChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
     AccountStorage.appleWatchChange.addListener(_onAppleWatchChanged);
@@ -732,6 +734,27 @@ class DashboardPageState extends State<DashboardPage>
     _whoopSnapshotCache.clear();
     _loadWhoopLinkedHint();
     _loadTrendSleep(force: true);
+  }
+
+  void _onFitbitChanged() {
+    unawaited(_refreshFitbitAfterSignal());
+  }
+
+  Future<void> _refreshFitbitAfterSignal() async {
+    if (_fitbitSignalRefreshInFlight) return;
+    _fitbitSignalRefreshInFlight = true;
+    try {
+      await _loadFitbitLinkedHint();
+      if (!mounted) return;
+      await _loadFitbitStatus();
+      if (!mounted) return;
+      _pruneDeviceWidgets();
+      if (_fitbitLinked) {
+        await _loadFitbitSummary(force: true);
+      }
+    } finally {
+      _fitbitSignalRefreshInFlight = false;
+    }
   }
 
   void _onStravaChanged() {
@@ -876,6 +899,7 @@ class DashboardPageState extends State<DashboardPage>
     WidgetsBinding.instance.removeObserver(this);
     _wiggleController?.dispose();
     AccountStorage.whoopChange.removeListener(_onWhoopChanged);
+    AccountStorage.fitbitChange.removeListener(_onFitbitChanged);
     AccountStorage.stravaChange.removeListener(_onStravaChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
     AccountStorage.appleWatchChange.removeListener(_onAppleWatchChanged);
@@ -2124,14 +2148,8 @@ class DashboardPageState extends State<DashboardPage>
       _pruneDeviceWidgets();
       return;
     }
-    // Explicitly unlinked for this user: keep disabled and prune Fitbit widgets.
-    if (_fitbitLinkedHint == false) {
-      if (_fitbitLinked) {
-        setState(() => _fitbitLinked = false);
-      }
-      _pruneDeviceWidgets();
-      return;
-    }
+    // The backend token record is authoritative. A cached false value may be
+    // stale immediately after OAuth, so always verify it before hiding widgets.
     try {
       final statusUrl = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",

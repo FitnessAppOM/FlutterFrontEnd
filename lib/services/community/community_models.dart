@@ -892,6 +892,8 @@ class CommunityBootstrap {
     required this.joinedGroups,
     required this.activeChallenges,
     required this.unreadModerationReportNoticesCount,
+    required this.canModerateCommunity,
+    required this.moderatedGroupCount,
     required this.groupKinds,
     required this.leaderboardMetrics,
   });
@@ -900,6 +902,8 @@ class CommunityBootstrap {
   final List<CommunityGroupSummary> joinedGroups;
   final List<CommunityChallenge> activeChallenges;
   final int unreadModerationReportNoticesCount;
+  final bool canModerateCommunity;
+  final int moderatedGroupCount;
   final List<String> groupKinds;
   final List<String> leaderboardMetrics;
 
@@ -932,6 +936,8 @@ class CommunityBootstrap {
       unreadModerationReportNoticesCount: _asInt(
         json['unread_moderation_report_notices_count'],
       ),
+      canModerateCommunity: _asBool(json['can_moderate_community']),
+      moderatedGroupCount: _asInt(json['moderated_group_count']),
       groupKinds: kinds,
       leaderboardMetrics: metrics,
     );

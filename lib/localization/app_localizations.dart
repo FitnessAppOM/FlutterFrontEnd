@@ -793,6 +793,10 @@ class AppLocalizations {
       "community_choose_group": "Choose a group",
       "community_member_count_one": "{count} member",
       "community_member_count_many": "{count} members",
+      "community_pin_count_one": "{count} pinned item.",
+      "community_pin_count_many": "{count} pinned items.",
+      "community_active_challenge_count_one": "{count} active challenge.",
+      "community_active_challenge_count_many": "{count} active challenges.",
       "community_no_activity": "No activity yet",
       "community_no_activity_body":
           "This group feed will populate from real workouts, badges, score improvements, movement, and challenges.",
@@ -877,6 +881,19 @@ class AppLocalizations {
       "community_current_group_code": "Current group code",
       "community_group_management_title": "Group Management",
       "community_moderation_load_error": "Could not load moderation queue",
+      "community_moderation_reports": "Moderation Reports",
+      "community_report_target": "Target",
+      "community_report_feed_item": "Feed item",
+      "community_report_comment": "Comment",
+      "community_role_admin": "Admin",
+      "community_role_member": "Member",
+      "community_role_owner": "Owner",
+      "community_metric_workout_streak": "Workout streak",
+      "community_metric_activity_streak": "Activity streak",
+      "community_metric_score_streak": "Score streak",
+      "community_metric_weekly_strain": "Weekly strain",
+      "community_metric_weekly_volume": "Weekly volume",
+      "community_metric_weekly_steps": "Weekly steps",
       "community_review": "Review",
       "community_dismiss": "Dismiss",
       "community_resolve": "Resolve",
@@ -1731,6 +1748,15 @@ class AppLocalizations {
           "The current Google Play subscription could not be loaded.",
       "subscription_google_owner_account":
           "Open Google Play with the account that owns the current subscription, then try again.",
+      "subscription_google_account_mismatch_title":
+          "Subscription linked to another account",
+      "subscription_google_account_mismatch_body":
+          "This Google Play subscription is linked to another Taqa account. Sign in to the original Taqa account, or switch to another Google Play account to purchase a separate subscription.",
+      "subscription_google_account_mismatch_dismiss": "Got it",
+      "subscription_google_account_mismatch_sign_out": "Sign out of Taqa",
+      "subscription_google_account_mismatch_manage": "Manage subscription",
+      "subscription_google_account_mismatch_manage_sub":
+          "Open Google Play to review the subscription owned by this Play account.",
       "subscription_change_not_supported":
           "This subscription change is not supported.",
       "subscription_current_check_failed":
@@ -3237,6 +3263,10 @@ class AppLocalizations {
       "community_choose_group": "اختر مجموعة",
       "community_member_count_one": "عضو واحد",
       "community_member_count_many": "{count} أعضاء",
+      "community_pin_count_one": "عنصر مثبت واحد.",
+      "community_pin_count_many": "{count} عناصر مثبتة.",
+      "community_active_challenge_count_one": "تحدٍّ نشط واحد.",
+      "community_active_challenge_count_many": "{count} تحديات نشطة.",
       "community_no_activity": "لا يوجد نشاط بعد",
       "community_no_activity_body":
           "سيعرض هذا الموجز التمارين والشارات وتحسن النقاط والحركة والتحديات الفعلية.",
@@ -3313,6 +3343,19 @@ class AppLocalizations {
       "community_current_group_code": "رمز المجموعة الحالي",
       "community_group_management_title": "إدارة المجموعة",
       "community_moderation_load_error": "تعذر تحميل قائمة الإشراف",
+      "community_moderation_reports": "بلاغات الإشراف",
+      "community_report_target": "الهدف",
+      "community_report_feed_item": "عنصر الموجز",
+      "community_report_comment": "تعليق",
+      "community_role_admin": "مشرف",
+      "community_role_member": "عضو",
+      "community_role_owner": "المالك",
+      "community_metric_workout_streak": "سلسلة التمارين",
+      "community_metric_activity_streak": "سلسلة النشاط",
+      "community_metric_score_streak": "سلسلة النقاط",
+      "community_metric_weekly_strain": "الإجهاد الأسبوعي",
+      "community_metric_weekly_volume": "الحجم الأسبوعي",
+      "community_metric_weekly_steps": "الخطوات الأسبوعية",
       "community_review": "مراجعة",
       "community_dismiss": "تجاهل",
       "community_resolve": "حلّ",
@@ -4146,6 +4189,15 @@ class AppLocalizations {
           "تعذر تحميل اشتراك Google Play الحالي.",
       "subscription_google_owner_account":
           "افتح Google Play بالحساب الذي يملك الاشتراك الحالي، ثم حاول مرة أخرى.",
+      "subscription_google_account_mismatch_title":
+          "الاشتراك مرتبط بحساب آخر",
+      "subscription_google_account_mismatch_body":
+          "اشتراك Google Play هذا مرتبط بحساب Taqa آخر. سجّل الدخول إلى حساب Taqa الأصلي، أو انتقل إلى حساب Google Play آخر لشراء اشتراك منفصل.",
+      "subscription_google_account_mismatch_dismiss": "حسنًا",
+      "subscription_google_account_mismatch_sign_out": "تسجيل الخروج من Taqa",
+      "subscription_google_account_mismatch_manage": "إدارة الاشتراك",
+      "subscription_google_account_mismatch_manage_sub":
+          "افتح Google Play لمراجعة الاشتراك الذي يملكه حساب Play هذا.",
       "subscription_change_not_supported": "تغيير الاشتراك هذا غير مدعوم.",
       "subscription_current_check_failed":
           "تعذر التحقق من اشتراكك الحالي. يرجى المحاولة مرة أخرى.",

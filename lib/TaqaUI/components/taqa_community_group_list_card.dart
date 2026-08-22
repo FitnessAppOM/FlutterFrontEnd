@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 
 import '../styles/taqa_ui_scale.dart';
@@ -28,6 +29,12 @@ class TaqaCommunityGroupListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final memberLabel = t
+        .translate(memberCount == 1
+            ? 'community_member_count_one'
+            : 'community_member_count_many')
+        .replaceAll('{count}', '$memberCount');
     final cardWidth = TaqaUiStyles.communityGroupListCardWidth;
     final cardHeight = TaqaUiStyles.communityGroupListCardHeight;
     final contentLeft = TaqaUiScale.w(14);
@@ -94,7 +101,7 @@ class TaqaCommunityGroupListCard extends StatelessWidget {
                 top: membersTop,
                 width: contentWidth,
                 child: Text(
-                  '$memberCount members',
+                  memberLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TaqaUiStyles.communityGroupCardMembers,

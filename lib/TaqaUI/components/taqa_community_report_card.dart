@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../localization/app_localizations.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -9,11 +10,13 @@ class TaqaCommunityReportAction {
     required this.label,
     required this.onTap,
     this.isPrimary = false,
+    this.isEnabled = true,
   });
 
   final String label;
   final VoidCallback onTap;
   final bool isPrimary;
+  final bool isEnabled;
 }
 
 /// Reusable moderation-queue card using the Community TaqaUI language.
@@ -37,6 +40,7 @@ class TaqaCommunityReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 16, vertical: 16),
@@ -61,7 +65,7 @@ class TaqaCommunityReportCard extends StatelessWidget {
           ),
           SizedBox(height: TaqaUiScale.h(14)),
           Text(
-            'TARGET #$targetId',
+            '${t.translate('community_report_target')} #$targetId',
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(9),
@@ -136,31 +140,34 @@ class _TaqaCommunityReportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final radius = TaqaUiScale.radius(5);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: action.onTap,
-        borderRadius: radius,
-        child: Container(
-          height: TaqaUiScale.h(34),
-          padding: TaqaUiScale.symmetric(horizontal: 10),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: action.isPrimary
-                ? TaqaUiColors.charcoal
-                : TaqaUiColors.white,
-            borderRadius: radius,
-            border: Border.all(color: TaqaUiColors.charcoal, width: 0.5),
-          ),
-          child: Text(
-            taqaUppercase(action.label),
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              fontSize: TaqaUiScale.sp(8),
-              fontWeight: FontWeight.w700,
+    return Opacity(
+      opacity: action.isEnabled ? 1 : 0.45,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: action.isEnabled ? action.onTap : null,
+          borderRadius: radius,
+          child: Container(
+            height: TaqaUiScale.h(34),
+            padding: TaqaUiScale.symmetric(horizontal: 10),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
               color: action.isPrimary
-                  ? TaqaUiColors.white
-                  : TaqaUiColors.charcoal,
+                  ? TaqaUiColors.charcoal
+                  : TaqaUiColors.white,
+              borderRadius: radius,
+              border: Border.all(color: TaqaUiColors.charcoal, width: 0.5),
+            ),
+            child: Text(
+              taqaUppercase(action.label),
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
+                fontSize: TaqaUiScale.sp(8),
+                fontWeight: FontWeight.w700,
+                color: action.isPrimary
+                    ? TaqaUiColors.white
+                    : TaqaUiColors.charcoal,
+              ),
             ),
           ),
         ),

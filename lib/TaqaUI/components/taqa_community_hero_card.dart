@@ -20,6 +20,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
     required this.groupCount,
     required this.challengeCount,
     required this.reportCount,
+    required this.showReports,
     this.onBadgesTap,
     this.onGroupsTap,
     this.onChallengesTap,
@@ -34,6 +35,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
   final int groupCount;
   final int challengeCount;
   final int reportCount;
+  final bool showReports;
   final VoidCallback? onBadgesTap;
   final VoidCallback? onGroupsTap;
   final VoidCallback? onChallengesTap;
@@ -119,6 +121,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
                     groupCount: groupCount,
                     challengeCount: challengeCount,
                     reportCount: reportCount,
+                    showReports: showReports,
                     onBadgesTap: onBadgesTap,
                     onGroupsTap: onGroupsTap,
                     onChallengesTap: onChallengesTap,
@@ -144,6 +147,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
     required this.groupCount,
     required this.challengeCount,
     required this.reportCount,
+    required this.showReports,
     this.onBadgesTap,
     this.onGroupsTap,
     this.onChallengesTap,
@@ -158,6 +162,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
   final int groupCount;
   final int challengeCount;
   final int reportCount;
+  final bool showReports;
   final VoidCallback? onBadgesTap;
   final VoidCallback? onGroupsTap;
   final VoidCallback? onChallengesTap;
@@ -196,7 +201,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
         Row(
           children: [
             _TaqaCommunityStatBox(
-              width: boxWidth,
+              width: showReports ? boxWidth : (boxWidth * 2) + boxGap,
               height: boxHeight,
               layoutScale: layoutScale,
               color: TaqaUiColors.lightGray,
@@ -204,16 +209,18 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               value: challengeCount,
               onTap: onChallengesTap,
             ),
-            SizedBox(width: boxGap),
-            _TaqaCommunityStatBox(
-              width: boxWidth,
-              height: boxHeight,
-              layoutScale: layoutScale,
-              color: TaqaUiColors.lightGray,
-              label: t.translate('community_reports'),
-              value: reportCount,
-              onTap: onReportsTap,
-            ),
+            if (showReports) ...[
+              SizedBox(width: boxGap),
+              _TaqaCommunityStatBox(
+                width: boxWidth,
+                height: boxHeight,
+                layoutScale: layoutScale,
+                color: TaqaUiColors.lightGray,
+                label: t.translate('community_reports'),
+                value: reportCount,
+                onTap: onReportsTap,
+              ),
+            ],
           ],
         ),
       ],

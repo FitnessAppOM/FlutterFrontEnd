@@ -718,12 +718,32 @@ class _SettingsPageState extends State<SettingsPage>
     if (linkedHint != null && mounted) {
       setState(() => _fitbitLinked = linkedHint);
     }
-    try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null) {
-        if (mounted) setState(() => _fitbitLinked = false);
-        return;
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      if (mounted) setState(() => _fitbitLinked = false);
+      return;
+    }
+    final linked = await _fetchFitbitLinkedStatus(userId);
+    if (linked != null) {
+      if (!mounted) return;
+      final changed = _fitbitLinked != linked || linkedHint != linked;
+      setState(() => _fitbitLinked = linked);
+      await AccountStorage.setFitbitLinked(linked);
+      if (changed) {
+        AccountStorage.notifyFitbitChanged();
       }
+      return;
+    }
+    if (!mounted) return;
+    final fallback = await AccountStorage.getFitbitLinked();
+    if (!mounted) return;
+    if (fallback != null) {
+      setState(() => _fitbitLinked = fallback);
+    }
+  }
+
+  Future<bool?> _fetchFitbitLinkedStatus(int userId) async {
+    try {
       final url = Uri.parse(
         "${ApiConfig.baseUrl}/fitbit/status?user_id=$userId",
       );
@@ -731,25 +751,23 @@ class _SettingsPageState extends State<SettingsPage>
       final response = await http
           .get(url, headers: headers)
           .timeout(const Duration(seconds: 12));
-      if (response.statusCode != 200) {
-        if (linkedHint != null && mounted) {
-          setState(() => _fitbitLinked = linkedHint);
-        }
-        return;
-      }
+      if (response.statusCode != 200) return null;
       final data = json.decode(response.body);
-      final linked = data["linked"] == true;
-      if (!mounted) return;
-      setState(() => _fitbitLinked = linked);
-      await AccountStorage.setFitbitLinked(linked);
+      return data["linked"] == true;
     } catch (_) {
-      if (!mounted) return;
-      final fallback = await AccountStorage.getFitbitLinked();
-      if (!mounted) return;
-      if (fallback != null) {
-        setState(() => _fitbitLinked = fallback);
+      return null;
+    }
+  }
+
+  Future<bool> _confirmFitbitConnection(int userId) async {
+    for (var attempt = 0; attempt < 4; attempt++) {
+      final linked = await _fetchFitbitLinkedStatus(userId);
+      if (linked == true) return true;
+      if (attempt < 3) {
+        await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
       }
     }
+    return false;
   }
 
   Future<void> _loadStravaStatus() async {
@@ -962,17 +980,35 @@ class _SettingsPageState extends State<SettingsPage>
         callbackUrlScheme: 'taqa',
       );
       final uri = Uri.tryParse(result);
-      final ok =
+      final deepLinkConfirmed =
           uri != null &&
           uri.scheme == 'taqa' &&
           uri.host == 'fitbit' &&
           uri.queryParameters['linked'] == '1';
+      final callbackReturnedWithoutFailure =
+          uri != null &&
+          uri.scheme == 'taqa' &&
+          uri.host == 'fitbit' &&
+          uri.queryParameters['linked'] != '0';
+      // Some deployed callback configurations return through an intermediate
+      // URL that does not retain `linked=1`. Show success immediately when the
+      // deep link has it, then always confirm against the authoritative token
+      // record so this screen does not require leaving and reopening.
+      if ((deepLinkConfirmed || callbackReturnedWithoutFailure) && mounted) {
+        setState(() => _fitbitLinked = true);
+        await AccountStorage.setFitbitLinked(true);
+        AccountStorage.notifyFitbitChanged();
+      }
+      final backendConfirmed = await _confirmFitbitConnection(userId);
+      final ok = deepLinkConfirmed || backendConfirmed;
+      if (!mounted) return;
       setState(() => _fitbitLinked = ok);
       if (ok) {
         await AccountStorage.setFitbitLinked(true);
-      }
-      if (ok) {
-        AccountStorage.notifyAccountChanged();
+        AccountStorage.notifyFitbitChanged();
+      } else {
+        await AccountStorage.setFitbitLinked(false);
+        AccountStorage.notifyFitbitChanged();
       }
       AppToast.show(
         context,
@@ -1069,7 +1105,7 @@ class _SettingsPageState extends State<SettingsPage>
       await http.post(url, headers: headers);
       setState(() => _fitbitLinked = false);
       await AccountStorage.setFitbitLinked(false);
-      AccountStorage.notifyAccountChanged();
+      AccountStorage.notifyFitbitChanged();
       AppToast.show(
         context,
         loc.translate("fitbit_disconnected"),

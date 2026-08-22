@@ -78,6 +78,62 @@ String _localizedCommunityDescription(AppLocalizations t, String? rawValue) {
   return raw;
 }
 
+String _localizedCommunityCode(AppLocalizations t, String rawValue) {
+  final raw = rawValue.trim().toLowerCase();
+  return switch (raw) {
+    'admin' => t.translate('community_role_admin'),
+    'member' => t.translate('community_role_member'),
+    'owner' => t.translate('community_role_owner'),
+    'active' => t.translate('community_active'),
+    'open' => t.translate('community_status_open'),
+    'reviewing' => t.translate('community_status_reviewing'),
+    'resolved' => t.translate('community_status_resolved'),
+    'dismissed' => t.translate('community_status_dismissed'),
+    'feed_item' => t.translate('community_report_feed_item'),
+    'comment' => t.translate('community_report_comment'),
+    'harassment' => t.translate('community_harassment'),
+    'spam' => t.translate('community_spam'),
+    'contact_info' => t.translate('community_contact_info'),
+    'abuse' => t.translate('community_abuse'),
+    'other' => t.translate('community_other'),
+    'workout_streak' => t.translate('community_metric_workout_streak'),
+    'activity_streak' => t.translate('community_metric_activity_streak'),
+    'score_streak_80' => t.translate('community_metric_score_streak'),
+    'strain_week' => t.translate('community_metric_weekly_strain'),
+    'volume_week' => t.translate('community_metric_weekly_volume'),
+    'steps_week' => t.translate('community_metric_weekly_steps'),
+    _ => rawValue.trim().replaceAll('_', ' '),
+  };
+}
+
+String _localizedCommunityCount(
+  AppLocalizations t,
+  int count,
+  String oneKey,
+  String manyKey,
+) => t
+    .translate(count == 1 ? oneKey : manyKey)
+    .replaceAll('{count}', '$count');
+
+String _localizedCommunityChallengeRule(
+  AppLocalizations t,
+  CommunityChallenge challenge,
+) {
+  final storedRule =
+      (challenge.challengeKey?.isNotEmpty == true
+          ? challenge.challengeKey
+          : challenge.ruleType) ??
+      challenge.challengeType;
+  final normalized = storedRule.trim().toLowerCase().replaceAll(' ', '_');
+  return switch (normalized) {
+    'workout_days' => t.translate('community_workout_days'),
+    'movement_total' => t.translate('community_movement_total'),
+    'cardio_sessions' => t.translate('community_cardio_sessions'),
+    'score_threshold_days' => t.translate('community_score_threshold_days'),
+    _ => challenge.displayRuleName,
+  };
+}
+
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
 
@@ -536,6 +592,7 @@ class _CommunityPageState extends State<CommunityPage> {
       groupCount: bootstrap?.joinedGroups.length ?? 0,
       challengeCount: bootstrap?.activeChallenges.length ?? 0,
       reportCount: bootstrap?.unreadModerationReportNoticesCount ?? 0,
+      showReports: bootstrap?.canModerateCommunity == true,
       onBadgesTap: _openBadges,
       onGroupsTap: _openDiscover,
       onChallengesTap: _openChallenges,
@@ -627,7 +684,7 @@ class _CommunityPageState extends State<CommunityPage> {
                 (challenge) => Padding(
                   padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                   child: TaqaCommunityChallengeCard(
-                    tag: challenge.displayRuleName,
+                    tag: _localizedCommunityChallengeRule(t, challenge),
                     name: challenge.name,
                     progress: challenge.progressPercent / 100,
                   ),
@@ -716,7 +773,8 @@ class _CommunityPageState extends State<CommunityPage> {
         chips: [
           item.group.name,
           taqaFormatTagLabel(item.event.type),
-          if (item.event.occurredAt != null) _formatDate(item.event.occurredAt),
+          if (item.event.occurredAt != null)
+            _formatDate(item.event.occurredAt, t.locale.languageCode),
         ],
         title: item.event.title,
         subtitle: item.event.subtitle,
@@ -1469,7 +1527,11 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                   detail.description,
                 ),
                 membersValue: '${detail.memberCount}',
-                leaderboardValue: detail.leaderboardMetric ?? '-',
+                membersLabel: t.translate('community_members'),
+                leaderboardLabel: t.translate('community_leaderboard'),
+                leaderboardValue: detail.leaderboardMetric == null
+                    ? '-'
+                    : _localizedCommunityCode(t, detail.leaderboardMetric!),
                 onMembersTap: detail.isJoined ? _openMembers : null,
                 actionIcon: detail.isJoined
                     ? Icons.exit_to_app
@@ -1508,7 +1570,12 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 title: t.translate('community_pinned_items'),
                 description: detail.pinnedItems.isEmpty
                     ? t.translate('community_no_pins')
-                    : '${detail.pinnedItems.length} pinned item${detail.pinnedItems.length == 1 ? '' : 's'}.',
+                    : _localizedCommunityCount(
+                        t,
+                        detail.pinnedItems.length,
+                        'community_pin_count_one',
+                        'community_pin_count_many',
+                      ),
                 onTap: _openPinnedItems,
               ),
               const SizedBox(height: 15),
@@ -1518,7 +1585,12 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                     ? t.translate('community_join_for_challenges')
                     : _groupChallenges.isEmpty
                     ? t.translate('community_no_group_challenges')
-                    : '${_groupChallenges.length} active challenge${_groupChallenges.length == 1 ? '' : 's'}.',
+                    : _localizedCommunityCount(
+                        t,
+                        _groupChallenges.length,
+                        'community_active_challenge_count_one',
+                        'community_active_challenge_count_many',
+                      ),
                 onTap: detail.isJoined ? _openGroupChallenges : null,
               ),
               const SizedBox(height: 16),
@@ -1707,7 +1779,11 @@ class CommunityMyGroupsPage extends StatelessWidget {
                       group.description,
                     ),
                     membersValue: '${group.memberCount}',
-                    leaderboardValue: group.leaderboardMetric ?? '-',
+                    membersLabel: t.translate('community_members'),
+                    leaderboardLabel: t.translate('community_leaderboard'),
+                    leaderboardValue: group.leaderboardMetric == null
+                        ? '-'
+                        : _localizedCommunityCode(t, group.leaderboardMetric!),
                     onTap: () => _openGroupDetail(context, group),
                   );
                 },
@@ -2104,7 +2180,7 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
                 (challenge) => Padding(
                   padding: EdgeInsets.only(bottom: TaqaUiScale.h(15)),
                   child: TaqaCommunityChallengeCard(
-                    tag: challenge.displayRuleName,
+                    tag: _localizedCommunityChallengeRule(t, challenge),
                     name: challenge.name,
                     progress: challenge.progressPercent / 100,
                     onTap: () => _openChallengeActions(challenge),
@@ -2171,8 +2247,10 @@ class _CommunityChallengeProgressPageState
     return unit == null || unit.isEmpty ? number : '$number $unit';
   }
 
-  String _dateLabel(DateTime date) =>
-      DateFormat('MMM d, yyyy').format(date.toLocal());
+  String _dateLabel(DateTime date) => DateFormat(
+    'MMM d, yyyy',
+    AppLocalizations.of(context).locale.languageCode,
+  ).format(date.toLocal());
 
   @override
   Widget build(BuildContext context) {
@@ -2207,7 +2285,10 @@ class _CommunityChallengeProgressPageState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      challenge.displayRuleName.toUpperCase(),
+                      _localizedCommunityChallengeRule(
+                        t,
+                        challenge,
+                      ).toUpperCase(),
                       style: TaqaUiStyles.dailyOutlookTag,
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
@@ -2579,11 +2660,11 @@ class CommunityAdminReportsPage extends StatefulWidget {
   const CommunityAdminReportsPage({
     super.key,
     this.groupId,
-    this.title = 'Moderation Reports',
+    this.title,
   });
 
   final int? groupId;
-  final String title;
+  final String? title;
 
   @override
   State<CommunityAdminReportsPage> createState() =>
@@ -2594,7 +2675,8 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   List<CommunityReport> _reports = const [];
   bool _loading = true;
   String? _error;
-  final Set<String> _selectedStatuses = <String>{};
+  final Set<String> _selectedStatuses = <String>{'open', 'reviewing'};
+  final Set<int> _pendingReportIds = <int>{};
 
   static const List<String> _statusOptions = [
     'open',
@@ -2639,6 +2721,10 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   }
 
   Future<void> _review(CommunityReport report, String status) async {
+    if (_pendingReportIds.contains(report.reportId) || report.status == status) {
+      return;
+    }
+    setState(() => _pendingReportIds.add(report.reportId));
     try {
       await CommunityService.reviewReport(report.reportId, status: status);
       if (!mounted) return;
@@ -2655,10 +2741,16 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
         userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
+    } finally {
+      if (mounted) {
+        setState(() => _pendingReportIds.remove(report.reportId));
+      }
     }
   }
 
   Future<void> _moderate(CommunityReport report, String action) async {
+    if (_pendingReportIds.contains(report.reportId)) return;
+    setState(() => _pendingReportIds.add(report.reportId));
     try {
       if (report.targetType == 'feed_item') {
         await CommunityService.setFeedItemVisibility(
@@ -2671,6 +2763,10 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
           status: action,
         );
       }
+      await CommunityService.reviewReport(
+        report.reportId,
+        status: 'resolved',
+      );
       if (!mounted) return;
       AppToast.show(
         context,
@@ -2685,6 +2781,10 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
         userFriendlyErrorMessage(e),
         type: AppToastType.error,
       );
+    } finally {
+      if (mounted) {
+        setState(() => _pendingReportIds.remove(report.reportId));
+      }
     }
   }
 
@@ -2695,7 +2795,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
       backgroundColor: AppColors.appBackground,
       appBar: TaqaPageAppBar(
         backgroundColor: AppColors.appBackground,
-        title: widget.title,
+        title: widget.title ?? t.translate('community_moderation_reports'),
       ),
       body: TaqaRefreshIndicator(
         onRefresh: () => _load(),
@@ -2746,38 +2846,47 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
                 (report) => Padding(
                   padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
                   child: TaqaCommunityReportCard(
-                    status: report.status,
-                    targetType: report.targetType,
-                    reason: report.reason,
+                    status: _localizedCommunityCode(t, report.status),
+                    targetType: _localizedCommunityCode(t, report.targetType),
+                    reason: _localizedCommunityCode(t, report.reason),
                     targetId: report.targetId,
                     details: report.details,
                     actions: [
-                      TaqaCommunityReportAction(
-                        label: t.translate('community_review'),
-                        onTap: () => _review(report, 'reviewing'),
-                      ),
-                      TaqaCommunityReportAction(
-                        label: t.translate('community_dismiss'),
-                        onTap: () => _review(report, 'dismissed'),
-                      ),
-                      TaqaCommunityReportAction(
-                        label: t.translate('community_resolve'),
-                        isPrimary: true,
-                        onTap: () => _review(report, 'resolved'),
-                      ),
+                      if (report.status != 'reviewing')
+                        TaqaCommunityReportAction(
+                          label: t.translate('community_review'),
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          onTap: () => _review(report, 'reviewing'),
+                        ),
+                      if (report.status != 'dismissed')
+                        TaqaCommunityReportAction(
+                          label: t.translate('community_dismiss'),
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          onTap: () => _review(report, 'dismissed'),
+                        ),
+                      if (report.status != 'resolved')
+                        TaqaCommunityReportAction(
+                          label: t.translate('community_resolve'),
+                          isPrimary: true,
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          onTap: () => _review(report, 'resolved'),
+                        ),
                       if (report.targetType == 'feed_item')
                         TaqaCommunityReportAction(
                           label: t.translate('community_hide_item'),
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
                           onTap: () => _moderate(report, 'hidden'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
                           label: t.translate('community_block_comment'),
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
                           onTap: () => _moderate(report, 'blocked'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
                           label: t.translate('community_delete_comment'),
+                          isEnabled: !_pendingReportIds.contains(report.reportId),
                           onTap: () => _moderate(report, 'deleted'),
                         ),
                     ],
@@ -2995,7 +3104,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                           ),
                                         ),
                                         Text(
-                                          _formatDate(comment.createdAt),
+                                          _formatDate(
+                                            comment.createdAt,
+                                            t.locale.languageCode,
+                                          ),
                                           style: TextStyle(
                                             color: TaqaUiColors.charcoal
                                                 .withValues(alpha: 0.54),
@@ -3326,8 +3438,8 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                             padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
                             child: TaqaCommunityMemberCard(
                               name: member.displayName,
-                              role: member.role,
-                              status: member.status,
+                              role: _localizedCommunityCode(t, member.role),
+                              status: _localizedCommunityCode(t, member.status),
                               avatarUrl: member.avatarUrl,
                               actions:
                                   widget.canAdminManage &&
@@ -5233,7 +5345,10 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                               Expanded(
                                 child: _taqaDialogDateField(
                                   label: t.translate('community_start'),
-                                  value: DateFormat('MMM d').format(startDate),
+                                  value: DateFormat(
+                                    'MMM d',
+                                    t.locale.languageCode,
+                                  ).format(startDate),
                                   onTap: pickStart,
                                 ),
                               ),
@@ -5241,7 +5356,10 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                               Expanded(
                                 child: _taqaDialogDateField(
                                   label: t.translate('community_end'),
-                                  value: DateFormat('MMM d').format(endDate),
+                                  value: DateFormat(
+                                    'MMM d',
+                                    t.locale.languageCode,
+                                  ).format(endDate),
                                   onTap: pickEnd,
                                 ),
                               ),
@@ -5289,7 +5407,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                     onTap: () => Navigator.pop(ctx),
                                     child: Center(
                                       child: Text(
-                                        'CANCEL',
+                                        t.translate('common_cancel').toUpperCase(),
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
@@ -5341,7 +5459,10 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                       height: TaqaUiScale.h(50),
                                       child: Center(
                                         child: Text(
-                                          existing == null ? 'CREATE' : 'SAVE',
+                                          (existing == null
+                                                  ? t.translate('community_create')
+                                                  : t.translate('common_save'))
+                                              .toUpperCase(),
                                           style: TextStyle(
                                             fontFamily:
                                                 TaqaUiFontFamilies.interTight,
@@ -5378,9 +5499,9 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
   return result;
 }
 
-String _formatDate(DateTime? dateTime) {
+String _formatDate(DateTime? dateTime, String locale) {
   if (dateTime == null) return '-';
-  return DateFormat('MMM d').format(dateTime.toLocal());
+  return DateFormat('MMM d', locale).format(dateTime.toLocal());
 }
 
 String _startOfDayIso(DateTime date) {
