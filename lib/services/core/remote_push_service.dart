@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../../core/locale_controller.dart';
 import '../../screens/referral_dashboard_page.dart';
 import 'navigation_service.dart';
 import 'notification_service.dart';
@@ -29,6 +30,7 @@ class RemotePushService {
   static StreamSubscription<Uri>? _deepLinkSubscription;
   static int? _lastSyncedUserId;
   static String? _lastSyncedToken;
+  static String? _lastSyncedLocale;
   static String? _cachedDeviceId;
   static Future<void> _tokenSyncQueue = Future<void>.value();
 
@@ -326,10 +328,13 @@ class RemotePushService {
     }
     if (token.isEmpty) return;
 
+    final locale = localeController.locale.languageCode == 'ar' ? 'ar' : 'en';
+
     if (!force &&
         !refreshedCachedToken &&
         _lastSyncedUserId == userId &&
-        _lastSyncedToken == token) {
+        _lastSyncedToken == token &&
+        _lastSyncedLocale == locale) {
       return;
     }
 
@@ -356,6 +361,7 @@ class RemotePushService {
           'platform': _platformName(),
           'device_id': deviceId,
           'app_version': appVersion,
+          'locale': locale,
         }),
       );
       await AccountStorage.handleAuthStatus(
@@ -365,6 +371,7 @@ class RemotePushService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _lastSyncedUserId = userId;
         _lastSyncedToken = token;
+        _lastSyncedLocale = locale;
         final currentAppId = await _currentFirebaseAppId();
         if (currentAppId.isNotEmpty) {
           final prefs = await SharedPreferences.getInstance();
@@ -443,6 +450,7 @@ class RemotePushService {
     } finally {
       _lastSyncedUserId = null;
       _lastSyncedToken = null;
+      _lastSyncedLocale = null;
     }
   }
 }

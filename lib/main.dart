@@ -298,6 +298,7 @@ class _MyAppState extends State<MyApp> {
     _configureTrainingForegroundTask();
     unawaited(TrainingActivityService.refreshLocalization());
     unawaited(NotificationService.refreshLocalization());
+    unawaited(RemotePushService.syncTokenForCurrentUser(force: true));
   }
 
   void _handleLifecycle() async {

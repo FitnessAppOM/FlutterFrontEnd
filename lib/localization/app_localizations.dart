@@ -52,6 +52,9 @@ class AppLocalizations {
       "google_failed": "Google sign-in failed",
       "error_required_fields": "Email and password are required",
       "network_error": "Network error",
+      "error_generic": "Something went wrong. Please try again.",
+      "error_connection":
+          "Couldn't connect. Check your internet and try again.",
       "welcome_user": "Welcome, {name}",
       "account_no_longer_exists": "Account no longer exists.",
 
@@ -1855,6 +1858,10 @@ class AppLocalizations {
           "Delete account permanently? This action is immediate and cannot be undone.",
       "settings_delete_account_confirm_yes": "Delete",
       "settings_delete_account_success": "Account deleted",
+      "settings_delete_account_failed":
+          "Could not delete account. Please try again.",
+      "settings_deactivate_account_failed":
+          "Could not deactivate account. Please try again.",
       "settings_delete_account_success_deactivated":
           "Account deactivated. You can restore it within 30 days.",
       "settings_deactivate_account": "Deactivate account",
@@ -1889,6 +1896,9 @@ class AppLocalizations {
       "account_restore_code_body": "We sent a 6-digit code to",
       "account_restore_success": "Account restored successfully!",
       "account_restore_failed": "Account restoration failed. Please try again.",
+      "account_restore_expired": "This account can no longer be restored.",
+      "account_not_found": "Account not found.",
+      "account_request_failed": "The request failed. Please try again.",
       "settings_support": "Support",
       "settings_taqa_tutorial": "Taqa Tutorial",
       "settings_taqa_tutorial_sub": "Replay the app tour and feature guide",
@@ -2541,6 +2551,8 @@ class AppLocalizations {
       "google_failed": "فشل تسجيل الدخول عبر Google",
       "error_required_fields": "البريد الإلكتروني وكلمة المرور مطلوبان",
       "network_error": "خطأ في الشبكة",
+      "error_generic": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "error_connection": "تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.",
       "welcome_user": "مرحباً، {name}",
       "account_no_longer_exists": "الحساب غير موجود.",
 
@@ -4287,6 +4299,10 @@ class AppLocalizations {
           "هل تريد حذف الحساب نهائياً؟ هذا الإجراء فوري ولا يمكن التراجع عنه.",
       "settings_delete_account_confirm_yes": "حذف",
       "settings_delete_account_success": "تم حذف الحساب",
+      "settings_delete_account_failed":
+          "تعذّر حذف الحساب. يرجى المحاولة مرة أخرى.",
+      "settings_deactivate_account_failed":
+          "تعذّر تعطيل الحساب. يرجى المحاولة مرة أخرى.",
       "settings_delete_account_success_deactivated":
           "تم تعطيل الحساب. يمكنك استعادته خلال 30 يوماً.",
       "settings_deactivate_account": "تعطيل الحساب",
@@ -4318,6 +4334,9 @@ class AppLocalizations {
       "account_restore_code_body": "أرسلنا رمزاً مكوناً من 6 أرقام إلى",
       "account_restore_success": "تم استعادة الحساب بنجاح!",
       "account_restore_failed": "فشل استعادة الحساب. يرجى المحاولة مرة أخرى.",
+      "account_restore_expired": "لم يعد من الممكن استعادة هذا الحساب.",
+      "account_not_found": "الحساب غير موجود.",
+      "account_request_failed": "فشل الطلب. يرجى المحاولة مرة أخرى.",
       "settings_support": "الدعم",
       "settings_taqa_tutorial": "دليل Taqa",
       "settings_taqa_tutorial_sub": "أعد مشاهدة جولة التطبيق ودليل الميزات",
