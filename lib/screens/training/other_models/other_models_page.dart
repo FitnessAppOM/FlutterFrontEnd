@@ -7,6 +7,7 @@ import '../../../services/share/cardio_share_service.dart';
 import '../../../widgets/cardio/cardio_map.dart';
 import '../../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../../TaqaUI/components/taqa_page_app_bar.dart';
+import '../../../TaqaUI/components/taqa_toast.dart';
 import '../../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../../TaqaUI/taqa_ui_colors.dart';
 import 'model_a_page.dart';
@@ -155,6 +156,7 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
     try {
       final output = await _captureCurrentPage(forceBackground: true);
       if (output == null) return;
+      if (!mounted) return;
       await CardioShareService.sharePngBytes(context, output);
     } finally {
       if (mounted) setState(() => _sharing = false);
@@ -170,6 +172,16 @@ class _OtherModelsPageState extends State<OtherModelsPage> {
       final error = await CardioShareService.shareInstagramStickerDetailed(
         output,
       );
+      if (error != null) {
+        if (!mounted) return;
+        AppToast.show(
+          context,
+          AppLocalizations.of(
+            context,
+          ).translate('training_instagram_share_failed'),
+          type: AppToastType.error,
+        );
+      }
       // Debug only
       // ignore: avoid_print
       print('[IGSticker] result=${error ?? "ok"}');

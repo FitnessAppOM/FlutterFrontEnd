@@ -26,7 +26,6 @@ import 'email_verification_page.dart';
 import '../services/auth/profile_service.dart';
 import 'questionnaire.dart';
 import 'referral_onboarding_page.dart';
-import 'expert_questionnaire.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/navigation_service.dart';
@@ -109,19 +108,19 @@ class _LoginPageState extends State<LoginPage> {
           profile["filled_expert_questionnaire"] == true;
       final isApprovedExpert = profile["is_expert"] == true;
       final isCoachAccount = AccountType.isCoach(profile);
+      final approvedCoach = AccountType.isApprovedCoach(profile);
       final applicationStatus = (profile['expert_profile_status'] ?? '')
           .toString()
           .trim()
           .toLowerCase();
-      final hasData =
-          expertQuestionnaireDone ||
-          serverDone ||
-          _hasQuestionnaireData(profile);
+      final hasData = serverDone;
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setExpertQuestionnaireDone(
+        expertQuestionnaireDone || approvedCoach,
+      );
       await AccountStorage.setIsExpert(isCoachAccount);
       await AccountStorage.setCoachApplicationStatus(
-        expertQuestionnaireDone
+        expertQuestionnaireDone || approvedCoach
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
             : null,
       );
@@ -166,9 +165,7 @@ class _LoginPageState extends State<LoginPage> {
           MaterialPageRoute(
             builder: (_) => referralOnboardingIfNeeded(
               profile: profile,
-              nextPage: isCoachAccount
-                  ? const ExpertQuestionnairePage()
-                  : const QuestionnairePage(),
+              nextPage: const QuestionnairePage(),
             ),
           ),
           (route) => false,
@@ -179,36 +176,13 @@ class _LoginPageState extends State<LoginPage> {
       if (msg.contains('deactivated') || msg.contains('reactivate')) {
         return;
       }
-      final fallbackIsExpert = await AccountStorage.isExpert();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => fallbackIsExpert
-              ? const ExpertQuestionnairePage()
-              : const QuestionnairePage(),
-        ),
+        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
         (route) => false,
       );
     }
-  }
-
-  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
-    const keys = [
-      "age",
-      "fitness_goal",
-      "training_days",
-      "diet_type",
-      "height_cm",
-      "weight_kg",
-      "sex",
-    ];
-    return keys.any((k) {
-      final v = profile[k];
-      if (v == null) return false;
-      final s = v.toString().trim();
-      return s.isNotEmpty && s != "null";
-    });
   }
 
   Future<void> login() async {

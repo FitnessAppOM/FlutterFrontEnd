@@ -27,4 +27,35 @@ void main() {
       expect(AccountType.isCoach({'account_type': 'client'}), isFalse);
     });
   });
+
+  group('AccountType.isApprovedCoach', () {
+    test('accepts an approved expert despite a missing questionnaire flag', () {
+      expect(
+        AccountType.isApprovedCoach({
+          'account_type': 'coach',
+          'is_expert': true,
+          'expert_profile_status': 'Approved',
+          'filled_expert_questionnaire': false,
+        }),
+        isTrue,
+      );
+    });
+
+    test('does not bypass onboarding for pending or non-expert accounts', () {
+      expect(
+        AccountType.isApprovedCoach({
+          'is_expert': true,
+          'expert_profile_status': 'pending',
+        }),
+        isFalse,
+      );
+      expect(
+        AccountType.isApprovedCoach({
+          'is_expert': false,
+          'expert_profile_status': 'approved',
+        }),
+        isFalse,
+      );
+    });
+  });
 }

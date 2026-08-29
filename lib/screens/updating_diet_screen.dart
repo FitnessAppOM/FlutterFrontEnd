@@ -57,6 +57,8 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
   }
 
   Future<void> _run() async {
+    // Keep the bolt visible while an automatic retry is queued.
+    var retryScheduled = false;
     setState(() {
       _isWorking = true;
       _error = null;
@@ -125,22 +127,31 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
       final msg = userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
       final shouldShowToast = elapsed >= _toastThreshold;
+      final canRetry = !isMissingQuestionnaireError(e);
+      final isFinalAttempt = !canRetry || _retryCount + 1 >= _maxRetries;
       if (shouldShowToast && msg.isNotEmpty) {
         AppToast.show(context, msg, type: AppToastType.error);
       }
 
       setState(() {
-        _error = shouldShowToast && msg.isNotEmpty ? msg : null;
+        _error = (shouldShowToast || isFinalAttempt) && msg.isNotEmpty
+            ? msg
+            : null;
       });
 
       _retryCount++;
-      if (_retryCount < _maxRetries) {
+      if (canRetry && _retryCount < _maxRetries) {
+        retryScheduled = true;
         Future.delayed(Duration(seconds: 2 * _retryCount), () {
           if (mounted) _run();
         });
+      } else {
+        _retryCount = _maxRetries;
       }
     } finally {
-      if (mounted) setState(() => _isWorking = false);
+      if (mounted && !retryScheduled) {
+        setState(() => _isWorking = false);
+      }
     }
   }
 
@@ -184,9 +195,7 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
         canPop: _cooldownBlocked,
         child: Scaffold(
           backgroundColor: TaqaBoltLoadingScreen.background,
-          body: TaqaBoltLoadingScreen(
-            note: t.translate("updating_diet_note"),
-          ),
+          body: TaqaBoltLoadingScreen(note: t.translate("updating_diet_note")),
         ),
       );
     }
@@ -236,4 +245,3 @@ class _UpdatingDietScreenState extends State<UpdatingDietScreen> {
     );
   }
 }
-

@@ -104,12 +104,14 @@ class CardioShareService {
   }
 
   static Future<String?> shareInstagramStickerDetailed(Uint8List bytes) async {
-    if (!Platform.isIOS) return 'not_ios';
+    if (!Platform.isIOS && !Platform.isAndroid) return 'unsupported_platform';
     final appId =
         dotenv.maybeGet('INSTAGRAM_APP_ID') ??
         dotenv.maybeGet('FACEBOOK_APP_ID') ??
         '';
-    if (appId.trim().isEmpty) return 'missing_app_id';
+    // Instagram's iOS pasteboard API requires the Meta app ID. Android's
+    // story intent can use our package name when no Meta app ID is configured.
+    if (Platform.isIOS && appId.trim().isEmpty) return 'missing_app_id';
     try {
       final ok = await _instagramChannel.invokeMethod<bool>('shareSticker', {
         'image': bytes,

@@ -105,6 +105,8 @@ flutter {
 }
 
 dependencies {
+    implementation("androidx.core:core-ktx:1.15.0")
+
     // Google authentication
     implementation("com.google.android.gms:play-services-auth:20.7.0")
 
