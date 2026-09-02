@@ -32,6 +32,7 @@ class MainLayout extends StatefulWidget {
     this.initialIndex = _dashboardTab,
     this.autoOpenExpertDashboard = false,
     this.initialSubscriptionRequired,
+    this.initialCommunityGroupId,
   });
 
   static const int _dietTab = 0;
@@ -44,6 +45,7 @@ class MainLayout extends StatefulWidget {
   /// welcome/restore redirects, notification handlers, ...) can target the
   /// embedded Coach tab without duplicating the index.
   static const int coachTabIndex = _coachTab;
+  static const int communityTabIndex = _communityTab;
 
   final int initialIndex;
 
@@ -58,6 +60,7 @@ class MainLayout extends StatefulWidget {
   /// Server-verified access state supplied by the cold-start bootstrap. When
   /// present, the first layout avoids repeating the entitlement request.
   final bool? initialSubscriptionRequired;
+  final int? initialCommunityGroupId;
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
@@ -550,7 +553,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       case MainLayout._dashboardTab:
         return DashboardPage(key: _dashboardKey, onNavigateToTab: _selectTab);
       case MainLayout._communityTab:
-        return const CommunityPage();
+        return CommunityPage(initialGroupId: widget.initialCommunityGroupId);
       default:
         return const SizedBox.shrink();
     }

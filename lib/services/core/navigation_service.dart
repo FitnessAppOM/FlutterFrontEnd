@@ -28,6 +28,7 @@ class NavigationService {
   static String? _pendingNotificationSenderRole;
   static int? _pendingNotificationClientUserId;
   static int? _pendingNotificationCoachUserId;
+  static int? _pendingNotificationGroupId;
 
   static bool get journalNotificationPending => _journalNotificationPending;
   static bool get dietNotificationPending => _dietNotificationPending;
@@ -103,6 +104,7 @@ class NavigationService {
     String? senderRole,
     int? clientUserId,
     int? coachUserId,
+    int? groupId,
   }) {
     final normalizedType = type.trim().toLowerCase();
     if (normalizedType.isEmpty) return;
@@ -111,6 +113,7 @@ class NavigationService {
     _pendingNotificationSenderRole = senderRole;
     _pendingNotificationClientUserId = clientUserId;
     _pendingNotificationCoachUserId = coachUserId;
+    _pendingNotificationGroupId = groupId;
     launchedFromNotificationPayload = true;
   }
 
@@ -120,6 +123,7 @@ class NavigationService {
     String? senderRole,
     int? clientUserId,
     int? coachUserId,
+    int? groupId,
   }) async {
     queuePendingNotificationNavigation(
       type: type,
@@ -127,6 +131,7 @@ class NavigationService {
       senderRole: senderRole,
       clientUserId: clientUserId,
       coachUserId: coachUserId,
+      groupId: groupId,
     );
     if (!_notificationNavigationReady) return;
     await flushPendingNotificationNavigation();
@@ -171,12 +176,14 @@ class NavigationService {
     final senderRole = _pendingNotificationSenderRole;
     final clientUserId = _pendingNotificationClientUserId;
     final coachUserId = _pendingNotificationCoachUserId;
+    final groupId = _pendingNotificationGroupId;
 
     _pendingNotificationType = null;
     _pendingNotificationSenderUserId = null;
     _pendingNotificationSenderRole = null;
     _pendingNotificationClientUserId = null;
     _pendingNotificationCoachUserId = null;
+    _pendingNotificationGroupId = null;
     launchedFromNotificationPayload = false;
 
     final effectiveClientId = clientUserId ?? senderUserId;
@@ -255,6 +262,18 @@ class NavigationService {
       await navigateToCoachFeedback();
       return true;
     }
+    if (type == 'community') {
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => MainLayout(
+            initialIndex: MainLayout.communityTabIndex,
+            initialCommunityGroupId: groupId,
+          ),
+        ),
+        (_) => false,
+      );
+      return true;
+    }
     if ((coachUserId ?? 0) > 0) {
       await navigateToCoachChat(coachUserId: coachUserId);
       return true;
@@ -287,6 +306,7 @@ class NavigationService {
         .toLowerCase();
     final clientUserId = _pendingNotificationClientUserId;
     final coachUserId = _pendingNotificationCoachUserId;
+    final groupId = _pendingNotificationGroupId;
     final effectiveClientId = clientUserId ?? senderUserId;
 
     _pendingNotificationType = null;
@@ -294,6 +314,7 @@ class NavigationService {
     _pendingNotificationSenderRole = null;
     _pendingNotificationClientUserId = null;
     _pendingNotificationCoachUserId = null;
+    _pendingNotificationGroupId = null;
     launchedFromNotificationPayload = false;
 
     if (type == 'daily_journal') {
@@ -333,6 +354,13 @@ class NavigationService {
     }
     if (type == 'coach_connection_request_decision') {
       return const CoachPage(initialTabIndex: 0);
+    }
+    if (type == 'community') {
+      return MainLayout(
+        initialIndex: MainLayout.communityTabIndex,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+        initialCommunityGroupId: groupId,
+      );
     }
     if (type == 'habit_reminder' || type == 'coach_habit_added') {
       final isExpert = await AccountStorage.isExpert();

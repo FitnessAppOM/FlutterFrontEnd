@@ -1250,7 +1250,7 @@ class _SettingsPageState extends State<SettingsPage>
     final picker = ImagePicker();
     setState(() => _updatingAvatar = true);
     try {
-      // Request camera/photos permissions so the picker works smoothly.
+      // The system picker grants access only to the selected image.
       final granted = await ConsentManager.requestCameraOrGalleryForAvatar();
       if (!granted) {
         if (!mounted) return;

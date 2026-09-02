@@ -36,11 +36,11 @@ class TaqaSettingsRowCard extends StatelessWidget {
         );
 
         final contentLeft = TaqaUiScale.w(14) * layoutScale;
-        final contentWidth = cardWidth - (contentLeft * 2);
         final titleTop = TaqaUiScale.h(17) * layoutScale;
         final descriptionTop = TaqaUiScale.h(38) * layoutScale;
         final chevronSize = TaqaUiScale.w(20) * layoutScale;
         final chevronTop = TaqaUiScale.h(22) * layoutScale;
+        final textEnd = contentLeft + chevronSize + TaqaUiScale.w(8);
 
         return SizedBox(
           width: cardWidth,
@@ -53,10 +53,10 @@ class TaqaSettingsRowCard extends StatelessWidget {
               borderRadius: TaqaUiStyles.communityGroupCardRadius,
               child: Stack(
                 children: [
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
+                    end: textEnd,
                     top: titleTop,
-                    width: contentWidth,
                     child: Text(
                       title,
                       maxLines: 1,
@@ -64,10 +64,10 @@ class TaqaSettingsRowCard extends StatelessWidget {
                       style: TaqaUiStyles.communityGroupCardName,
                     ),
                   ),
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
+                    end: textEnd,
                     top: descriptionTop,
-                    width: contentWidth,
                     child: Text(
                       description,
                       maxLines: 1,
@@ -75,12 +75,14 @@ class TaqaSettingsRowCard extends StatelessWidget {
                       style: TaqaUiStyles.communityGroupCardDescription,
                     ),
                   ),
-                  Positioned(
-                    right: contentLeft,
+                  PositionedDirectional(
+                    end: contentLeft,
                     top: chevronTop,
                     child: IgnorePointer(
                       child: Icon(
-                        Icons.chevron_right,
+                        Directionality.of(context) == TextDirection.rtl
+                            ? Icons.chevron_left
+                            : Icons.chevron_right,
                         size: chevronSize,
                         color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
                       ),

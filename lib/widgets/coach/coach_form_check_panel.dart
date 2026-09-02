@@ -119,13 +119,6 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
       return;
     }
 
-    final photosOk = await ConsentManager.requestPhotosJIT();
-    if (!photosOk) {
-      if (!mounted) return;
-      _showToast(_tr(context, 'permissions_required', 'Permissions required'));
-      return;
-    }
-
     try {
       final picked = await _imagePicker.pickVideo(source: ImageSource.gallery);
       if (picked == null) return;

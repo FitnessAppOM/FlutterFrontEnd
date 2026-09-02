@@ -32,6 +32,7 @@ class DietManualEntrySheet extends StatefulWidget {
 class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   final _formKey = GlobalKey<FormState>();
   final _mealNameCtrl = TextEditingController();
+  final _ingredientsScrollCtrl = ScrollController();
   final List<_IngredientRow> _ingredients = [];
   bool _loading = false;
 
@@ -64,6 +65,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   @override
   void dispose() {
     _mealNameCtrl.dispose();
+    _ingredientsScrollCtrl.dispose();
     for (final row in _ingredients) {
       row.dispose();
     }
@@ -78,18 +80,36 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     double? carbs,
     double? fat,
     int? foodId,
+    bool reuseEmptyRow = false,
   }) {
+    final newRow = _IngredientRow(
+      name: name ?? '',
+      grams: grams,
+      calories: calories ?? 0,
+      protein: protein ?? 0,
+      carbs: carbs ?? 0,
+      fat: fat ?? 0,
+      foodId: foodId,
+    );
+    _IngredientRow? replacedRow;
     setState(() {
-      _ingredients.add(
-        _IngredientRow(
-          name: name ?? '',
-          grams: grams,
-          calories: calories ?? 0,
-          protein: protein ?? 0,
-          carbs: carbs ?? 0,
-          fat: fat ?? 0,
-          foodId: foodId,
-        ),
+      final emptyIndex = reuseEmptyRow
+          ? _ingredients.lastIndexWhere((row) => row.isCompletelyEmpty)
+          : -1;
+      if (emptyIndex >= 0) {
+        replacedRow = _ingredients[emptyIndex];
+        _ingredients[emptyIndex] = newRow;
+      } else {
+        _ingredients.add(newRow);
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      replacedRow?.dispose();
+      if (!mounted || !_ingredientsScrollCtrl.hasClients) return;
+      _ingredientsScrollCtrl.animateTo(
+        _ingredientsScrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
       );
     });
   }
@@ -122,13 +142,16 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
         onLogged: widget.onLogged,
         onPickForManualEntry: (ingredient) {
           _addIngredientRow(
-            name: ingredient['name'] as String?,
-            grams: ingredient['grams'] as double?,
-            calories: ingredient['calories'] as double?,
-            protein: ingredient['protein'] as double?,
-            carbs: ingredient['carbs'] as double?,
-            fat: ingredient['fat'] as double?,
-            foodId: ingredient['food_id'] as int?,
+            name: ingredient['name']?.toString(),
+            grams: ingredient['grams'] == null
+                ? null
+                : _asDouble(ingredient['grams']),
+            calories: _asDouble(ingredient['calories']),
+            protein: _asDouble(ingredient['protein']),
+            carbs: _asDouble(ingredient['carbs']),
+            fat: _asDouble(ingredient['fat']),
+            foodId: int.tryParse(ingredient['food_id']?.toString() ?? ''),
+            reuseEmptyRow: true,
           );
         },
       ),
@@ -395,6 +418,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                   SizedBox(height: TaqaUiScale.h(12)),
                   Expanded(
                     child: ListView.builder(
+                      controller: _ingredientsScrollCtrl,
                       itemCount: _ingredients.length,
                       itemBuilder: (context, idx) {
                         final row = _ingredients[idx];
@@ -544,6 +568,7 @@ class _IngredientTile extends StatelessWidget {
                     hintText: t.translate("diet_ingredient_name"),
                   ),
                   validator: (v) {
+                    if (row.isCompletelyEmpty) return null;
                     if (v?.trim().isEmpty ?? true) {
                       return t.translate("diet_ingredient_name_required");
                     }
@@ -589,6 +614,7 @@ class _IngredientTile extends StatelessWidget {
                   style: fieldStyle,
                   decoration: _underlineFieldDecoration(hintText: "Cals"),
                   validator: (v) {
+                    if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
                       (v ?? '').trim().replaceAll(',', '.'),
                     );
@@ -609,6 +635,7 @@ class _IngredientTile extends StatelessWidget {
                   style: fieldStyle,
                   decoration: _underlineFieldDecoration(hintText: "Prtn"),
                   validator: (v) {
+                    if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
                       (v ?? '').trim().replaceAll(',', '.'),
                     );
@@ -635,6 +662,7 @@ class _IngredientTile extends StatelessWidget {
                     hintText: t.translate("diet_carbs"),
                   ),
                   validator: (v) {
+                    if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
                       (v ?? '').trim().replaceAll(',', '.'),
                     );
@@ -657,6 +685,7 @@ class _IngredientTile extends StatelessWidget {
                     hintText: t.translate("diet_fat"),
                   ),
                   validator: (v) {
+                    if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
                       (v ?? '').trim().replaceAll(',', '.'),
                     );
@@ -706,6 +735,14 @@ class _IngredientRow {
   final TextEditingController carbsCtrl;
   final TextEditingController fatCtrl;
   final int? foodId;
+
+  bool get isCompletelyEmpty =>
+      nameCtrl.text.trim().isEmpty &&
+      gramsCtrl.text.trim().isEmpty &&
+      calCtrl.text.trim().isEmpty &&
+      proteinCtrl.text.trim().isEmpty &&
+      carbsCtrl.text.trim().isEmpty &&
+      fatCtrl.text.trim().isEmpty;
 
   void dispose() {
     nameCtrl.dispose();

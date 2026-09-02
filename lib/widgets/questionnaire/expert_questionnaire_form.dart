@@ -1068,10 +1068,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
 
   Future<void> _captureSelfie(TextEditingController controller) async {
     final cameraOk = await ConsentManager.requestCameraJIT();
-    final photosOk = await ConsentManager.requestPhotosJIT();
-    if (!cameraOk || !photosOk) {
+    if (!cameraOk) {
       _toast(
-        "Camera and Photos permissions are required to capture a selfie.",
+        "Camera permission is required to capture a selfie.",
         type: AppToastType.error,
       );
       await _maybePromptOpenSettingsForSelfie();
@@ -1122,9 +1121,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   Future<void> _maybePromptOpenSettingsForSelfie() async {
     if (!mounted) return;
     final cam = await Permission.camera.status;
-    final photos = await Permission.photos.status;
     if (!mounted) return;
-    final blocked = _isPermanentlyBlocked(cam) || _isPermanentlyBlocked(photos);
+    final blocked = _isPermanentlyBlocked(cam);
     if (!blocked) return;
 
     final t = AppLocalizations.of(context);

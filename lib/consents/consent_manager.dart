@@ -459,13 +459,9 @@ class ConsentManager {
   // ---------------------------------------------------------------------------
   static Future<bool> requestPhotosJIT() async {
     if (Platform.isAndroid) {
-      // Android 13 split media permissions; pick what you need.
-      final photos = await Permission
-          .photos
-          .status; // aliases READ_MEDIA_IMAGES on new SDKs
-      if (photos.isGranted) return true;
-      final res = await Permission.photos.request();
-      return res.isGranted;
+      // Android image/video flows use the system picker, which grants access
+      // only to the item selected by the user and needs no broad permission.
+      return true;
     }
     final photos = await Permission.photos.status;
     if (_isGrantedOrLimited(photos)) return true;
@@ -476,15 +472,9 @@ class ConsentManager {
   // Files/documents (PDF/images) for uploads
   static Future<bool> requestFileAccessJIT() async {
     if (Platform.isAndroid) {
-      // Try media/photos first, then fall back to storage for PDFs.
-      var photos = await Permission.photos.status;
-      if (_isGrantedOrLimited(photos)) return true;
-
-      photos = await Permission.photos.request();
-      if (_isGrantedOrLimited(photos)) return true;
-
-      final storage = await Permission.storage.request();
-      return storage.isGranted;
+      // FilePicker uses Android's Storage Access Framework. The selected
+      // document receives a scoped URI grant; storage permission is not needed.
+      return true;
     }
     // iOS prompts on first access.
     return true;
@@ -496,38 +486,14 @@ class ConsentManager {
   static bool _isGrantedOrLimited(PermissionStatus status) =>
       status.isGranted || status.isLimited;
 
-  static Future<bool> _requestAndroidGalleryPermission() async {
-    // Android 13+: photos permission, Android 12-: storage fallback.
-    var photos = await Permission.photos.status;
-    if (_isGrantedOrLimited(photos)) return true;
-
-    photos = await Permission.photos.request();
-    if (_isGrantedOrLimited(photos)) return true;
-
-    var storage = await Permission.storage.status;
-    if (storage.isGranted) return true;
-
-    storage = await Permission.storage.request();
-    return storage.isGranted;
-  }
-
   static Future<bool> requestCameraOrGalleryForAvatar() async {
     if (Platform.isAndroid) {
-      final cam = await Permission.camera.status;
-      if (!cam.isGranted) {
-        final res = await Permission.camera.request();
-        if (!res.isGranted) return false;
-      }
-      return _requestAndroidGalleryPermission();
+      // Avatar selection uses the Android system picker, not broad gallery
+      // access. Camera permission is requested separately by camera flows.
+      return true;
     }
 
     if (Platform.isIOS) {
-      final cam = await Permission.camera.status;
-      if (!_isGrantedOrLimited(cam)) {
-        final res = await Permission.camera.request();
-        if (!_isGrantedOrLimited(res)) return false;
-      }
-
       var photos = await Permission.photos.status;
       if (_isGrantedOrLimited(photos)) return true;
 

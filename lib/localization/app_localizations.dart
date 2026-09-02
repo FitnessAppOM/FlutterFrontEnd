@@ -814,6 +814,8 @@ class AppLocalizations {
       "community_no_challenges": "No challenges right now",
       "community_view_progress": "View progress details",
       "community_mute_notifications": "Mute notifications",
+      "community_mute_notifications_body":
+          "Stay in the group without community alerts.",
       "community_unmute_notifications": "Unmute notifications",
       "community_edit_challenge": "Edit challenge",
       "community_delete_challenge": "Delete challenge",
@@ -3293,6 +3295,8 @@ class AppLocalizations {
       "community_no_challenges": "لا توجد تحديات حالياً",
       "community_view_progress": "عرض تفاصيل التقدم",
       "community_mute_notifications": "كتم الإشعارات",
+      "community_mute_notifications_body":
+          "ابقَ في المجموعة دون تلقي تنبيهات المجتمع.",
       "community_unmute_notifications": "إلغاء كتم الإشعارات",
       "community_edit_challenge": "تعديل التحدي",
       "community_delete_challenge": "حذف التحدي",

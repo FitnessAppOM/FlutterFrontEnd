@@ -18,10 +18,13 @@ class CardioShareService {
   );
 
   static Future<bool> ensurePhotoPermission() async {
-    final photos = await Permission.photos.request();
-    if (photos.isGranted) return true;
-    final storage = await Permission.storage.request();
-    return storage.isGranted;
+    if (Platform.isAndroid) {
+      // Saving an app-created image through MediaStore does not require broad
+      // read access on modern Android versions.
+      return true;
+    }
+    final photos = await Permission.photosAddOnly.request();
+    return photos.isGranted || photos.isLimited;
   }
 
   static Future<Uint8List?> capturePng(

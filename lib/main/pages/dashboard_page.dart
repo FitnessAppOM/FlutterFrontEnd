@@ -144,6 +144,7 @@ class DashboardPage extends StatefulWidget {
 
 class DashboardPageState extends State<DashboardPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static final bool _showReleaseNotesOnLaunch = false;
   static const int _journalResetHour = 6;
   static const String _journalPromptShownKey =
       "daily_journal_prompt_shown_date_6am";
@@ -725,7 +726,9 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
     if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
-    await ReleaseNotesNotice.showIfNeeded(context);
+    if (_showReleaseNotesOnLaunch) {
+      await ReleaseNotesNotice.showIfNeeded(context);
+    }
     if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
     await _maybeShowDailyJournalPrompt();
   }

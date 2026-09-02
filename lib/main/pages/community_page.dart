@@ -111,9 +111,7 @@ String _localizedCommunityCount(
   int count,
   String oneKey,
   String manyKey,
-) => t
-    .translate(count == 1 ? oneKey : manyKey)
-    .replaceAll('{count}', '$count');
+) => t.translate(count == 1 ? oneKey : manyKey).replaceAll('{count}', '$count');
 
 String _localizedCommunityChallengeRule(
   AppLocalizations t,
@@ -135,7 +133,9 @@ String _localizedCommunityChallengeRule(
 }
 
 class CommunityPage extends StatefulWidget {
-  const CommunityPage({super.key});
+  const CommunityPage({super.key, this.initialGroupId});
+
+  final int? initialGroupId;
 
   @override
   State<CommunityPage> createState() => _CommunityPageState();
@@ -158,6 +158,17 @@ class _CommunityPageState extends State<CommunityPage> {
     super.initState();
     unawaited(_loadCachedCommunityName());
     _loadInitial();
+    final initialGroupId = widget.initialGroupId;
+    if (initialGroupId != null && initialGroupId > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => CommunityGroupDetailPage(groupId: initialGroupId),
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _loadCachedCommunityName() async {
@@ -1544,6 +1555,8 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               ),
               const SizedBox(height: 16),
               TaqaMuteNotificationsCard(
+                title: t.translate('community_mute_notifications'),
+                description: t.translate('community_mute_notifications_body'),
                 value: _groupNotificationsMuted,
                 onChanged: detail.isJoined ? _toggleNotifications : null,
               ),
@@ -1595,9 +1608,10 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
               ),
               const SizedBox(height: 16),
               TaqaLeaderboardCard(
-                metricLabel: detail.leaderboardSummary.metric.replaceAll(
-                  '_',
-                  ' ',
+                title: t.translate('community_leaderboard'),
+                metricLabel: _localizedCommunityCode(
+                  t,
+                  detail.leaderboardSummary.metric,
                 ),
                 topEntries: detail.leaderboardSummary.items
                     .take(3)
@@ -2657,11 +2671,7 @@ class _CommunityBadgeCard extends StatelessWidget {
 }
 
 class CommunityAdminReportsPage extends StatefulWidget {
-  const CommunityAdminReportsPage({
-    super.key,
-    this.groupId,
-    this.title,
-  });
+  const CommunityAdminReportsPage({super.key, this.groupId, this.title});
 
   final int? groupId;
   final String? title;
@@ -2721,7 +2731,8 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   }
 
   Future<void> _review(CommunityReport report, String status) async {
-    if (_pendingReportIds.contains(report.reportId) || report.status == status) {
+    if (_pendingReportIds.contains(report.reportId) ||
+        report.status == status) {
       return;
     }
     setState(() => _pendingReportIds.add(report.reportId));
@@ -2763,10 +2774,7 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
           status: action,
         );
       }
-      await CommunityService.reviewReport(
-        report.reportId,
-        status: 'resolved',
-      );
+      await CommunityService.reviewReport(report.reportId, status: 'resolved');
       if (!mounted) return;
       AppToast.show(
         context,
@@ -2855,38 +2863,50 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
                       if (report.status != 'reviewing')
                         TaqaCommunityReportAction(
                           label: t.translate('community_review'),
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _review(report, 'reviewing'),
                         ),
                       if (report.status != 'dismissed')
                         TaqaCommunityReportAction(
                           label: t.translate('community_dismiss'),
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _review(report, 'dismissed'),
                         ),
                       if (report.status != 'resolved')
                         TaqaCommunityReportAction(
                           label: t.translate('community_resolve'),
                           isPrimary: true,
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _review(report, 'resolved'),
                         ),
                       if (report.targetType == 'feed_item')
                         TaqaCommunityReportAction(
                           label: t.translate('community_hide_item'),
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _moderate(report, 'hidden'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
                           label: t.translate('community_block_comment'),
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _moderate(report, 'blocked'),
                         ),
                       if (report.targetType == 'comment')
                         TaqaCommunityReportAction(
                           label: t.translate('community_delete_comment'),
-                          isEnabled: !_pendingReportIds.contains(report.reportId),
+                          isEnabled: !_pendingReportIds.contains(
+                            report.reportId,
+                          ),
                           onTap: () => _moderate(report, 'deleted'),
                         ),
                     ],
@@ -3921,7 +3941,7 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
       if (!mounted) return;
       AppToast.show(
         context,
-        'Leaderboard metric updated.',
+        AppLocalizations.of(context).translate('community_metric_updated'),
         type: AppToastType.success,
       );
       await _refresh();
@@ -5407,7 +5427,9 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                     onTap: () => Navigator.pop(ctx),
                                     child: Center(
                                       child: Text(
-                                        t.translate('common_cancel').toUpperCase(),
+                                        t
+                                            .translate('common_cancel')
+                                            .toUpperCase(),
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
@@ -5460,7 +5482,9 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                       child: Center(
                                         child: Text(
                                           (existing == null
-                                                  ? t.translate('community_create')
+                                                  ? t.translate(
+                                                      'community_create',
+                                                    )
                                                   : t.translate('common_save'))
                                               .toUpperCase(),
                                           style: TextStyle(

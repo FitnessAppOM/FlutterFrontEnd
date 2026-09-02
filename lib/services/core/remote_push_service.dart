@@ -132,6 +132,7 @@ class RemotePushService {
       'coach_id',
       'coachId',
     ]);
+    final groupId = _firstIntFromKeys(data, const ['group_id', 'groupId']);
     final senderRole =
         (data['sender_role'] ??
                 data['senderRole'] ??
@@ -147,6 +148,7 @@ class RemotePushService {
       senderRole: senderRole,
       clientUserId: clientUserId,
       coachUserId: coachUserId,
+      groupId: groupId,
     );
   }
 

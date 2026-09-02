@@ -760,6 +760,7 @@ class NotificationService {
     int? senderUserId;
     int? clientUserId;
     int? coachUserId;
+    int? groupId;
     String? senderRole;
     try {
       final decoded = jsonDecode(raw);
@@ -790,6 +791,7 @@ class NotificationService {
           'coach_id',
           'coachId',
         ]);
+        groupId = _firstIntFromMap(map, const ['group_id', 'groupId']);
         senderRole =
             (map['sender_role'] ??
                     map['senderRole'] ??
@@ -809,6 +811,7 @@ class NotificationService {
       senderRole: senderRole,
       clientUserId: clientUserId,
       coachUserId: coachUserId,
+      groupId: groupId,
     );
   }
 

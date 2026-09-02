@@ -77,8 +77,8 @@ class TaqaLeaderboardCard extends StatelessWidget {
               borderRadius: TaqaUiStyles.communityGroupCardRadius,
               child: Stack(
                 children: [
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
                     top: titleTop,
                     width: contentWidth,
                     child: Text(
@@ -88,8 +88,8 @@ class TaqaLeaderboardCard extends StatelessWidget {
                       style: TaqaUiStyles.communityGroupCardName,
                     ),
                   ),
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
                     top: listTop,
                     width: contentWidth,
                     child: Text(
@@ -100,19 +100,20 @@ class TaqaLeaderboardCard extends StatelessWidget {
                     ),
                   ),
                   for (var i = 0; i < math.min(topEntries.length, 3); i++) ...[
-                    Positioned(
-                      left: contentLeft,
+                    PositionedDirectional(
+                      start: contentLeft,
                       top: listTop + entryTops[i],
                       width: rankWidth,
                       child: Text(
                         '#${topEntries[i].rank}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        textDirection: TextDirection.ltr,
                         style: TaqaUiStyles.communityLeaderboardNames,
                       ),
                     ),
-                    Positioned(
-                      left: nameLeft,
+                    PositionedDirectional(
+                      start: nameLeft,
                       top: listTop + entryTops[i],
                       width: nameWidth,
                       child: Text(

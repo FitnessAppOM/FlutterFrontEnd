@@ -38,13 +38,13 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
         );
 
         final contentLeft = TaqaUiScale.w(14) * layoutScale;
-        final contentWidth = cardWidth - (contentLeft * 2);
         final titleTop = TaqaUiScale.h(17) * layoutScale;
         final descriptionTop = TaqaUiScale.h(38) * layoutScale;
         final trackWidth = TaqaUiScale.w(38) * layoutScale;
         final trackHeight = TaqaUiScale.h(20) * layoutScale;
         final thumbInset = TaqaUiScale.w(2) * layoutScale;
         final switchTop = TaqaUiScale.h(23) * layoutScale;
+        final textEnd = contentLeft + trackWidth + TaqaUiScale.w(10);
 
         return SizedBox(
           width: cardWidth,
@@ -57,10 +57,10 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
               borderRadius: TaqaUiStyles.communityGroupCardRadius,
               child: Stack(
                 children: [
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
+                    end: textEnd,
                     top: titleTop,
-                    width: contentWidth,
                     child: Text(
                       title,
                       maxLines: 1,
@@ -68,10 +68,10 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                       style: TaqaUiStyles.communityGroupCardName,
                     ),
                   ),
-                  Positioned(
-                    left: contentLeft,
+                  PositionedDirectional(
+                    start: contentLeft,
+                    end: textEnd,
                     top: descriptionTop,
-                    width: contentWidth,
                     child: Text(
                       description,
                       maxLines: 1,
@@ -79,8 +79,8 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                       style: TaqaUiStyles.communityGroupCardDescription,
                     ),
                   ),
-                  Positioned(
-                    right: contentLeft,
+                  PositionedDirectional(
+                    end: contentLeft,
                     top: switchTop,
                     child: IgnorePointer(
                       child: AnimatedContainer(
