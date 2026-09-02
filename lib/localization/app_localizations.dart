@@ -181,6 +181,8 @@ class AppLocalizations {
       "update_later": "You can always update your answers later.",
       "save_success": "Questionnaire saved successfully",
       "save_error": "Error saving questionnaire",
+      "profile_questionnaire_missing":
+          "We couldn’t find your profile questionnaire. Please contact support so we can restore your plan data.",
       "user_missing": "User ID missing – login again",
       "not_set": "Not set",
       "set_button": "Set",
@@ -683,6 +685,8 @@ class AppLocalizations {
       "training_plan": "Training plan",
       "training_week_of": "Week of {date}",
       "training_ig_sticker": "IG Sticker",
+      "training_instagram_share_failed":
+          "Instagram isn't installed or couldn't be opened.",
       "training_cardio_achievement": "Cardio achievement",
       "training_notification_title": "Training • {name}",
       "training_notification_timer": "Timer {time} • {sets} × {reps}",
@@ -2675,6 +2679,8 @@ class AppLocalizations {
       "section_lifestyle_sub": "النوم، الضغط، أي حالات صحية.",
 
       "start_questionnaire": "ابدأ الاستبيان",
+      "profile_questionnaire_missing":
+          "لم نتمكن من العثور على استبيان ملفك الشخصي. يرجى التواصل مع الدعم لاستعادة بيانات خطتك.",
       "update_later": "يمكنك تعديل إجاباتك لاحقًا.",
       "save_success": "تم حفظ الاستبيان بنجاح",
       "save_error": "حدث خطأ أثناء الحفظ",
@@ -2908,7 +2914,7 @@ class AppLocalizations {
       "notification_channel_description": "التذكيرات والإشعارات المجدولة.",
       "notification_test_suffix": "اختبار",
       "notification_new_title": "إشعار جديد",
-      "journal_notification_title": "اليوميات اليومية",
+      "journal_notification_title": "المفكرة",
       "journal_notification_body":
           "يرجى إكمال يومياتك اليومية إذا لم تكن قد أكملتها بعد.",
       "journal_notification_test_body": "تذكير بإكمال يومياتك اليومية.",
@@ -3168,6 +3174,7 @@ class AppLocalizations {
       "training_plan": "خطة التدريب",
       "training_week_of": "أسبوع {date}",
       "training_ig_sticker": "ملصق Instagram",
+      "training_instagram_share_failed": "Instagram غير مثبت أو تعذر فتحه.",
       "training_cardio_achievement": "إنجاز الكارديو",
       "training_notification_title": "تدريب • {name}",
       "training_notification_timer": "المؤقت {time} • {sets} × {reps}",

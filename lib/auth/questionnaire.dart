@@ -12,6 +12,7 @@ import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../screens/generating_training_screen.dart';
+import '../main/main_layout.dart';
 import '../screens/welcome.dart';
 import '../services/auth/profile_service.dart';
 import 'expert_questionnaire.dart';
@@ -178,12 +179,24 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
             type: AppToastType.success,
           );
           await AccountStorage.setQuestionnaireDone(true);
-          await AccountStorage.setSubscriptionRequired(true);
+          final isCoach = await AccountStorage.isExpert();
+          final needsExpertQuestionnaire =
+              isCoach && !await AccountStorage.isExpertQuestionnaireDone();
+          if (!isCoach) {
+            await AccountStorage.setSubscriptionRequired(true);
+          }
           if (!mounted) return;
 
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
+            MaterialPageRoute(
+              builder: (_) {
+                if (!isCoach) return const GeneratingTrainingScreen();
+                return needsExpertQuestionnaire
+                    ? const ExpertQuestionnairePage()
+                    : const MainLayout(initialIndex: MainLayout.coachTabIndex);
+              },
+            ),
             (route) => false,
           );
         } catch (e) {
@@ -237,7 +250,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
       await AccountStorage.setCoachApplicationStatus(null);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const ExpertQuestionnairePage()),
+        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
       );
     } catch (e) {
       if (!mounted) return;

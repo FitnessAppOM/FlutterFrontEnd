@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import '../../auth/expert_questionnaire.dart';
 import '../../auth/questionnaire.dart';
 import '../../auth/referral_onboarding_page.dart';
 import '../../config/base_url.dart';
@@ -48,20 +47,20 @@ class _BootGateState extends State<BootGate> {
         profile["filled_expert_questionnaire"] == true;
     final isApprovedExpert = profile["is_expert"] == true;
     final isCoachAccount = AccountType.isCoach(profile);
+    final approvedCoach = AccountType.isApprovedCoach(profile);
     final applicationStatus = (profile['expert_profile_status'] ?? '')
         .toString()
         .trim()
         .toLowerCase();
-    final hasData =
-        expertQuestionnaireDone ||
-        serverDone ||
-        profile['has_questionnaire_data'] == true;
+    final hasData = serverDone;
     await Future.wait<void>([
       AccountStorage.setQuestionnaireDone(serverDone),
-      AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone),
+      AccountStorage.setExpertQuestionnaireDone(
+        expertQuestionnaireDone || approvedCoach,
+      ),
       AccountStorage.setIsExpert(isCoachAccount),
       AccountStorage.setCoachApplicationStatus(
-        expertQuestionnaireDone
+        expertQuestionnaireDone || approvedCoach
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
             : null,
       ),
@@ -124,9 +123,7 @@ class _BootGateState extends State<BootGate> {
         MaterialPageRoute(
           builder: (_) => referralOnboardingIfNeeded(
             profile: profile,
-            nextPage: isCoachAccount
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
+            nextPage: const QuestionnairePage(),
           ),
         ),
         (route) => false,
@@ -137,6 +134,7 @@ class _BootGateState extends State<BootGate> {
   DateTime? _startupSubscriptionExpiresAt;
 
   Future<void> _navigateOfflineMain() async {
+    final questionnaireDone = await AccountStorage.isQuestionnaireDone();
     final cachedAccess = await AccountStorage.cachedSubscriptionAccessAllowed();
     // An unknown legacy cache is not proof of paid access. Existing installs
     // must reconnect once to create the dated, server-verified snapshot.
@@ -145,8 +143,11 @@ class _BootGateState extends State<BootGate> {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            MainLayout(initialSubscriptionRequired: cachedSubscriptionRequired),
+        builder: (_) => questionnaireDone
+            ? MainLayout(
+                initialSubscriptionRequired: cachedSubscriptionRequired,
+              )
+            : const QuestionnairePage(),
       ),
       (route) => false,
     );

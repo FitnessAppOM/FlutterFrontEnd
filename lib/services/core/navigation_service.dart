@@ -199,6 +199,10 @@ class NavigationService {
       await navigateToExpertDashboard(fromNotification: true);
       return true;
     }
+    if (type == 'coach_client_assignment') {
+      await navigateToExpertDashboard(fromNotification: true);
+      return true;
+    }
     if (type == 'coach_application_decision') {
       nav.pushAndRemoveUntil(
         MaterialPageRoute(
@@ -327,6 +331,13 @@ class NavigationService {
       );
     }
     if (type == 'expert_ai_updates') {
+      return MainLayout(
+        initialIndex: MainLayout.coachTabIndex,
+        autoOpenExpertDashboard: true,
+        initialSubscriptionRequired: initialSubscriptionRequired,
+      );
+    }
+    if (type == 'coach_client_assignment') {
       return MainLayout(
         initialIndex: MainLayout.coachTabIndex,
         autoOpenExpertDashboard: true,

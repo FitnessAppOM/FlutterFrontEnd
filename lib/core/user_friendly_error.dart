@@ -23,6 +23,15 @@ String userFriendlyErrorMessage(Object error, {String? fallback}) {
   return _localizedKnownError(t, raw) ?? raw;
 }
 
+bool isMissingQuestionnaireError(Object error) {
+  final raw = error
+      .toString()
+      .replaceFirst('Exception: ', '')
+      .trim()
+      .toLowerCase();
+  return raw.contains('no questionnaire found');
+}
+
 String? _localizedKnownError(AppLocalizations t, String message) {
   switch (message.trim().toLowerCase()) {
     case 'failed to delete account':
@@ -35,6 +44,9 @@ String? _localizedKnownError(AppLocalizations t, String message) {
       return t.translate('account_restore_expired');
     case 'account not found':
       return t.translate('account_not_found');
+    case 'no questionnaire found':
+    case 'no questionnaire found for user':
+      return t.translate('profile_questionnaire_missing');
     case 'request failed':
       return t.translate('account_request_failed');
     case 'reactivation failed':

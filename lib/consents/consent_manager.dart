@@ -141,11 +141,13 @@ class ConsentManager {
     }
 
     if (Platform.isIOS) {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.whileInUse) {
-        perm = await Geolocator.requestPermission();
-      }
-      return perm == LocationPermission.always;
+      // Geolocator only asks for "While Using" on iOS and will not upgrade an
+      // existing foreground grant. Permission Handler issues the required
+      // requestAlwaysAuthorization call after foreground permission exists.
+      final bgStatus = await Permission.locationAlways.status;
+      if (bgStatus.isGranted) return true;
+      final res = await Permission.locationAlways.request();
+      return res.isGranted;
     }
 
     return true;

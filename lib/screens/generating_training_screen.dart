@@ -43,6 +43,8 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   }
 
   Future<void> _generateTraining() async {
+    // Keep the bolt visible while an automatic retry is queued.
+    var retryScheduled = false;
     setState(() {
       _isGenerating = true;
       _error = null;
@@ -66,8 +68,9 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       // Refresh local program cache to reset progress for the new plan.
       bool synced = false;
       try {
-        await TrainingService.fetchActiveProgram(userId)
-            .timeout(const Duration(seconds: 20));
+        await TrainingService.fetchActiveProgram(
+          userId,
+        ).timeout(const Duration(seconds: 20));
         synced = true;
       } on TrainingGenerationInProgressException {
         // If current endpoint still races, poll once more and fetch again.
@@ -76,8 +79,9 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
           pollInterval: _pollInterval,
           timeout: const Duration(seconds: 30),
         );
-        await TrainingService.fetchActiveProgram(userId)
-            .timeout(const Duration(seconds: 20));
+        await TrainingService.fetchActiveProgram(
+          userId,
+        ).timeout(const Duration(seconds: 20));
         synced = true;
       } catch (_) {
         // ignore; we'll clear progress cache below
@@ -108,22 +112,27 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         AppToast.show(context, msg, type: AppToastType.error);
       }
 
+      final canRetry = !isMissingQuestionnaireError(e);
+      final isFinalAttempt = !canRetry || _retryCount + 1 >= _maxRetries;
+
       setState(() {
-        _error = shouldShowToast && msg.isNotEmpty ? msg : null;
+        _error = (shouldShowToast || isFinalAttempt) && msg.isNotEmpty
+            ? msg
+            : null;
       });
 
       _retryCount++;
 
-      if (_retryCount < _maxRetries) {
-        Future.delayed(
-          Duration(seconds: 2 * _retryCount),
-              () {
-            if (mounted) _generateTraining();
-          },
-        );
+      if (canRetry && _retryCount < _maxRetries) {
+        retryScheduled = true;
+        Future.delayed(Duration(seconds: 2 * _retryCount), () {
+          if (mounted) _generateTraining();
+        });
+      } else {
+        _retryCount = _maxRetries;
       }
     } finally {
-      if (mounted) {
+      if (mounted && !retryScheduled) {
         setState(() => _isGenerating = false);
       }
     }
@@ -137,8 +146,9 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         pollInterval: _pollInterval,
         timeout: const Duration(seconds: 20),
       );
-      await TrainingService.fetchActiveProgram(userId)
-          .timeout(const Duration(seconds: 20));
+      await TrainingService.fetchActiveProgram(
+        userId,
+      ).timeout(const Duration(seconds: 20));
       AccountStorage.notifyTrainingChanged();
       if (!mounted) return true;
       await _continueToSubscription();

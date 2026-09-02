@@ -16,10 +16,7 @@ import '../core/user_friendly_error.dart';
 /// Shown after editing profile when training days change.
 /// Saves the profile first, then regenerates training + diet.
 class UpdatingPlanScreen extends StatefulWidget {
-  const UpdatingPlanScreen({
-    super.key,
-    required this.profilePayload,
-  });
+  const UpdatingPlanScreen({super.key, required this.profilePayload});
 
   final Map<String, dynamic> profilePayload;
 
@@ -68,6 +65,10 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
   }
 
   Future<void> _run() async {
+    // A failed attempt can be retried automatically. Keep the bolt visible
+    // during that pause instead of falling through to the non-loading status
+    // screen between attempts.
+    var retryScheduled = false;
     setState(() {
       _isWorking = true;
       _error = null;
@@ -80,7 +81,9 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       if (userId == null) throw Exception("User not found");
 
       // Save profile first. Backend may now accept async training generation.
-      final response = await ProfileApi.updateProfile(widget.profilePayload).timeout(_requestTimeout);
+      final response = await ProfileApi.updateProfile(
+        widget.profilePayload,
+      ).timeout(_requestTimeout);
       if (!mounted) return;
       await AccountStorage.clearProfileEditBlockedUntil();
 
@@ -111,8 +114,9 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       // Refresh local program cache to reset progress for the new plan.
       bool synced = false;
       try {
-        await TrainingService.fetchActiveProgram(userId)
-            .timeout(const Duration(seconds: 20));
+        await TrainingService.fetchActiveProgram(
+          userId,
+        ).timeout(const Duration(seconds: 20));
         synced = true;
       } on TrainingGenerationInProgressException {
         await TrainingService.waitForGenerationToComplete(
@@ -120,8 +124,9 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
           pollInterval: _pollInterval,
           timeout: const Duration(seconds: 30),
         );
-        await TrainingService.fetchActiveProgram(userId)
-            .timeout(const Duration(seconds: 20));
+        await TrainingService.fetchActiveProgram(
+          userId,
+        ).timeout(const Duration(seconds: 20));
         synced = true;
       } catch (_) {}
       if (!synced) {
@@ -141,7 +146,8 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       if (!mounted) return;
 
       // Diet is regenerating in background
-      final dietPending = response['diet_pending'] == true ||
+      final dietPending =
+          response['diet_pending'] == true ||
           response['diet_needs_regeneration'] == true;
       if (dietPending) {
         DietRegenerationFlag.setRegenerating();
@@ -184,22 +190,31 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       final msg = userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
       final shouldShowToast = elapsed >= _toastThreshold;
+      final canRetry = !isMissingQuestionnaireError(e);
+      final isFinalAttempt = !canRetry || _retryCount + 1 >= _maxRetries;
       if (shouldShowToast && msg.isNotEmpty) {
         AppToast.show(context, msg, type: AppToastType.error);
       }
 
       setState(() {
-        _error = shouldShowToast && msg.isNotEmpty ? msg : null;
+        _error = (shouldShowToast || isFinalAttempt) && msg.isNotEmpty
+            ? msg
+            : null;
       });
 
       _retryCount++;
-      if (_retryCount < _maxRetries) {
+      if (canRetry && _retryCount < _maxRetries) {
+        retryScheduled = true;
         Future.delayed(Duration(seconds: 2 * _retryCount), () {
           if (mounted) _run();
         });
+      } else {
+        _retryCount = _maxRetries;
       }
     } finally {
-      if (mounted) setState(() => _isWorking = false);
+      if (mounted && !retryScheduled) {
+        setState(() => _isWorking = false);
+      }
     }
   }
 
@@ -211,7 +226,9 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
         pollInterval: _pollInterval,
         timeout: const Duration(seconds: 20),
       );
-      await TrainingService.fetchActiveProgram(userId).timeout(const Duration(seconds: 20));
+      await TrainingService.fetchActiveProgram(
+        userId,
+      ).timeout(const Duration(seconds: 20));
       AccountStorage.notifyTrainingChanged();
       if (!mounted) return true;
       DietRegenerationFlag.setRegenerating();
@@ -237,9 +254,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
         canPop: _cooldownBlocked,
         child: Scaffold(
           backgroundColor: TaqaBoltLoadingScreen.background,
-          body: TaqaBoltLoadingScreen(
-            note: t.translate("updating_plan_note"),
-          ),
+          body: TaqaBoltLoadingScreen(note: t.translate("updating_plan_note")),
         ),
       );
     }

@@ -18,7 +18,6 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../auth/questionnaire.dart';
-import '../auth/expert_questionnaire.dart';
 import '../screens/daily_journal.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
@@ -286,12 +285,12 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
           profile["filled_expert_questionnaire"] == true;
       final isApprovedExpert = profile["is_expert"] == true;
       final isCoachAccount = AccountType.isCoach(profile);
-      final hasData =
-          expertQuestionnaireDone ||
-          serverDone ||
-          _hasQuestionnaireData(profile);
+      final approvedCoach = AccountType.isApprovedCoach(profile);
+      final hasData = serverDone;
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setExpertQuestionnaireDone(
+        expertQuestionnaireDone || approvedCoach,
+      );
       await AccountStorage.setIsExpert(isCoachAccount);
       if (!mounted) return;
       if (hasData) {
@@ -328,40 +327,23 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
       } else {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (_) => isCoachAccount
-                ? const ExpertQuestionnairePage()
-                : const QuestionnairePage(),
-          ),
+          MaterialPageRoute(builder: (_) => const QuestionnairePage()),
           (_) => false,
         );
       }
     } catch (_) {
+      final questionnaireDone = await AccountStorage.isQuestionnaireDone();
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
+        MaterialPageRoute(
+          builder: (_) => questionnaireDone
+              ? const MainLayout()
+              : const QuestionnairePage(),
+        ),
         (_) => false,
       );
     }
-  }
-
-  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
-    const keys = [
-      "age",
-      "fitness_goal",
-      "training_days",
-      "diet_type",
-      "height_cm",
-      "weight_kg",
-      "sex",
-    ];
-    return keys.any((k) {
-      final v = profile[k];
-      if (v == null) return false;
-      final s = v.toString().trim();
-      return s.isNotEmpty && s != "null";
-    });
   }
 
   @override

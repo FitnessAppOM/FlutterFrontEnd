@@ -19,6 +19,7 @@ import '../localization/app_localizations.dart'; //  ADDED
 import 'email_verification_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../core/account_storage.dart';
+import '../core/account_type.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import 'referral_onboarding_page.dart';
@@ -330,14 +331,17 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData =
-          expertQuestionnaireDone ||
-          serverDone ||
-          _hasQuestionnaireData(profile);
+      final approvedCoach = AccountType.isApprovedCoach(profile);
+      final hasData = serverDone;
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setExpertQuestionnaireDone(
+        expertQuestionnaireDone || approvedCoach,
+      );
       if (!mounted) return;
-      if (widget.isExpert && !expertQuestionnaireDone) {
+      if (serverDone &&
+          widget.isExpert &&
+          !expertQuestionnaireDone &&
+          !approvedCoach) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -362,9 +366,7 @@ class _SignupPageState extends State<SignupPage> {
           MaterialPageRoute(
             builder: (_) => referralOnboardingIfNeeded(
               profile: profile,
-              nextPage: widget.isExpert
-                  ? const ExpertQuestionnairePage()
-                  : const QuestionnairePage(),
+              nextPage: const QuestionnairePage(),
             ),
           ),
           (route) => false,
@@ -376,14 +378,8 @@ class _SignupPageState extends State<SignupPage> {
         context,
         MaterialPageRoute(
           builder: (_) => result['is_new_user'] == true
-              ? ReferralOnboardingPage(
-                  nextPage: widget.isExpert
-                      ? const ExpertQuestionnairePage()
-                      : const QuestionnairePage(),
-                )
-              : widget.isExpert
-                  ? const ExpertQuestionnairePage()
-                  : const QuestionnairePage(),
+              ? ReferralOnboardingPage(nextPage: const QuestionnairePage())
+              : const QuestionnairePage(),
         ),
         (route) => false,
       );
@@ -473,14 +469,17 @@ class _SignupPageState extends State<SignupPage> {
       final serverDone = profile["filled_user_questionnaire"] == true;
       final expertQuestionnaireDone =
           profile["filled_expert_questionnaire"] == true;
-      final hasData =
-          expertQuestionnaireDone ||
-          serverDone ||
-          _hasQuestionnaireData(profile);
+      final approvedCoach = AccountType.isApprovedCoach(profile);
+      final hasData = serverDone;
       await AccountStorage.setQuestionnaireDone(serverDone);
-      await AccountStorage.setExpertQuestionnaireDone(expertQuestionnaireDone);
+      await AccountStorage.setExpertQuestionnaireDone(
+        expertQuestionnaireDone || approvedCoach,
+      );
       if (!mounted) return;
-      if (widget.isExpert && !expertQuestionnaireDone) {
+      if (serverDone &&
+          widget.isExpert &&
+          !expertQuestionnaireDone &&
+          !approvedCoach) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
@@ -505,9 +504,7 @@ class _SignupPageState extends State<SignupPage> {
           MaterialPageRoute(
             builder: (_) => referralOnboardingIfNeeded(
               profile: profile,
-              nextPage: widget.isExpert
-                  ? const ExpertQuestionnairePage()
-                  : const QuestionnairePage(),
+              nextPage: const QuestionnairePage(),
             ),
           ),
           (route) => false,
@@ -519,36 +516,12 @@ class _SignupPageState extends State<SignupPage> {
         context,
         MaterialPageRoute(
           builder: (_) => result['is_new_user'] == true
-              ? ReferralOnboardingPage(
-                  nextPage: widget.isExpert
-                      ? const ExpertQuestionnairePage()
-                      : const QuestionnairePage(),
-                )
-              : widget.isExpert
-                  ? const ExpertQuestionnairePage()
-                  : const QuestionnairePage(),
+              ? ReferralOnboardingPage(nextPage: const QuestionnairePage())
+              : const QuestionnairePage(),
         ),
         (route) => false,
       );
     }
-  }
-
-  bool _hasQuestionnaireData(Map<String, dynamic> profile) {
-    const keys = [
-      "age",
-      "fitness_goal",
-      "training_days",
-      "diet_type",
-      "height_cm",
-      "weight_kg",
-      "sex",
-    ];
-    return keys.any((k) {
-      final v = profile[k];
-      if (v == null) return false;
-      final s = v.toString().trim();
-      return s.isNotEmpty && s != "null";
-    });
   }
 
   Widget _buildPasswordRequirements(AppLocalizations t) {
