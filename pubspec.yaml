@@ -2,7 +2,11 @@ name: taqaproject
 description: "A new Flutter project."
 publish_to: 'none'
 
+<<<<<<< HEAD
 version: 1.0.45+24
+=======
+version: 1.0.43+23
+>>>>>>> 561333c (Save local changes)
 
 environment:
   sdk: ^3.10.0
@@ -14,11 +18,6 @@ dependencies:
   # Localization
   flutter_localizations:
     sdk: flutter
-
-  # ATT (iOS)
-  app_tracking_transparency: ^2.0.4
-
-  # UMP (GDPR consent)
 
   # Notifications (iOS + Android 13+)
   firebase_messaging: ^15.0.0

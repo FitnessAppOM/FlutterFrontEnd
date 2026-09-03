@@ -3,9 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// ATT (iOS)
-import 'package:app_tracking_transparency/app_tracking_transparency.dart';
-
 // Notifications
 import 'package:firebase_messaging/firebase_messaging.dart';
 
@@ -55,28 +52,11 @@ class ConsentManager {
   // STARTUP (call once)
   // ---------------------------------------------------------------------------
   static Future<void> requestStartupConsents() async {
-    await _requestATTIfAvailable(); // iOS tracking (IDFA)
     await _requestNotifications(); // Push permission
     await ensureHealthConnectInstalled(); // Prompt Health Connect on Android if missing
     // Ask for every Dashboard health scope in one HealthKit/Health Connect
     // authorization sheet. Individual metric services reuse this request.
     await requestAllHealth();
-  }
-
-  // ---------------------------------------------------------------------------
-  // ATT — App Tracking Transparency (iOS only)
-  // ---------------------------------------------------------------------------
-  static Future<void> _requestATTIfAvailable() async {
-    if (!Platform.isIOS) return;
-    try {
-      final status = await AppTrackingTransparency.trackingAuthorizationStatus;
-      if (status == TrackingStatus.notDetermined) {
-        // best practice: call after first frame or slight delay from main()
-        await AppTrackingTransparency.requestTrackingAuthorization();
-      }
-    } catch (_) {
-      /* swallow in release */
-    }
   }
 
   // ---------------------------------------------------------------------------
