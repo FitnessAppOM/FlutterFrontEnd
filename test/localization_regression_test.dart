@@ -47,6 +47,9 @@ void main() {
       'settings_deactivate_account_failed',
       'account_restore_expired',
       'account_request_failed',
+      'subscription_legal_body',
+      'subscription_terms_of_use',
+      'subscription_privacy_policy',
       'post_purchase_intro_dashboard_explore_title',
     ];
 

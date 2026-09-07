@@ -26,13 +26,15 @@ flutter build ipa \
   --dart-define=TAQA_STUDENT_ANNUAL_SUBSCRIPTION_ID=your.student.annual.id
 ```
 
-Publish public HTTPS pages for both the Terms of Use and Privacy Policy, then
-provide their URLs at build time:
+The subscription screen defaults to the same legal URLs declared in App Store
+Connect:
 
 ```sh
---dart-define=TAQA_TERMS_OF_USE_URL=https://example.com/terms \
---dart-define=TAQA_PRIVACY_POLICY_URL=https://example.com/privacy
+--dart-define=TAQA_TERMS_OF_USE_URL=https://www.apple.com/legal/internet-services/itunes/dev/stdeula/ \
+--dart-define=TAQA_PRIVACY_POLICY_URL=https://taqafitness.com/privacy
 ```
+
+Only override these values when the App Store metadata is updated to match.
 
 The page can be tested with a Sandbox Apple ID on a physical device or via
 TestFlight. Purchases are completed through StoreKit and Restore Purchases is

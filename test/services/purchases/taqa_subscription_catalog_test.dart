@@ -1,0 +1,17 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:taqaproject/services/purchases/taqa_subscription_catalog.dart';
+
+void main() {
+  test('subscription legal links match the App Store metadata', () {
+    final terms = Uri.parse(TaqaSubscriptionCatalog.termsOfUseUrl);
+    final privacy = Uri.parse(TaqaSubscriptionCatalog.privacyPolicyUrl);
+
+    expect(
+      terms,
+      Uri.parse(
+        'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+      ),
+    );
+    expect(privacy, Uri.parse('https://taqafitness.com/privacy'));
+  });
+}

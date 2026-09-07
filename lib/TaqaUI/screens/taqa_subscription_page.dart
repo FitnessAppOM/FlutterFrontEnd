@@ -1174,9 +1174,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (change?.action == 'downgrade_to_standard' ||
         change?.action == 'change_billing_period') {
       final effectiveDate = _googleChangeEffectiveDate(change?.effectiveAt);
-      final timing = effectiveDate == null
-          ? 'your current paid period ends'
-          : effectiveDate;
+      final timing = effectiveDate ?? 'your current paid period ends';
       return 'Your current plan remains active until $timing. The new ${_pricePresentation(product).recurringPrice} plan starts and is charged at the next renewal. Google Play will show the final terms before you confirm.';
     }
     if (change?.action == 'referral_reward') {
@@ -1673,8 +1671,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _setMessage(_tr('subscription_legal_unavailable'));
       return;
     }
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened) _setMessage(_tr('subscription_legal_open_failed'));
+    try {
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened) _setMessage(_tr('subscription_legal_open_failed'));
+    } catch (_) {
+      _setMessage(_tr('subscription_legal_open_failed'));
+    }
   }
 
   Future<void> _showAccountActions() async {
@@ -1922,7 +1924,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                             }),
                       onTap: canSubscribe ? _subscribe : null,
                     ),
-                    SizedBox(height: TaqaUiScale.h(6)),
+                    SizedBox(height: TaqaUiScale.h(4)),
+                    _LegalLinks(onOpen: _openLegalLink),
+                    SizedBox(height: TaqaUiScale.h(2)),
                     TextButton(
                       onPressed: _storeAvailable && !operationInProgress
                           ? _restorePurchases
@@ -1942,8 +1946,6 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       }),
                       style: _bodyStyle,
                     ),
-                    SizedBox(height: TaqaUiScale.h(12)),
-                    _LegalLinks(onOpen: _openLegalLink),
                   ],
                 ),
               ),
@@ -2397,44 +2399,62 @@ class _LegalLinks extends StatelessWidget {
     final t = AppLocalizations.of(context);
     final buttonStyle = TextButton.styleFrom(
       foregroundColor: TaqaUiColors.charcoal,
-      padding: EdgeInsets.zero,
+      padding: TaqaUiScale.insetsLTRB(3, 5, 3, 5),
       minimumSize: Size.zero,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
     final linkStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
-      fontSize: TaqaUiScale.sp(13),
-      fontWeight: FontWeight.w700,
+      fontSize: TaqaUiScale.sp(11.5),
+      fontWeight: FontWeight.w600,
       decoration: TextDecoration.underline,
     );
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: TaqaUiScale.w(10),
-      children: [
-        TextButton(
-          onPressed: () => onOpen(TaqaSubscriptionCatalog.termsOfUseUrl),
-          style: buttonStyle,
-          child: Text(
-            t.translate('subscription_terms_of_use'),
-            style: linkStyle,
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          Text(
+            t.translate('subscription_legal_body'),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: TaqaUiFontFamilies.interTight,
+              fontSize: TaqaUiScale.sp(11.5),
+              height: 15 / 11.5,
+              color: TaqaUiColors.charcoal.withValues(alpha: 0.58),
+            ),
           ),
-        ),
-        Text(
-          '·',
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: TaqaUiScale.w(4),
+            children: [
+              TextButton(
+                onPressed: () => onOpen(TaqaSubscriptionCatalog.termsOfUseUrl),
+                style: buttonStyle,
+                child: Text(
+                  t.translate('subscription_terms_of_use'),
+                  style: linkStyle,
+                ),
+              ),
+              Text(
+                '·',
+                style: TextStyle(
+                  color: TaqaUiColors.charcoal.withValues(alpha: 0.45),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    onOpen(TaqaSubscriptionCatalog.privacyPolicyUrl),
+                style: buttonStyle,
+                child: Text(
+                  t.translate('subscription_privacy_policy'),
+                  style: linkStyle,
+                ),
+              ),
+            ],
           ),
-        ),
-        TextButton(
-          onPressed: () => onOpen(TaqaSubscriptionCatalog.privacyPolicyUrl),
-          style: buttonStyle,
-          child: Text(
-            t.translate('subscription_privacy_policy'),
-            style: linkStyle,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

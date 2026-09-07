@@ -101,7 +101,8 @@ class TaqaSubscriptionCatalog {
 
   static const termsOfUseUrl = String.fromEnvironment(
     'TAQA_TERMS_OF_USE_URL',
-    defaultValue: 'https://taqafitness.com/terms',
+    defaultValue:
+        'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
   );
 
   static const privacyPolicyUrl = String.fromEnvironment(

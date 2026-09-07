@@ -1804,6 +1804,7 @@ class AppLocalizations {
       "subscription_legal_unavailable":
           "This legal page is not available right now.",
       "subscription_legal_open_failed": "This legal page could not be opened.",
+      "subscription_legal_body": "By subscribing, you agree to:",
       "subscription_plan_standard_monthly": "Taqa Fitness Monthly",
       "subscription_plan_standard_annual": "Taqa Fitness Annual",
       "subscription_plan_student_monthly": "Taqa Fitness Student Monthly",
@@ -1854,7 +1855,7 @@ class AppLocalizations {
       "subscription_close": "Close",
       "subscription_plan_picker_body":
           "Every plan includes the same Taqa Subscription features. Tap a plan to select it.",
-      "subscription_terms_of_use": "Terms of Use",
+      "subscription_terms_of_use": "Terms of Use (EULA)",
       "subscription_privacy_policy": "Privacy Policy",
       "settings_delete_account": "Delete account",
       "subscription_account_actions_title": "Account options",
@@ -4266,6 +4267,7 @@ class AppLocalizations {
       "subscription_legal_unavailable":
           "هذه الصفحة القانونية غير متاحة حالياً.",
       "subscription_legal_open_failed": "تعذر فتح الصفحة القانونية.",
+      "subscription_legal_body": "بالاشتراك، فإنك توافق على:",
       "subscription_plan_standard_monthly": "Taqa Fitness الشهرية",
       "subscription_plan_standard_annual": "Taqa Fitness السنوية",
       "subscription_plan_student_monthly": "خطة طلاب Taqa الشهرية",
@@ -4309,7 +4311,7 @@ class AppLocalizations {
       "subscription_close": "إغلاق",
       "subscription_plan_picker_body":
           "تتضمن جميع الخطط مزايا اشتراك Taqa نفسها. اضغط على خطة لاختيارها.",
-      "subscription_terms_of_use": "شروط الاستخدام",
+      "subscription_terms_of_use": "شروط الاستخدام (EULA)",
       "subscription_privacy_policy": "سياسة الخصوصية",
       "settings_delete_account": "حذف الحساب",
       "subscription_account_actions_title": "خيارات الحساب",
