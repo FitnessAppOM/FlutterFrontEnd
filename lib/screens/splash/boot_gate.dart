@@ -14,9 +14,8 @@ import '../../main/main_layout.dart';
 import '../../screens/daily_journal.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
+import '../../services/core/network_status_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
-import '../../TaqaUI/components/taqa_toast.dart';
-import '../../localization/app_localizations.dart';
 import '../../widgets/taqa_bolt_loading_screen.dart';
 import '../account_restore_page.dart';
 import '../welcome.dart';
@@ -134,6 +133,7 @@ class _BootGateState extends State<BootGate> {
   DateTime? _startupSubscriptionExpiresAt;
 
   Future<void> _navigateOfflineMain() async {
+    NetworkStatusService.instance.markOffline();
     final questionnaireDone = await AccountStorage.isQuestionnaireDone();
     final cachedAccess = await AccountStorage.cachedSubscriptionAccessAllowed();
     // An unknown legacy cache is not proof of paid access. Existing installs
@@ -151,18 +151,6 @@ class _BootGateState extends State<BootGate> {
       ),
       (route) => false,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 150), () {
-        final ctx = NavigationService.navigatorKey.currentContext;
-        if (ctx == null || !ctx.mounted) return;
-        final t = AppLocalizations.of(ctx);
-        AppToast.show(
-          ctx,
-          t.translate("offline_mode"),
-          type: AppToastType.info,
-        );
-      });
-    });
   }
 
   Future<StartupBootstrapSnapshot> _fetchStartup(int userId) async {

@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../../core/user_friendly_error.dart';
+import '../core/network_status_service.dart';
+import 'diet_action_queue.dart';
 import 'diet_meals_storage.dart';
 import 'diet_targets_storage.dart';
 
@@ -502,8 +508,26 @@ class DietService {
   static Future<Map<String, dynamic>> deleteMeal({
     required int userId,
     required int mealId,
+    DateTime? date,
     int? trainingDayId,
   }) async {
+    final mealDate = date ?? DateTime.now();
+    if (NetworkStatusService.instance.isOffline) {
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.deleteMeal,
+        body: {'meal_id': mealId},
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectDeleteMeal(
+        mealDate: mealDate,
+        mealId: mealId,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
     final qp = <String, String>{
       'meal_id': mealId.toString(),
       if (trainingDayId != null) 'training_day_id': trainingDayId.toString(),
@@ -512,7 +536,30 @@ class DietService {
       '$baseUrl/diet/meals/$userId',
     ).replace(queryParameters: qp);
     final headers = await AccountStorage.getAuthHeaders();
-    final response = await http.delete(url, headers: headers);
+    late final http.Response response;
+    try {
+      response = await http
+          .delete(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+      NetworkStatusService.instance.reportServerReached();
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.deleteMeal,
+        body: {'meal_id': mealId},
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectDeleteMeal(
+        mealDate: mealDate,
+        mealId: mealId,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
@@ -528,23 +575,68 @@ class DietService {
   }
 
   /// Delete a single item from a meal.
-  static Future<void> deleteMealItem({
+  static Future<bool> deleteMealItem({
     required int userId,
     required int mealItemId,
+    required int mealId,
+    DateTime? date,
+    int? trainingDayId,
   }) async {
+    final mealDate = date ?? DateTime.now();
+    if (NetworkStatusService.instance.isOffline) {
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.deleteMealItem,
+        body: {'meal_id': mealId, 'meal_item_id': mealItemId},
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectDeleteMealItem(
+        mealDate: mealDate,
+        mealItemId: mealItemId,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return false;
+    }
     final headers = await AccountStorage.getAuthHeaders();
 
     // Primary path: /diet/meals/{user_id}/{meal_item_id}
-    var response = await http.delete(
-      Uri.parse('$baseUrl/diet/meals/$userId/$mealItemId'),
-      headers: headers,
-    );
-    if (response.statusCode == 404) {
-      // Fallback path: /diet/meals/{user_id}/items/{meal_item_id}
-      response = await http.delete(
-        Uri.parse('$baseUrl/diet/meals/$userId/items/$mealItemId'),
-        headers: headers,
+    late http.Response response;
+    try {
+      response = await http
+          .delete(
+            Uri.parse('$baseUrl/diet/meals/$userId/$mealItemId'),
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode == 404) {
+        // Fallback path: /diet/meals/{user_id}/items/{meal_item_id}
+        response = await http
+            .delete(
+              Uri.parse('$baseUrl/diet/meals/$userId/items/$mealItemId'),
+              headers: headers,
+            )
+            .timeout(const Duration(seconds: 10));
+      }
+      NetworkStatusService.instance.reportServerReached();
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.deleteMealItem,
+        body: {'meal_id': mealId, 'meal_item_id': mealItemId},
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
       );
+      await DietActionQueue.projectDeleteMealItem(
+        mealDate: mealDate,
+        mealItemId: mealItemId,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return false;
     }
 
     await AccountStorage.handle401(response.statusCode);
@@ -553,6 +645,7 @@ class DietService {
       throw Exception(body['detail'] ?? 'Failed to delete meal item');
     }
     _notifyDietChanged();
+    return true;
   }
 
   static Future<Map<String, dynamic>?> fetchMealsForDateFromCache(
@@ -762,11 +855,15 @@ class DietService {
     required int mealId,
     String? mealName,
     required List<Map<String, dynamic>> ingredients,
+    DateTime? date,
     int? trainingDayId,
   }) async {
     if (ingredients.isEmpty) {
       throw Exception('At least one ingredient is required');
     }
+    final mealDate = date ?? DateTime.now();
+    final mutationId =
+        'diet-$userId-$mealId-${DateTime.now().microsecondsSinceEpoch}';
     final url = Uri.parse('$baseUrl/diet/meals/$userId/items/manual');
     final body = <String, dynamic>{
       'meal_id': mealId,
@@ -774,16 +871,56 @@ class DietService {
         'meal_name': mealName.trim(),
       'ingredients': ingredients,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
+      'client_mutation_id': mutationId,
     };
+    if (NetworkStatusService.instance.isOffline) {
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.manualEntry,
+        body: body,
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectManualEntry(
+        mealDate: mealDate,
+        mealId: mealId,
+        mealName: mealName,
+        ingredients: ingredients,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
     final headers = {
       'Content-Type': 'application/json',
       ...await AccountStorage.getAuthHeaders(),
     };
-    final response = await http.post(
-      url,
-      headers: headers,
-      body: json.encode(body),
-    );
+    late final http.Response response;
+    try {
+      response = await http
+          .post(url, headers: headers, body: json.encode(body))
+          .timeout(const Duration(seconds: 10));
+      NetworkStatusService.instance.reportServerReached();
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.manualEntry,
+        body: body,
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectManualEntry(
+        mealDate: mealDate,
+        mealId: mealId,
+        mealName: mealName,
+        ingredients: ingredients,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
@@ -808,8 +945,10 @@ class DietService {
     String? title,
     String? notes,
     Map<String, int?>? totalsOverride,
+    DateTime? date,
     int? trainingDayId,
   }) async {
+    final mealDate = date ?? DateTime.now();
     final url = Uri.parse('$baseUrl/diet/meals/$userId');
     final body = <String, dynamic>{
       'meal_id': mealId,
@@ -818,15 +957,56 @@ class DietService {
       if (totalsOverride != null) 'totals_override': totalsOverride,
       if (trainingDayId != null) 'training_day_id': trainingDayId,
     };
+    if (NetworkStatusService.instance.isOffline && totalsOverride == null) {
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.updateMeal,
+        body: body,
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectMealUpdate(
+        mealDate: mealDate,
+        mealId: mealId,
+        title: title,
+        notes: notes,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
     final headers = {
       'Content-Type': 'application/json',
       ...await AccountStorage.getAuthHeaders(),
     };
-    final response = await http.patch(
-      url,
-      headers: headers,
-      body: json.encode(body),
-    );
+    late final http.Response response;
+    try {
+      response = await http
+          .patch(url, headers: headers, body: json.encode(body))
+          .timeout(const Duration(seconds: 10));
+      NetworkStatusService.instance.reportServerReached();
+    } catch (error) {
+      // Totals overrides are intentionally online-only. Title/notes changes on
+      // an existing meal are deterministic and safe to replay.
+      if (!isNetworkError(error) || totalsOverride != null) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      await DietActionQueue.enqueue(
+        userId: userId,
+        type: DietActionType.updateMeal,
+        body: body,
+        mealDate: mealDate,
+        trainingDayId: trainingDayId,
+      );
+      await DietActionQueue.projectMealUpdate(
+        mealDate: mealDate,
+        mealId: mealId,
+        title: title,
+        notes: notes,
+        trainingDayId: trainingDayId,
+      );
+      _notifyDietChanged();
+      return {'status': 'queued', 'offline_queued': true};
+    }
 
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {

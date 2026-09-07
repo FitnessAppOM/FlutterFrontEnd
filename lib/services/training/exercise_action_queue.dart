@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/account_storage.dart';
 import 'training_service.dart';
+import '../core/offline_queue_signal.dart';
 
 /// Queues exercise actions for offline sync
 class ExerciseActionQueue {
@@ -90,6 +91,7 @@ class ExerciseActionQueue {
 
     // Save queue
     await sp.setString(queueKey, jsonEncode(existing));
+    OfflineQueueSignal.notifyChanged();
   }
 
   /// Load all queued actions
@@ -98,6 +100,8 @@ class ExerciseActionQueue {
     if (userId == null) return [];
     return await _loadQueue(userId);
   }
+
+  static Future<int> pendingCount() async => (await loadQueue()).length;
 
   static Future<List<Map<String, dynamic>>> _loadQueue(int userId) async {
     final sp = await SharedPreferences.getInstance();
@@ -170,6 +174,7 @@ class ExerciseActionQueue {
       } else {
         await sp.setString(queueKey, jsonEncode(failed));
       }
+      OfflineQueueSignal.notifyChanged();
     } finally {
       _syncing = false;
     }

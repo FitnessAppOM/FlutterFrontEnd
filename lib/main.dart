@@ -24,8 +24,8 @@ import 'services/core/remote_push_service.dart';
 import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
 import 'services/core/daily_provider_push_service.dart';
-import 'services/training/exercise_action_queue.dart';
-import 'services/training/cardio_session_queue.dart';
+import 'services/core/network_status_service.dart';
+import 'services/core/offline_sync_coordinator.dart';
 import 'services/training/training_activity_service.dart';
 import 'services/training/training_service.dart';
 import 'core/account_storage.dart';
@@ -282,6 +282,7 @@ class _MyAppState extends State<MyApp> {
     localeController.addListener(_handleLocaleChange);
     _lifecycleListener.add(_handleLifecycle);
     AccountStorage.accountChange.addListener(_handleAccountChange);
+    unawaited(_initializeOfflineServices());
     unawaited(_runPostStartupWork());
   }
 
@@ -301,7 +302,13 @@ class _MyAppState extends State<MyApp> {
     unawaited(RemotePushService.syncTokenForCurrentUser(force: true));
   }
 
+  Future<void> _initializeOfflineServices() async {
+    await NetworkStatusService.instance.initialize();
+    await OfflineSyncCoordinator.instance.initialize();
+  }
+
   void _handleLifecycle() async {
+    await NetworkStatusService.instance.checkNow();
     _maybeRequestAndroidHealthPermission();
     await _prefetchTrainingHistorySnapshot();
     try {
@@ -311,13 +318,12 @@ class _MyAppState extends State<MyApp> {
       print("DailyMetricsSync resume push skipped: $e");
     }
 
-    // Sync queued exercise actions when app resumes
+    // Sync every registered offline queue when app resumes.
     try {
-      await ExerciseActionQueue.syncQueue();
-      await CardioSessionQueue.syncQueue();
+      await OfflineSyncCoordinator.instance.syncNow();
     } catch (e) {
       // ignore: avoid_print
-      print("ExerciseActionQueue sync skipped: $e");
+      print("Offline queue sync skipped: $e");
     }
     await NotificationService.refreshDailyJournalRemindersForCurrentUser();
     await NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
@@ -337,6 +343,11 @@ class _MyAppState extends State<MyApp> {
         .catchError((_) {});
     _maybeRequestAndroidHealthPermission();
     unawaited(_prefetchTrainingHistorySnapshot(force: true));
+    await OfflineSyncCoordinator.instance.refreshPendingCount();
+    if (NetworkStatusService.instance.isOnline &&
+        OfflineSyncCoordinator.instance.pendingCount > 0) {
+      unawaited(OfflineSyncCoordinator.instance.syncNow(showSuccess: true));
+    }
   }
 
   Future<void> _runPostStartupWork() async {

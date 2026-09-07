@@ -10,7 +10,7 @@ String userFriendlyErrorMessage(Object error, {String? fallback}) {
   final raw = error.toString().replaceFirst('Exception: ', '').trim();
   if (raw.isEmpty) return fallbackText;
 
-  if (_looksLikeNetworkError(error, raw)) {
+  if (isNetworkError(error)) {
     return t.translate('error_connection');
   }
 
@@ -59,9 +59,12 @@ String? _localizedKnownError(AppLocalizations t, String message) {
   return null;
 }
 
-bool _looksLikeNetworkError(Object error, String message) {
+/// True only for transport failures where the request could not reliably
+/// reach the backend. HTTP status errors must remain normal server errors.
+bool isNetworkError(Object error) {
   if (error is SocketException || error is TimeoutException) return true;
 
+  final message = error.toString().replaceFirst('Exception: ', '').trim();
   final lower = message.toLowerCase();
   const markers = <String>[
     'socketexception',

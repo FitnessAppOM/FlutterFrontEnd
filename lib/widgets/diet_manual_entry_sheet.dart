@@ -14,6 +14,7 @@ class DietManualEntrySheet extends StatefulWidget {
     required this.userId,
     required this.mealId,
     required this.mealTitle,
+    required this.mealDate,
     this.trainingDayId,
     required this.onLogged,
   });
@@ -22,6 +23,7 @@ class DietManualEntrySheet extends StatefulWidget {
   final int userId;
   final int mealId;
   final String mealTitle;
+  final DateTime mealDate;
   final int? trainingDayId;
   final Future<void> Function(Map<String, dynamic>? daySummary) onLogged;
 
@@ -209,6 +211,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
         mealId: widget.mealId,
         mealName: mealName.isEmpty ? null : mealName,
         ingredients: ingredients,
+        date: widget.mealDate,
         trainingDayId: widget.trainingDayId,
       );
 
@@ -218,10 +221,13 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
           : null;
 
       if (widget.rootContext.mounted) {
+        final queued = response['offline_queued'] == true;
         AppToast.show(
           widget.rootContext,
-          t.translate("diet_item_added"),
-          type: AppToastType.success,
+          queued
+              ? t.translate("diet_saved_offline")
+              : t.translate("diet_item_added"),
+          type: queued ? AppToastType.info : AppToastType.success,
         );
       }
 

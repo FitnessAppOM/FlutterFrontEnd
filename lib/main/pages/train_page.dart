@@ -17,9 +17,11 @@ import '../../widgets/cardio/cardio_exercise_utils.dart';
 import '../../widgets/cardio/cardio_resume_banner.dart';
 import '../../core/account_storage.dart';
 import '../../core/training_regeneration_flag.dart';
+import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
+import '../../services/core/network_status_service.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/timer_based_exercises.dart';
 import '../../widgets/training/replace_exercise_sheet.dart';
@@ -2501,7 +2503,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   Map<String, dynamic>? program;
   int selectedDay = 0;
   bool loading = true;
-  bool isOffline = false;
   Set<String> completedExerciseNames = {};
   int _tabIndex = 0; // 0 = Train, 1 = Cardio
   bool _cardioBuilt = false;
@@ -3301,7 +3302,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             setState(() {
               program = cached;
               loading = false;
-              isOffline = false;
               _sessionCompletedExerciseNames = localCompleted;
               _dayOrder = orderResult.order;
               _dayCompletedByIndex = orderResult.completedByIndex;
@@ -3346,6 +3346,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         // Ignore completed names fetch errors
       }
       if (!mounted) return;
+      NetworkStatusService.instance.reportServerReached();
       try {
         if (historyFuture != null) {
           await historyFuture;
@@ -3363,7 +3364,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       setState(() {
         program = data;
         loading = false;
-        isOffline = false;
         completedExerciseNames = completed;
         _sessionCompletedExerciseNames = localCompleted;
         _dayOrder = orderResult.order;
@@ -3377,7 +3377,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       await _maybeShowDayCompletedPopup();
       unawaited(_refreshTrainingPlanChangeState());
       return;
-    } catch (_) {
+    } catch (error) {
+      final networkFailure = isNetworkError(error);
+      if (networkFailure) {
+        NetworkStatusService.instance.reportNetworkFailure(error);
+      }
       if (historyFuture != null) {
         unawaited(
           historyFuture!.then((_) => _rebuildTrainPageAfterHistoryLoaded()),
@@ -3387,23 +3391,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       if (program != null || showedCache) {
         setState(() {
           loading = false;
-          isOffline = true;
           _sessionCompletedExerciseNames = localCompleted;
         });
-        if (showedCache) {
-          final t = AppLocalizations.of(context);
-          AppToast.show(
-            context,
-            t.translate("offline_mode_using_cached_data") ??
-                "Offline: Using cached data",
-            type: AppToastType.info,
-          );
-        }
       } else {
         setState(() {
           loading = false;
           program = null;
-          isOffline = false;
           _sessionCompletedExerciseNames = localCompleted;
           _dayOrder = const [];
           _dayCompletedByIndex = const [];
@@ -5324,32 +5317,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (isOffline)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.cloud_off,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  t.translate("offline_mode") ?? "Offline Mode",
-                                  style: const TextStyle(color: Colors.orange),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       if (_isDeactivated)
                         Container(
                           width: double.infinity,

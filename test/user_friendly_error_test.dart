@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -34,5 +35,20 @@ void main() {
       userFriendlyErrorMessage(Exception('Account can no longer be restored')),
       'لم يعد من الممكن استعادة هذا الحساب.',
     );
+  });
+
+  test('transport failures are classified as offline', () {
+    expect(isNetworkError(const SocketException('offline')), isTrue);
+    expect(isNetworkError(TimeoutException('request timed out')), isTrue);
+    expect(isNetworkError(Exception('Failed host lookup')), isTrue);
+  });
+
+  test('HTTP and validation failures are not classified as offline', () {
+    expect(
+      isNetworkError(Exception('HTTP 500: internal server error')),
+      isFalse,
+    );
+    expect(isNetworkError(Exception('Entry already submitted')), isFalse);
+    expect(isNetworkError(Exception('Unauthorized')), isFalse);
   });
 }

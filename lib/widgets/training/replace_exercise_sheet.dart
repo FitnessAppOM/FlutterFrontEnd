@@ -8,6 +8,7 @@ import '../../core/user_friendly_error.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_connectivity_banner.dart';
 import '../cardio/cardio_exercise_utils.dart';
 import '../../localization/app_localizations.dart';
 
@@ -32,7 +33,8 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
   bool loadingSuggestions = true;
   bool loadingAll = true;
   bool submitting = false;
-  bool isOffline = false;
+  bool suggestionsOffline = false;
+  bool allOffline = false;
 
   List<dynamic> suggestions = [];
   List<dynamic> allExercises = [];
@@ -106,8 +108,8 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       return;
     }
 
-    bool suggestionsFailed = false;
-    bool allFailed = false;
+    suggestionsOffline = false;
+    allOffline = false;
 
     try {
       final sug = await TrainingService.fetchReplaceSuggestions(
@@ -117,13 +119,12 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       setState(() {
         suggestions = sug;
         loadingSuggestions = false;
-        isOffline = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         loadingSuggestions = false;
-        suggestionsFailed = true;
+        suggestionsOffline = isNetworkError(error);
       });
     }
 
@@ -134,20 +135,17 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
         allExercises = all;
         _buildTagsFromAll();
         loadingAll = false;
-        isOffline = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         loadingAll = false;
-        allFailed = true;
+        allOffline = isNetworkError(error);
       });
     }
 
-    // Set offline flag if both failed
-    if (suggestionsFailed && allFailed) {
-      setState(() => isOffline = true);
-    }
+    // Keep the local flags separate: either endpoint can be unavailable while
+    // the other tab still has useful data.
   }
 
   List<dynamic> get filteredAll {
@@ -719,29 +717,10 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (isOffline) {
+    if (suggestionsOffline && suggestions.isEmpty) {
       final t = AppLocalizations.of(context);
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.cloud_off,
-                size: 64,
-                color: Colors.orange.withOpacity(0.7),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                t.translate("offline_replace_suggestions") ??
-                    "When you're back online, you can get suggestions here.",
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
+      return TaqaOfflineEmptyState(
+        message: t.translate("offline_replace_suggestions"),
       );
     }
 
@@ -788,29 +767,10 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (isOffline) {
+    if (allOffline && allExercises.isEmpty) {
       final t = AppLocalizations.of(context);
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.cloud_off,
-                size: 64,
-                color: Colors.orange.withOpacity(0.7),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                t.translate("offline_replace_all_exercises") ??
-                    "When you're back online, you can browse all exercises here.",
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
+      return TaqaOfflineEmptyState(
+        message: t.translate("offline_replace_all_exercises"),
       );
     }
 

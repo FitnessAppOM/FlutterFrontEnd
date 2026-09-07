@@ -1,10 +1,17 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 import '../../core/date_utils.dart';
+import '../../core/user_friendly_error.dart';
+import '../core/network_status_service.dart';
+import 'daily_journal_action_queue.dart';
+import 'daily_journal_storage.dart';
+
+enum DailyJournalSaveDisposition { synced, queued }
 
 class DailyJournalEntry {
   final DateTime entryDate;
@@ -96,6 +103,29 @@ class DailyJournalEntry {
       ),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'entry_date': entryDate.toIso8601String().split('T').first,
+    if (sleepHours != null) 'sleep_hours': sleepHours,
+    if (sleepQuality != null) 'sleep_quality': sleepQuality,
+    if (caffeineYes != null) 'caffeine_yes': caffeineYes,
+    if (caffeineCups != null) 'caffeine_cups': caffeineCups,
+    if (alcoholYes != null) 'alcohol_yes': alcoholYes,
+    if (alcoholDrinks != null) 'alcohol_drinks': alcoholDrinks,
+    if (hydrationLiters != null) 'hydration_liters': hydrationLiters,
+    if (sorenessOrPain != null) 'soreness_or_pain': sorenessOrPain,
+    if (sorenessLevel != null) 'soreness_level': sorenessLevel,
+    if (wakeUpCount != null) 'wake_up_count': wakeUpCount,
+    if (stressLevel != null) 'stress_level': stressLevel,
+    if (moodUponWaking != null) 'mood_upon_waking': moodUponWaking,
+    if (sexualActivity != null) 'sexual_activity': sexualActivity,
+    if (screenTimeBeforeBed != null)
+      'screen_time_before_bed': screenTimeBeforeBed,
+    if (productivityFocus != null) 'productivity_focus': productivityFocus,
+    if (motivationToTrain != null) 'motivation_to_train': motivationToTrain,
+    if (tookSupplementsOrMedications != null)
+      'took_supplements_or_medications': tookSupplementsOrMedications,
+  };
 }
 
 class DailyJournalApi {
@@ -110,19 +140,28 @@ class DailyJournalApi {
   static Future<DailyJournalEntry?> fetchLatest(int userId) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/daily-journal/$userId/latest");
     final headers = await AccountStorage.getAuthHeaders();
-    final res = await http.get(url, headers: headers);
-    await AccountStorage.handle401(res.statusCode);
+    try {
+      final res = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 10));
+      await AccountStorage.handle401(res.statusCode);
+      NetworkStatusService.instance.reportServerReached();
 
-    if (res.statusCode == 200) {
-      final data = jsonDecode(res.body) as Map<String, dynamic>;
-      return DailyJournalEntry.fromJson(data);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        await DailyJournalStorage.save(userId, data);
+        return DailyJournalEntry.fromJson(data);
+      }
+
+      if (res.statusCode == 404) return null;
+
+      throw Exception("Failed to fetch daily journal: ${res.body}");
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      final cached = await DailyJournalStorage.loadLatest(userId);
+      return cached == null ? null : DailyJournalEntry.fromJson(cached);
     }
-
-    if (res.statusCode == 404) {
-      return null;
-    }
-
-    throw Exception("Failed to fetch daily journal: ${res.body}");
   }
 
   static Future<DailyJournalEntry?> fetchForDate(
@@ -147,15 +186,29 @@ class DailyJournalApi {
       "${ApiConfig.baseUrl}/daily-journal/$userId/date/$dateStr",
     );
     final headers = await AccountStorage.getAuthHeaders();
-    final future = http.get(url, headers: headers).then((res) async {
-      await AccountStorage.handle401(res.statusCode);
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        return DailyJournalEntry.fromJson(data);
+    final future = () async {
+      try {
+        final res = await http
+            .get(url, headers: headers)
+            .timeout(const Duration(seconds: 10));
+        await AccountStorage.handle401(res.statusCode);
+        NetworkStatusService.instance.reportServerReached();
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body) as Map<String, dynamic>;
+          await DailyJournalStorage.save(userId, data);
+          return DailyJournalEntry.fromJson(data);
+        }
+        if (res.statusCode == 404) return null;
+        throw Exception(
+          "Failed to fetch daily journal for $dateStr: ${res.body}",
+        );
+      } catch (error) {
+        if (!isNetworkError(error)) rethrow;
+        NetworkStatusService.instance.reportNetworkFailure(error);
+        final cached = await DailyJournalStorage.load(userId, date);
+        return cached == null ? null : DailyJournalEntry.fromJson(cached);
       }
-      if (res.statusCode == 404) return null;
-      throw Exception("Failed to fetch daily journal for $dateStr: ${res.body}");
-    });
+    }();
 
     _inFlight[cacheKey] = future;
     try {
@@ -169,7 +222,7 @@ class DailyJournalApi {
     }
   }
 
-  static Future<void> upsert({
+  static Future<DailyJournalSaveDisposition> upsert({
     required int userId,
     DateTime? entryDate,
     double? sleepHours,
@@ -214,23 +267,37 @@ class DailyJournalApi {
       if (motivationToTrain != null) "motivation_to_train": motivationToTrain,
       if (tookSupplementsOrMedications != null)
         "took_supplements_or_medications": tookSupplementsOrMedications,
+      "client_mutation_id":
+          "journal-$userId-${effectiveEntryDate.microsecondsSinceEpoch}-${DateTime.now().microsecondsSinceEpoch}",
     };
 
     final headers = {
       "Content-Type": "application/json",
       ...await AccountStorage.getAuthHeaders(),
     };
-    final res = await http.post(url, headers: headers, body: jsonEncode(body));
+    try {
+      final res = await http
+          .post(url, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 10));
 
-    await AccountStorage.handle401(res.statusCode);
-    if (res.statusCode == 200) {
+      await AccountStorage.handle401(res.statusCode);
+      NetworkStatusService.instance.reportServerReached();
+      if (res.statusCode == 200) {
+        final dateStr = effectiveEntryDate.toIso8601String().split("T").first;
+        _cache.remove("$userId-$dateStr");
+        await DailyJournalStorage.save(userId, body);
+        return DailyJournalSaveDisposition.synced;
+      }
+      if (res.statusCode == 409) throw Exception("already_submitted");
+      throw Exception("Failed to save daily journal: ${res.body}");
+    } catch (error) {
+      if (!isNetworkError(error)) rethrow;
+      NetworkStatusService.instance.reportNetworkFailure(error);
+      await DailyJournalStorage.save(userId, body);
+      await DailyJournalActionQueue.enqueue(body);
       final dateStr = effectiveEntryDate.toIso8601String().split("T").first;
-      _cache.remove("$userId-$dateStr");
-      return;
+      _cache["$userId-$dateStr"] = DailyJournalEntry.fromJson(body);
+      return DailyJournalSaveDisposition.queued;
     }
-    if (res.statusCode == 409) {
-      throw Exception("already_submitted");
-    }
-    throw Exception("Failed to save daily journal: ${res.body}");
   }
 }

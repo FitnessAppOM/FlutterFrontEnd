@@ -281,6 +281,7 @@ class AppLocalizations {
       "diet_servings_unit": "serving",
       "diet_log": "Log",
       "diet_item_added": "Item added",
+      "diet_saved_offline": "Saved offline — it will sync automatically",
       "diet_failed_to_add_item": "Failed to add item",
       "diet_remaining_title": "Remaining",
       "diet_remaining": "Remaining",
@@ -1242,6 +1243,12 @@ class AppLocalizations {
           "Follow the sets and reps shown for each exercise.",
       "offline_mode": "Offline Mode",
       "offline_mode_using_cached_data": "Offline: Using cached data",
+      "offline_banner_cached": "You're offline — showing saved data",
+      "offline_banner_syncing": "Back online — syncing {count} changes",
+      "offline_banner_synced": "All changes synchronized",
+      "offline_banner_failed": "{count} changes need attention",
+      "offline_banner_pending": "{count} changes waiting to sync",
+      "offline_retry": "RETRY",
       "exercise_saved_offline":
           "Exercise saved offline. Will sync when online.",
       "feedback_saved_offline":
@@ -2174,6 +2181,8 @@ class AppLocalizations {
       "daily_journal_drink_plural": "drinks",
       "daily_journal_sign_in_submit": "Please sign in to submit your journal.",
       "daily_journal_saved": "Daily journal saved.",
+      "daily_journal_saved_offline":
+          "Journal saved offline. It will sync when you're online.",
       "daily_journal_already_submitted": "Already submitted today.",
       "daily_journal_failed_save": "Failed to save: {error}",
       "daily_journal_no_previous": "No previous entry to copy.",
@@ -2781,6 +2790,7 @@ class AppLocalizations {
       "diet_servings_unit": "حصة",
       "diet_log": "تسجيل",
       "diet_item_added": "تمت الإضافة",
+      "diet_saved_offline": "تم الحفظ دون اتصال — ستتم المزامنة تلقائيًا",
       "diet_failed_to_add_item": "فشل إضافة العنصر",
       "diet_remaining_title": "المتبقي",
       "diet_remaining": "المتبقي",
@@ -3714,6 +3724,12 @@ class AppLocalizations {
           "اتبع عدد المجموعات والتكرارات لكل تمرين كما هو موضح.",
       "offline_mode": "وضع عدم الاتصال",
       "offline_mode_using_cached_data": "عدم الاتصال: استخدام البيانات المخزنة",
+      "offline_banner_cached": "أنت غير متصل — يتم عرض البيانات المحفوظة",
+      "offline_banner_syncing": "عاد الاتصال — تتم مزامنة {count} تغييرات",
+      "offline_banner_synced": "تمت مزامنة جميع التغييرات",
+      "offline_banner_failed": "تحتاج {count} تغييرات إلى الانتباه",
+      "offline_banner_pending": "هناك {count} تغييرات بانتظار المزامنة",
+      "offline_retry": "إعادة المحاولة",
       "exercise_saved_offline":
           "تم حفظ التمرين في وضع عدم الاتصال. سيتم المزامنة عند الاتصال.",
       "feedback_saved_offline":
@@ -4212,8 +4228,7 @@ class AppLocalizations {
           "تعذر تحميل اشتراك Google Play الحالي.",
       "subscription_google_owner_account":
           "افتح Google Play بالحساب الذي يملك الاشتراك الحالي، ثم حاول مرة أخرى.",
-      "subscription_google_account_mismatch_title":
-          "الاشتراك مرتبط بحساب آخر",
+      "subscription_google_account_mismatch_title": "الاشتراك مرتبط بحساب آخر",
       "subscription_google_account_mismatch_body":
           "اشتراك Google Play هذا مرتبط بحساب Taqa آخر. سجّل الدخول إلى حساب Taqa الأصلي، أو انتقل إلى حساب Google Play آخر لشراء اشتراك منفصل.",
       "subscription_google_account_mismatch_dismiss": "حسنًا",
@@ -4615,6 +4630,8 @@ class AppLocalizations {
       "daily_journal_drink_plural": "مشروبات",
       "daily_journal_sign_in_submit": "يرجى تسجيل الدخول لإرسال المفكرة.",
       "daily_journal_saved": "تم حفظ المفكرة اليومية.",
+      "daily_journal_saved_offline":
+          "تم حفظ المفكرة دون اتصال. ستتم مزامنتها عند عودة الاتصال.",
       "daily_journal_already_submitted": "تم الإرسال اليوم بالفعل.",
       "daily_journal_failed_save": "فشل الحفظ: {error}",
       "daily_journal_no_previous": "لا يوجد إدخال سابق للنسخ.",

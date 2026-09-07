@@ -22,6 +22,7 @@ import '../auth/questionnaire.dart';
 import '../auth/referral_onboarding_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../services/core/navigation_service.dart';
+import '../services/core/network_status_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../services/auth/auth_service.dart';
@@ -260,6 +261,7 @@ class _WelcomePageState extends State<WelcomePage> {
   }
 
   Future<void> _navigateOfflineMain() async {
+    NetworkStatusService.instance.markOffline();
     final questionnaireDone = await AccountStorage.isQuestionnaireDone();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -270,18 +272,6 @@ class _WelcomePageState extends State<WelcomePage> {
       ),
       (route) => false,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 150), () {
-        final ctx = NavigationService.navigatorKey.currentContext;
-        if (ctx == null) return;
-        final t = AppLocalizations.of(ctx);
-        AppToast.show(
-          ctx,
-          t.translate("offline_mode"),
-          type: AppToastType.info,
-        );
-      });
-    });
   }
 
   Future<void> _handleGoogleQuickLogin() async {

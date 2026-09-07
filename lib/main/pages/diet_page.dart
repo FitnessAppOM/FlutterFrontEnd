@@ -1661,6 +1661,7 @@ class DietPageState extends State<DietPage> {
           userId: userId,
           mealId: mealId,
           title: newTitle,
+          date: _mealDate,
           trainingDayId: trainingDayId,
         );
         if (_meals != null) {
@@ -1767,6 +1768,7 @@ class DietPageState extends State<DietPage> {
       final response = await DietService.deleteMeal(
         userId: userId,
         mealId: mealId,
+        date: _mealDate,
         trainingDayId: trainingDayId,
       );
       if (!mounted) return;
@@ -1787,8 +1789,12 @@ class DietPageState extends State<DietPage> {
       }
       AppToast.show(
         context,
-        t.translate("diet_delete_meal_success"),
-        type: AppToastType.success,
+        response['offline_queued'] == true
+            ? t.translate("diet_saved_offline")
+            : t.translate("diet_delete_meal_success"),
+        type: response['offline_queued'] == true
+            ? AppToastType.info
+            : AppToastType.success,
       );
     } catch (e) {
       if (!mounted) return;
@@ -1801,8 +1807,10 @@ class DietPageState extends State<DietPage> {
   }
 
   Future<void> _deleteMealItem({
+    required int mealId,
     required int mealItemId,
     required String itemName,
+    int? trainingDayId,
   }) async {
     final t = AppLocalizations.of(context);
     final confirmed = await showTaqaConfirmDialog(
@@ -1819,14 +1827,30 @@ class DietPageState extends State<DietPage> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
-      await DietService.deleteMealItem(userId: userId, mealItemId: mealItemId);
+      final synced = await DietService.deleteMealItem(
+        userId: userId,
+        mealId: mealId,
+        mealItemId: mealItemId,
+        date: _mealDate,
+        trainingDayId: trainingDayId,
+      );
       if (!mounted) return;
       AppToast.show(
         context,
-        t.translate("diet_delete_item_success"),
-        type: AppToastType.success,
+        synced
+            ? t.translate("diet_delete_item_success")
+            : t.translate("diet_saved_offline"),
+        type: synced ? AppToastType.success : AppToastType.info,
       );
-      await _loadMeals();
+      if (synced) {
+        await _loadMeals();
+      } else {
+        final cached = await DietService.fetchMealsForDateFromCache(
+          _mealDate,
+          trainingDayId: trainingDayId,
+        );
+        if (mounted && cached != null) setState(() => _meals = cached);
+      }
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -1838,8 +1862,10 @@ class DietPageState extends State<DietPage> {
   }
 
   Future<void> _clearMealItems({
+    required int mealId,
     required List<Map<String, dynamic>> items,
     required String mealTitle,
+    int? trainingDayId,
   }) async {
     final t = AppLocalizations.of(context);
     if (items.isEmpty) return;
@@ -1857,18 +1883,36 @@ class DietPageState extends State<DietPage> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
+      var allSynced = true;
       for (final item in items) {
         final itemId = _mealItemId(item);
         if (itemId <= 0) continue;
-        await DietService.deleteMealItem(userId: userId, mealItemId: itemId);
+        final synced = await DietService.deleteMealItem(
+          userId: userId,
+          mealId: mealId,
+          mealItemId: itemId,
+          date: _mealDate,
+          trainingDayId: trainingDayId,
+        );
+        allSynced = allSynced && synced;
       }
       if (!mounted) return;
       AppToast.show(
         context,
-        t.translate("diet_clear_meal_success"),
-        type: AppToastType.success,
+        allSynced
+            ? t.translate("diet_clear_meal_success")
+            : t.translate("diet_saved_offline"),
+        type: allSynced ? AppToastType.success : AppToastType.info,
       );
-      await _loadMeals();
+      if (allSynced) {
+        await _loadMeals();
+      } else {
+        final cached = await DietService.fetchMealsForDateFromCache(
+          _mealDate,
+          trainingDayId: trainingDayId,
+        );
+        if (mounted && cached != null) setState(() => _meals = cached);
+      }
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -1906,10 +1950,11 @@ class DietPageState extends State<DietPage> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
-      await DietService.updateMeal(
+      final response = await DietService.updateMeal(
         userId: userId,
         mealId: mealId,
         title: newTitle,
+        date: _mealDate,
         trainingDayId: trainingDayId,
       );
       if (!mounted) return;
@@ -1928,10 +1973,14 @@ class DietPageState extends State<DietPage> {
 
       AppToast.show(
         context,
-        t.translate("diet_rename_meal_success"),
-        type: AppToastType.success,
+        response['offline_queued'] == true
+            ? t.translate("diet_saved_offline")
+            : t.translate("diet_rename_meal_success"),
+        type: response['offline_queued'] == true
+            ? AppToastType.info
+            : AppToastType.success,
       );
-      await _loadMeals();
+      if (response['offline_queued'] != true) await _loadMeals();
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -3181,8 +3230,10 @@ class DietPageState extends State<DietPage> {
                                     }
                                     if (value == 'meal_clear_items') {
                                       await _clearMealItems(
+                                        mealId: mealId,
                                         items: itemList,
                                         mealTitle: displayTitle,
+                                        trainingDayId: trainingDayId,
                                       );
                                       return;
                                     }
@@ -3350,6 +3401,7 @@ class DietPageState extends State<DietPage> {
                                                       userId: userId,
                                                       mealId: mealId,
                                                       mealTitle: displayTitle,
+                                                      mealDate: _mealDate,
                                                       trainingDayId:
                                                           trainingDayId,
                                                       onLogged: (daySummary) async {
@@ -3561,8 +3613,15 @@ class DietPageState extends State<DietPage> {
                                                 "diet_delete_item",
                                               ),
                                               onPressed: () => _deleteMealItem(
+                                                mealId: mealId,
                                                 mealItemId: itemId,
                                                 itemName: itemName,
+                                                trainingDayId: _modeIndex == 1
+                                                    ? _asInt(
+                                                        _selectedTrainingDay?["day_id"],
+                                                        fallback: 0,
+                                                      )
+                                                    : null,
                                               ),
                                               icon: Icon(
                                                 Icons.delete_outline,

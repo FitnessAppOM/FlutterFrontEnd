@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/account_storage.dart';
 import 'training_service.dart';
+import '../core/offline_queue_signal.dart';
 
 /// Queues cardio sessions for offline sync
 class CardioSessionQueue {
@@ -16,6 +17,7 @@ class CardioSessionQueue {
     final existing = await _loadQueue(userId);
     existing.add(payload);
     await sp.setString(queueKey, jsonEncode(existing));
+    OfflineQueueSignal.notifyChanged();
   }
 
   static Future<List<Map<String, dynamic>>> _loadQueue(int userId) async {
@@ -29,6 +31,12 @@ class CardioSessionQueue {
     } catch (_) {
       return [];
     }
+  }
+
+  static Future<int> pendingCount() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) return 0;
+    return (await _loadQueue(userId)).length;
   }
 
   static Future<void> syncQueue() async {
@@ -75,5 +83,6 @@ class CardioSessionQueue {
     } else {
       await sp.setString(queueKey, jsonEncode(failed));
     }
+    OfflineQueueSignal.notifyChanged();
   }
 }

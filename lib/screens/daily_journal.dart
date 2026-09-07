@@ -267,7 +267,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
     final t = AppLocalizations.of(context).translate;
     setState(() => _isSubmitting = true);
     try {
-      await DailyJournalApi.upsert(
+      final disposition = await DailyJournalApi.upsert(
         userId: userId,
         entryDate: _selectedDate,
         sleepHours: _parseDouble(_sleepHoursCtrl),
@@ -292,8 +292,12 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       if (mounted) {
         AppToast.show(
           context,
-          t("daily_journal_saved"),
-          type: AppToastType.success,
+          disposition == DailyJournalSaveDisposition.queued
+              ? t("daily_journal_saved_offline")
+              : t("daily_journal_saved"),
+          type: disposition == DailyJournalSaveDisposition.queued
+              ? AppToastType.info
+              : AppToastType.success,
         );
         setState(() {
           _formHidden = true;

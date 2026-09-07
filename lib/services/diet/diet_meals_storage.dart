@@ -57,5 +57,21 @@ class DietMealsStorage {
       return null;
     }
   }
-}
 
+  /// Applies an optimistic offline mutation to a cached day. The callback gets
+  /// a deep copy so callers cannot accidentally mutate shared decoded maps.
+  static Future<Map<String, dynamic>?> mutateMealsForDate(
+    DateTime date,
+    Map<String, dynamic> Function(Map<String, dynamic> data) mutation, {
+    int? trainingDayId,
+  }) async {
+    final cached = await loadMealsForDate(date, trainingDayId: trainingDayId);
+    if (cached == null) return null;
+    final copy = Map<String, dynamic>.from(
+      jsonDecode(jsonEncode(cached)) as Map,
+    );
+    final updated = mutation(copy);
+    await saveMealsForDate(date, updated, trainingDayId: trainingDayId);
+    return updated;
+  }
+}
