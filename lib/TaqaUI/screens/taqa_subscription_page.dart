@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:ui';
 
@@ -24,6 +25,7 @@ import '../../services/purchases/apple_billing_service.dart';
 import '../../services/purchases/apple_promotional_offer.dart';
 import '../../services/purchases/apple_storekit_entitlement_recovery.dart';
 import '../../services/purchases/billing_api.dart';
+import '../../services/purchases/store_product_loader.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
@@ -121,6 +123,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   DateTime? _activePlanEndsAt;
   AppleBillingEntitlement? _billingState;
   bool _billingPreflightFailed = false;
+  bool _productLoadInFlight = false;
   String? _googleAccountId;
   Map<String, String> _googleProductIdsByPlanCode = const {};
   Map<String, GoogleBillingProductOffering> _googleOfferingsByProductId =
@@ -210,17 +213,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   Future<void> _loadProducts() async {
+    if (_productLoadInFlight) return;
+    _productLoadInFlight = true;
     setState(() {
       _loading = true;
       _message = null;
     });
     try {
-      final available = await _store.isAvailable();
-      if (!available) {
-        _setStoreUnavailable();
-        return;
-      }
-
       var productIds = _knownProductIds;
       if (Platform.isAndroid) {
         final offerings = await AppleBillingService.fetchGoogleOfferings();
@@ -230,8 +229,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         productIds = offerings.productIds;
       }
       _storeProductIds = productIds;
-      final response = await _store.queryProductDetails(productIds);
+      final result = await StoreProductLoader(
+        isAvailable: _store.isAvailable,
+        queryProducts: _store.queryProductDetails,
+        logger: _logStoreProductLoad,
+      ).load(productIds);
       if (!mounted) return;
+      final response = result.response;
+      if (!result.storeAvailable || response == null) {
+        _setStoreUnavailable(error: result.error);
+        return;
+      }
       final reconcileGooglePurchase = Platform.isAndroid && widget.mandatory;
       String? storeMessage;
       setState(() {
@@ -260,8 +268,15 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         if (!mounted || _mandatoryRouteFinished) return;
         setState(() => _loading = false);
       }
-    } catch (_) {
-      _setStoreUnavailable();
+    } catch (error, stackTrace) {
+      _logStoreProductLoad(
+        'unhandled load error type=${error.runtimeType} error=$error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      _setStoreUnavailable(error: error);
+    } finally {
+      _productLoadInFlight = false;
     }
   }
 
@@ -317,14 +332,36 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
   }
 
-  void _setStoreUnavailable() {
+  void _setStoreUnavailable({Object? error}) {
     if (!mounted) return;
     setState(() {
       _loading = false;
       _storeAvailable = false;
-      _message = null;
+      _products.clear();
+      _selectedProductId = null;
     });
+    if (error != null) {
+      _logStoreProductLoad(
+        'store unavailable type=${error.runtimeType} error=$error',
+        error: error,
+      );
+    }
     _setMessage(_tr('subscription_store_unavailable', {'store': _storeName()}));
+  }
+
+  void _logStoreProductLoad(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final line = '[SubscriptionStore] $message';
+    debugPrint(line);
+    developer.log(
+      message,
+      name: 'taqa.subscription.store',
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   void _showToast(String message, {AppToastType type = AppToastType.error}) {
@@ -1916,14 +1953,20 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                           : null,
                     ),
                     SizedBox(height: TaqaUiScale.h(16)),
-                    TaqaFilledButton(
-                      label: selectedProduct == null
-                          ? t.translate('subscription_choose_a_plan')
-                          : _tr('subscription_subscribe_for', {
-                              'price': selectedPresentation!.recurringPrice,
-                            }),
-                      onTap: canSubscribe ? _subscribe : null,
-                    ),
+                    if (!_loading && _products.isEmpty)
+                      TaqaFilledButton(
+                        label: t.translate('common_retry'),
+                        onTap: _productLoadInFlight ? null : _loadProducts,
+                      )
+                    else
+                      TaqaFilledButton(
+                        label: selectedProduct == null
+                            ? t.translate('subscription_choose_a_plan')
+                            : _tr('subscription_subscribe_for', {
+                                'price': selectedPresentation!.recurringPrice,
+                              }),
+                        onTap: canSubscribe ? _subscribe : null,
+                      ),
                     SizedBox(height: TaqaUiScale.h(4)),
                     _LegalLinks(onOpen: _openLegalLink),
                     SizedBox(height: TaqaUiScale.h(2)),
