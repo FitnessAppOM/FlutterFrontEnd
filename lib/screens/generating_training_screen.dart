@@ -22,6 +22,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   bool _isGenerating = true;
   String? _error;
   int _retryCount = 0;
+  bool _checkedForExistingProgram = false;
   static const int _maxRetries = 3;
   static const Duration _requestTimeout = Duration(seconds: 20);
   static const Duration _pollTimeout = Duration(seconds: 90);
@@ -55,6 +56,37 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       userId = await AccountStorage.getUserId();
       if (userId == null) {
         throw Exception("User not found");
+      }
+
+      // On a restart, resume this stage instead of starting duplicate work.
+      // A completed plan means the generation step already finished; a 202
+      // means an existing generation job should be polled to completion.
+      if (!_checkedForExistingProgram) {
+        _checkedForExistingProgram = true;
+        try {
+          await TrainingService.fetchActiveProgram(
+            userId,
+          ).timeout(const Duration(seconds: 20));
+          AccountStorage.notifyTrainingChanged();
+          if (!mounted) return;
+          await _continueToSubscription();
+          return;
+        } on TrainingGenerationInProgressException {
+          await TrainingService.waitForGenerationToComplete(
+            userId,
+            pollInterval: _pollInterval,
+            timeout: _pollTimeout,
+          );
+          await TrainingService.fetchActiveProgram(
+            userId,
+          ).timeout(const Duration(seconds: 20));
+          AccountStorage.notifyTrainingChanged();
+          if (!mounted) return;
+          await _continueToSubscription();
+          return;
+        } catch (_) {
+          // No completed/in-progress plan exists, so start initial generation.
+        }
       }
 
       // Generation is asynchronous: trigger, then poll status until completion.

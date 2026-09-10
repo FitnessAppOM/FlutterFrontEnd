@@ -8,14 +8,18 @@ import 'pages/diet_page.dart';
 import 'pages/community_page.dart';
 import '../core/account_storage.dart';
 import '../core/account_type.dart';
+import '../core/onboarding_flow.dart';
 import '../localization/app_localizations.dart';
 import '../services/auth/profile_service.dart';
 import '../services/core/navigation_service.dart';
 import '../services/core/notification_service.dart';
 import '../services/screenings/screening_prompt_service.dart';
 import '../services/training/training_activity_service.dart';
+import '../services/training/training_service.dart';
 import '../screens/coach_page.dart';
 import '../screens/expert_dashboard_page.dart';
+import '../screens/generating_training_screen.dart';
+import '../auth/questionnaire.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_connectivity_banner.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
@@ -191,6 +195,24 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
   }
 
   Future<void> _enforceAccessGates() async {
+    final questionnaireDone =
+        await AccountStorage.isQuestionnaireDone() ||
+        await AccountStorage.isExpertQuestionnaireDone();
+    final destination = resolveOnboardingDestination(
+      questionnaireDone: questionnaireDone,
+      subscriptionRequired: false,
+      isCoachAccount: false,
+      trainingReady: false,
+    );
+    if (destination == OnboardingDestination.questionnaire) {
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
+        (_) => false,
+      );
+      return;
+    }
+
     // A normal subscription is the only app-wide gate. Coach approval and
     // coach membership are intentionally evaluated only when the Coach tab
     // is opened, so all other tabs remain available.
@@ -244,6 +266,29 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
       if (!subscriptionRequired || !mounted) return;
 
+      // Client onboarding is strictly ordered:
+      // questionnaire -> generated training plan -> subscription.
+      // Keep this check here so every route into MainLayout (cold start,
+      // login, notifications, and account restore) obeys the same sequence.
+      final isCoachAccount = await AccountStorage.isExpert();
+      final trainingReady =
+          isCoachAccount || await _hasGeneratedTrainingProgram();
+      final destination = resolveOnboardingDestination(
+        questionnaireDone: true,
+        subscriptionRequired: true,
+        isCoachAccount: isCoachAccount,
+        trainingReady: trainingReady,
+      );
+      if (destination == OnboardingDestination.trainingGeneration) {
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const GeneratingTrainingScreen()),
+          (_) => false,
+        );
+        return;
+      }
+
+      if (!mounted) return;
       await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => const TaqaSubscriptionPage(mandatory: true),
@@ -251,6 +296,21 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
     } finally {
       _subscriptionGateInProgress = false;
+    }
+  }
+
+  Future<bool> _hasGeneratedTrainingProgram() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return false;
+    try {
+      await TrainingService.fetchActiveProgram(userId);
+      return true;
+    } on TrainingGenerationInProgressException {
+      return false;
+    } catch (_) {
+      // A cached program is sufficient to prove that generation completed;
+      // otherwise resume the generation screen and let it retry the server.
+      return await TrainingService.fetchActiveProgramFromCache() != null;
     }
   }
 
