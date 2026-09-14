@@ -1703,6 +1703,21 @@ class AppLocalizations {
       "subscription_choose_plan": "Choose plan",
       "subscription_subscribe_for": "Subscribe for {price}",
       "subscription_first_month_free": "First month free",
+      "subscription_free_trial": "Free trial",
+      "subscription_free_trial_title": "{duration} free",
+      "subscription_trial_day_one": "1 day",
+      "subscription_trial_day_many": "{count} days",
+      "subscription_trial_week_one": "1 week",
+      "subscription_trial_week_many": "{count} weeks",
+      "subscription_trial_month_one": "1 month",
+      "subscription_trial_month_many": "{count} months",
+      "subscription_trial_year_one": "1 year",
+      "subscription_trial_year_many": "{count} years",
+      "subscription_trial_terms_monthly":
+          "Then {price}/month. Renews automatically until cancelled.",
+      "subscription_trial_terms_annual":
+          "Then {price}/year. Renews automatically until cancelled.",
+      "subscription_start_free_trial": "Start free trial",
       "subscription_intro_price": "Introductory payment: {price}",
       "subscription_referral_payment_free":
           "Referral reward: next payment free",
@@ -4178,6 +4193,21 @@ class AppLocalizations {
       "subscription_choose_plan": "اختيار الخطة",
       "subscription_subscribe_for": "اشترك مقابل {price}",
       "subscription_first_month_free": "الشهر الأول مجاناً",
+      "subscription_free_trial": "فترة تجريبية مجانية",
+      "subscription_free_trial_title": "{duration} مجانًا",
+      "subscription_trial_day_one": "يوم واحد",
+      "subscription_trial_day_many": "{count} يومًا",
+      "subscription_trial_week_one": "أسبوع واحد",
+      "subscription_trial_week_many": "{count} أسابيع",
+      "subscription_trial_month_one": "شهر واحد",
+      "subscription_trial_month_many": "{count} أشهر",
+      "subscription_trial_year_one": "سنة واحدة",
+      "subscription_trial_year_many": "{count} سنوات",
+      "subscription_trial_terms_monthly":
+          "ثم {price} شهريًا. يتجدد الاشتراك تلقائيًا حتى الإلغاء.",
+      "subscription_trial_terms_annual":
+          "ثم {price} سنويًا. يتجدد الاشتراك تلقائيًا حتى الإلغاء.",
+      "subscription_start_free_trial": "ابدأ الفترة المجانية",
       "subscription_intro_price": "الدفعة التمهيدية: {price}",
       "subscription_referral_payment_free":
           "مكافأة الإحالة: الدفعة التالية مجانية",

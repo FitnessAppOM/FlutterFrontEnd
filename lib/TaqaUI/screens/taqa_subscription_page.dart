@@ -11,6 +11,7 @@ import 'package:in_app_purchase_android/billing_client_wrappers.dart'
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
+import 'package:in_app_purchase_storekit/store_kit_wrappers.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/email_verification_page.dart';
@@ -26,6 +27,7 @@ import '../../services/purchases/apple_promotional_offer.dart';
 import '../../services/purchases/apple_storekit_entitlement_recovery.dart';
 import '../../services/purchases/billing_api.dart';
 import '../../services/purchases/store_product_loader.dart';
+import '../../services/purchases/subscription_trial_duration.dart';
 import '../../services/purchases/taqa_subscription_catalog.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../components/taqa_filled_button.dart';
@@ -33,6 +35,7 @@ import '../components/taqa_page_app_bar.dart';
 import '../components/taqa_popup_guard.dart';
 import '../components/taqa_refresh_indicator.dart';
 import '../components/taqa_subscription_plan_card.dart';
+import '../components/taqa_subscription_offer_banner.dart';
 import '../components/taqa_steps_ui.dart' show TaqaRangeTab;
 import '../components/taqa_toast.dart';
 import '../components/taqa_value_dialog.dart';
@@ -49,10 +52,14 @@ class _SubscriptionPricePresentation {
   const _SubscriptionPricePresentation({
     required this.recurringPrice,
     this.promotionText,
+    this.freeTrialDuration,
   });
 
   final String recurringPrice;
   final String? promotionText;
+  final SubscriptionTrialDuration? freeTrialDuration;
+
+  bool get hasFreeTrial => freeTrialDuration != null;
 }
 
 /// Taqa Fitness subscriptions purchased through the App Store / StoreKit.
@@ -129,6 +136,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   Map<String, GoogleBillingProductOffering> _googleOfferingsByProductId =
       const {};
   Set<String> _storeProductIds = const {};
+  Map<String, bool> _appleIntroductoryOfferEligibility = const {};
 
   String _tr(String key, [Map<String, String> values = const {}]) {
     var text = AppLocalizations.of(context).translate(key);
@@ -240,13 +248,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         _setStoreUnavailable(error: result.error);
         return;
       }
+      final selectedProducts = _selectStoreProducts(response.productDetails);
+      final appleEligibility = Platform.isIOS
+          ? await _loadAppleIntroductoryOfferEligibility(
+              selectedProducts.values,
+            )
+          : const <String, bool>{};
+      if (!mounted) return;
       final reconcileGooglePurchase = Platform.isAndroid && widget.mandatory;
       String? storeMessage;
       setState(() {
         _storeAvailable = true;
         _products
           ..clear()
-          ..addAll(_selectStoreProducts(response.productDetails));
+          ..addAll(selectedProducts);
+        _appleIntroductoryOfferEligibility = appleEligibility;
         _selectedProductId =
             _catalogPlans
                 .map(_storeProductIdForPlan)
@@ -338,6 +354,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _loading = false;
       _storeAvailable = false;
       _products.clear();
+      _appleIntroductoryOfferEligibility = const {};
       _selectedProductId = null;
     });
     if (error != null) {
@@ -362,6 +379,35 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       error: error,
       stackTrace: stackTrace,
     );
+  }
+
+  Future<Map<String, bool>> _loadAppleIntroductoryOfferEligibility(
+    Iterable<ProductDetails> products,
+  ) async {
+    final productsWithFreeTrial = products
+        .where((product) => _appleFreeTrialDuration(product) != null)
+        .toList(growable: false);
+    if (productsWithFreeTrial.isEmpty) return const {};
+
+    final entries = await Future.wait(
+      productsWithFreeTrial.map((product) async {
+        try {
+          final eligible = await SK2Product.isIntroductoryOfferEligible(
+            product.id,
+          ).timeout(const Duration(seconds: 5));
+          return MapEntry(product.id, eligible);
+        } catch (error, stackTrace) {
+          _logStoreProductLoad(
+            'introductory offer eligibility failed product=${product.id} '
+            'type=${error.runtimeType}',
+            error: error,
+            stackTrace: stackTrace,
+          );
+          return MapEntry(product.id, false);
+        }
+      }),
+    );
+    return Map.fromEntries(entries);
   }
 
   void _showToast(String message, {AppToastType type = AppToastType.error}) {
@@ -1230,8 +1276,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   _SubscriptionPricePresentation _pricePresentation(ProductDetails product) {
-    if (product is! GooglePlayProductDetails ||
-        product.subscriptionIndex == null) {
+    if (product is! GooglePlayProductDetails) {
+      final freeTrialDuration =
+          widget.referralClaimToken == null &&
+              _appleIntroductoryOfferEligibility[product.id] == true
+          ? _appleFreeTrialDuration(product)
+          : null;
+      return _SubscriptionPricePresentation(
+        recurringPrice: product.price,
+        promotionText: freeTrialDuration == null
+            ? null
+            : _freeTrialTitle(freeTrialDuration),
+        freeTrialDuration: freeTrialDuration,
+      );
+    }
+    if (product.subscriptionIndex == null) {
       return _SubscriptionPricePresentation(recurringPrice: product.price);
     }
 
@@ -1258,6 +1317,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         phases.length > 1 &&
         introductoryPhase.priceAmountMicros < recurringPhase.priceAmountMicros;
     String? promotionText;
+    SubscriptionTrialDuration? freeTrialDuration;
     if (hasIntroductoryPrice) {
       if (widget.referralClaimToken != null) {
         promotionText = introductoryPhase.priceAmountMicros == 0
@@ -1266,7 +1326,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                 'price': introductoryPhase.formattedPrice,
               });
       } else if (introductoryPhase.priceAmountMicros == 0) {
-        promotionText = _tr('subscription_first_month_free');
+        freeTrialDuration =
+            SubscriptionTrialDuration.tryParseGoogleBillingPeriod(
+              introductoryPhase.billingPeriod,
+              billingCycles: introductoryPhase.billingCycleCount,
+            );
+        promotionText = freeTrialDuration == null
+            ? _tr('subscription_free_trial')
+            : _freeTrialTitle(freeTrialDuration);
       } else {
         promotionText = _tr('subscription_intro_price', {
           'price': introductoryPhase.formattedPrice,
@@ -1277,7 +1344,73 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     return _SubscriptionPricePresentation(
       recurringPrice: recurringPhase.formattedPrice,
       promotionText: promotionText,
+      freeTrialDuration: freeTrialDuration,
     );
+  }
+
+  SubscriptionTrialDuration? _appleFreeTrialDuration(ProductDetails product) {
+    if (product is AppStoreProduct2Details) {
+      final offers = product.sk2Product.subscription?.promotionalOffers;
+      if (offers == null) return null;
+      for (final offer in offers) {
+        if (offer.type != SK2SubscriptionOfferType.introductory ||
+            offer.paymentMode != SK2SubscriptionOfferPaymentMode.freeTrial) {
+          continue;
+        }
+        final value = offer.period.value * offer.periodCount;
+        if (value <= 0) return null;
+        return SubscriptionTrialDuration(
+          value: value,
+          unit: switch (offer.period.unit) {
+            SK2SubscriptionPeriodUnit.day => SubscriptionTrialUnit.day,
+            SK2SubscriptionPeriodUnit.week => SubscriptionTrialUnit.week,
+            SK2SubscriptionPeriodUnit.month => SubscriptionTrialUnit.month,
+            SK2SubscriptionPeriodUnit.year => SubscriptionTrialUnit.year,
+          },
+        );
+      }
+      return null;
+    }
+
+    if (product is AppStoreProductDetails) {
+      final offer = product.skProduct.introductoryPrice;
+      if (offer == null ||
+          offer.paymentMode != SKProductDiscountPaymentMode.freeTrail) {
+        return null;
+      }
+      final value =
+          offer.subscriptionPeriod.numberOfUnits * offer.numberOfPeriods;
+      if (value <= 0) return null;
+      return SubscriptionTrialDuration(
+        value: value,
+        unit: switch (offer.subscriptionPeriod.unit) {
+          SKSubscriptionPeriodUnit.day => SubscriptionTrialUnit.day,
+          SKSubscriptionPeriodUnit.week => SubscriptionTrialUnit.week,
+          SKSubscriptionPeriodUnit.month => SubscriptionTrialUnit.month,
+          SKSubscriptionPeriodUnit.year => SubscriptionTrialUnit.year,
+        },
+      );
+    }
+    return null;
+  }
+
+  String _freeTrialTitle(SubscriptionTrialDuration duration) {
+    return _tr('subscription_free_trial_title', {
+      'duration': _trialDurationText(duration),
+    });
+  }
+
+  String _trialDurationText(SubscriptionTrialDuration duration) {
+    final unitKey = switch (duration.unit) {
+      SubscriptionTrialUnit.day => 'day',
+      SubscriptionTrialUnit.week => 'week',
+      SubscriptionTrialUnit.month => 'month',
+      SubscriptionTrialUnit.year => 'year',
+    };
+    final plurality = duration.value == 1 ? 'one' : 'many';
+    return _tr('subscription_trial_${unitKey}_$plurality', {
+      'count': duration.value.toString(),
+    });
   }
 
   Future<String?> _refreshBillingStateForCheckout() async {
@@ -1831,6 +1964,20 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final selectedPresentation = selectedProduct == null
         ? null
         : _pricePresentation(selectedProduct);
+    final selectedPlan = selectedProduct == null
+        ? null
+        : _catalogPlans
+              .where(
+                (plan) => _storeProductIdForPlan(plan) == selectedProduct.id,
+              )
+              .firstOrNull;
+    final selectedTrialTitle = selectedPresentation?.hasFreeTrial == true
+        ? selectedPresentation!.promotionText
+        : null;
+    final selectedTrialDetails =
+        selectedPresentation?.hasFreeTrial == true && selectedPlan != null
+        ? _freeTrialTerms(selectedPlan, selectedPresentation!.recurringPrice)
+        : null;
     final availablePlans = _catalogPlans
         .where((plan) => _products.containsKey(_storeProductIdForPlan(plan)))
         .toList(growable: false);
@@ -1946,7 +2093,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     SizedBox(height: TaqaUiScale.h(16)),
                     _PremiumOverviewCard(
                       selectedPrice: selectedPresentation?.recurringPrice,
-                      promotionText: selectedPresentation?.promotionText,
+                      promotionText: selectedPresentation?.hasFreeTrial == true
+                          ? null
+                          : selectedPresentation?.promotionText,
+                      freeTrialTitle: selectedTrialTitle,
+                      freeTrialDetails: selectedTrialDetails,
                       coachMembership: _coachMembership,
                       onChoosePlan: canChoosePlan
                           ? () => _showPlanPicker(availablePlans)
@@ -1962,8 +2113,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                       TaqaFilledButton(
                         label: selectedProduct == null
                             ? t.translate('subscription_choose_a_plan')
+                            : selectedPresentation!.hasFreeTrial
+                            ? t.translate('subscription_start_free_trial')
                             : _tr('subscription_subscribe_for', {
-                                'price': selectedPresentation!.recurringPrice,
+                                'price': selectedPresentation.recurringPrice,
                               }),
                         onTap: canSubscribe ? _subscribe : null,
                       ),
@@ -2075,6 +2228,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     );
   }
 
+  String _freeTrialTerms(TaqaSubscriptionPlan plan, String price) {
+    final annual =
+        plan == TaqaSubscriptionCatalog.annual ||
+        plan == TaqaSubscriptionCatalog.studentAnnual ||
+        plan == TaqaSubscriptionCatalog.coachAnnual;
+    return _tr(
+      annual
+          ? 'subscription_trial_terms_annual'
+          : 'subscription_trial_terms_monthly',
+      {'price': price},
+    );
+  }
+
   Future<void> _showPlanPicker(List<TaqaSubscriptionPlan> plans) async {
     await TaqaPopupGuard.generalDialogVoid(
       context: context,
@@ -2115,12 +2281,16 @@ class _PremiumOverviewCard extends StatelessWidget {
   const _PremiumOverviewCard({
     required this.selectedPrice,
     required this.promotionText,
+    required this.freeTrialTitle,
+    required this.freeTrialDetails,
     required this.coachMembership,
     required this.onChoosePlan,
   });
 
   final String? selectedPrice;
   final String? promotionText;
+  final String? freeTrialTitle;
+  final String? freeTrialDetails;
   final bool coachMembership;
   final VoidCallback? onChoosePlan;
 
@@ -2211,6 +2381,13 @@ class _PremiumOverviewCard extends StatelessWidget {
               ],
             ),
           SizedBox(height: TaqaUiScale.h(18)),
+          if (freeTrialTitle != null && freeTrialDetails != null) ...[
+            TaqaSubscriptionOfferBanner(
+              title: freeTrialTitle!,
+              details: freeTrialDetails!,
+            ),
+            SizedBox(height: TaqaUiScale.h(10)),
+          ],
           if (promotionText != null) ...[
             Text(
               promotionText!,
