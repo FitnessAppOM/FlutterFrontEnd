@@ -77,6 +77,23 @@ class _TrainingDayLiveState {
   final int activeRestPreset;
 }
 
+void _mergeExerciseReplacement(
+  Map<dynamic, dynamic> exercise,
+  Map<String, dynamic> replacement,
+) {
+  const replaceableFields = <String>{
+    'exercise_name',
+    'instructions',
+    'animation_rel_path',
+    'animation_url',
+  };
+  for (final field in replaceableFields) {
+    if (replacement.containsKey(field)) {
+      exercise[field] = replacement[field];
+    }
+  }
+}
+
 class _TrainingDayExercisesPage extends StatefulWidget {
   const _TrainingDayExercisesPage({
     required this.dayLabel,
@@ -118,7 +135,8 @@ class _TrainingDayExercisesPage extends StatefulWidget {
   })
   onStartExercise;
   final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
-  final Future<void> Function(Map<String, dynamic>) onReplaceExercise;
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic>)
+  onReplaceExercise;
   final Future<void> Function() onWorkoutSessionClosed;
   final Future<void> Function() onFinishWorkout;
   final VoidCallback onSkipRest;
@@ -203,6 +221,14 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
     await widget.onWorkoutSessionClosed();
     if (!mounted) return;
     setState(() {});
+  }
+
+  Future<void> _replaceExercise(Map<String, dynamic> exercise) async {
+    final replacement = await widget.onReplaceExercise(exercise);
+    if (!mounted || replacement == null) return;
+    setState(() {
+      _mergeExerciseReplacement(exercise, replacement);
+    });
   }
 
   @override
@@ -502,7 +528,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                     padding: const EdgeInsets.only(bottom: 14),
                     child: ExerciseCard(
                       exercise: ex,
-                      onReplace: () => unawaited(widget.onReplaceExercise(ex)),
+                      onReplace: () => unawaited(_replaceExercise(ex)),
                       disabled: isDisabled,
                       completedOverride: done,
                       forceCompleted: done,
@@ -590,7 +616,8 @@ class _WorkoutLauncherPage extends StatefulWidget {
   })
   onStartExercise;
   final Future<void> Function(Map<String, dynamic> exercise) onExerciseFinished;
-  final Future<void> Function(Map<String, dynamic> exercise) onReplaceExercise;
+  final Future<Map<String, dynamic>?> Function(Map<String, dynamic> exercise)
+  onReplaceExercise;
 
   @override
   State<_WorkoutLauncherPage> createState() => _WorkoutLauncherPageState();
@@ -659,6 +686,14 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
       if (_activeExerciseIndex == index) {
         _activeExerciseIndex = null;
       }
+    });
+  }
+
+  Future<void> _replaceExercise(Map<String, dynamic> exercise) async {
+    final replacement = await widget.onReplaceExercise(exercise);
+    if (!mounted || replacement == null) return;
+    setState(() {
+      _mergeExerciseReplacement(exercise, replacement);
     });
   }
 
@@ -761,8 +796,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
                         onFinished: () {
                           unawaited(_finishExerciseFromLauncher(sourceIndex));
                         },
-                        onReplace: () =>
-                            unawaited(widget.onReplaceExercise(ex)),
+                        onReplace: () => unawaited(_replaceExercise(ex)),
                         onStart: ({required int sets, required int reps}) =>
                             widget.onStartExercise(ex, sets: sets, reps: reps),
                       ),
@@ -3902,9 +3936,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     unawaited(_loadCardioLibrary());
   }
 
-  Future<void> _openReplaceSheet(Map<String, dynamic> ex) async {
+  Future<Map<String, dynamic>?> _openReplaceSheet(
+    Map<String, dynamic> ex,
+  ) async {
     final userId = _userId;
-    if (userId == null) return;
+    if (userId == null) return null;
 
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -3921,14 +3957,21 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       // of) the full program reload below.
       _applyReplacedExerciseToProgram(result);
 
-      // Try to sync queued actions (in case replace was queued)
-      try {
-        await ExerciseActionQueue.syncQueue();
-      } catch (_) {
-        // Ignore sync errors
-      }
-      await _loadProgram();
+      // Return to the open day/launcher route immediately. Queue sync and the
+      // authoritative program refresh continue in the background.
+      unawaited(_syncAndReloadProgramAfterReplacement());
     }
+    return result;
+  }
+
+  Future<void> _syncAndReloadProgramAfterReplacement() async {
+    try {
+      await ExerciseActionQueue.syncQueue();
+    } catch (_) {
+      // The queued action remains available for the next sync attempt.
+    }
+    if (!mounted) return;
+    await _loadProgram();
   }
 
   /// Update the in-memory [program] so a just-replaced exercise shows its new
@@ -3940,7 +3983,6 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final targetId = _asIntOrNull(replaced['program_exercise_id']);
     if (targetId == null) return;
 
-    final newName = (replaced['exercise_name'] ?? '').toString().trim();
     final days = data['days'];
     if (days is! List) return;
 
@@ -3952,13 +3994,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       for (final ex in exercises) {
         if (ex is! Map) continue;
         if (_asIntOrNull(ex['program_exercise_id']) != targetId) continue;
-        if (newName.isNotEmpty) ex['exercise_name'] = newName;
-        if (replaced.containsKey('instructions')) {
-          ex['instructions'] = replaced['instructions'];
-        }
-        if (replaced.containsKey('animation_url')) {
-          ex['animation_url'] = replaced['animation_url'];
-        }
+        _mergeExerciseReplacement(ex, replaced);
         // Note: completion state is intentionally left as-is. The backend keeps
         // the exercise's logged history attached to this program_exercise_id, so
         // the upcoming reload will report the same completion; changing it here

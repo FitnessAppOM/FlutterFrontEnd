@@ -26,6 +26,7 @@ import 'services/core/navigation_service.dart';
 import 'services/core/daily_provider_push_service.dart';
 import 'services/core/network_status_service.dart';
 import 'services/core/offline_sync_coordinator.dart';
+import 'services/core/play_in_app_update_service.dart';
 import 'services/training/training_activity_service.dart';
 import 'services/training/training_service.dart';
 import 'core/account_storage.dart';
@@ -47,15 +48,21 @@ void _configureTrainingForegroundTask() {
   final t = AppLocalizations(localeController.locale);
   FlutterForegroundTask.init(
     androidNotificationOptions: AndroidNotificationOptions(
-      channelId: 'training_session',
+      // Android notification-channel importance is immutable after creation.
+      // v3 was HIGH and Samsung surfaced every timer update as a heads-up
+      // alert, so use a fresh default/silent channel for ongoing workouts.
+      channelId: 'training_session_v4',
       channelName: t.translate('training_notification_channel_name'),
       channelDescription: t.translate(
         'training_notification_channel_description',
       ),
-      channelImportance: NotificationChannelImportance.LOW,
-      priority: NotificationPriority.LOW,
+      channelImportance: NotificationChannelImportance.DEFAULT,
+      priority: NotificationPriority.DEFAULT,
       enableVibration: false,
       playSound: false,
+      showWhen: true,
+      isSticky: true,
+      visibility: NotificationVisibility.VISIBILITY_PUBLIC,
     ),
     iosNotificationOptions: IOSNotificationOptions(
       showNotification: false,
@@ -309,6 +316,8 @@ class _MyAppState extends State<MyApp> {
 
   void _handleLifecycle() async {
     await NetworkStatusService.instance.checkNow();
+    await PlayInAppUpdateService.instance.initialize();
+    unawaited(PlayInAppUpdateService.instance.checkForUpdate());
     _maybeRequestAndroidHealthPermission();
     await _prefetchTrainingHistorySnapshot();
     try {
@@ -353,6 +362,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _runPostStartupWork() async {
     await NavigationService.waitUntilStartupReady();
     if (!mounted) return;
+    unawaited(PlayInAppUpdateService.instance.initialize());
     unawaited(_prefetchTrainingHistorySnapshot());
     unawaited(_maybeRequestAndroidHealthPermission());
   }

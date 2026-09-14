@@ -22,6 +22,7 @@ import '../screens/generating_training_screen.dart';
 import '../auth/questionnaire.dart';
 import '../TaqaUI/components/taqa_bottom_nav_bar.dart';
 import '../TaqaUI/components/taqa_connectivity_banner.dart';
+import '../TaqaUI/components/taqa_play_update_banner.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/screens/taqa_subscription_page.dart';
 import '../TaqaUI/screens/taqa_intro_module.dart';
@@ -348,6 +349,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
             onExpand: _openActiveWorkout,
             onDiscard: _discardActiveWorkout,
           ),
+          const TaqaPlayUpdateBanner(),
           const TaqaConnectivityBanner(),
           _buildBottomNav(),
         ],

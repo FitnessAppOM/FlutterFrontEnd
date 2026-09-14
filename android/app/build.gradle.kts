@@ -107,6 +107,10 @@ flutter {
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
 
+    // Official Google Play flexible in-app updates.
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("com.google.android.play:app-update-ktx:2.1.0")
+
     // Google authentication
     implementation("com.google.android.gms:play-services-auth:20.7.0")
 

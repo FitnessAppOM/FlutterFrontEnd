@@ -176,8 +176,9 @@ class TrainingActivityService {
       0.01,
     );
     final paceChanged = _hasSignificantDelta(_lastPaceMinKm, paceMinKm, 0.1);
-    if (seconds == _lastUpdateSecond && !distanceChanged && !paceChanged)
+    if (seconds == _lastUpdateSecond && !distanceChanged && !paceChanged) {
       return;
+    }
     _lastUpdateSecond = seconds;
     _lastDistanceKm = distanceKm ?? _lastDistanceKm;
     _lastPaceMinKm = paceMinKm ?? _lastPaceMinKm;
@@ -207,11 +208,15 @@ class TrainingActivityService {
       }
       if (_androidServiceRunning) {
         try {
-          await FlutterForegroundTask.updateService(
+          _androidServiceRunning = await FlutterForegroundTask.updateService(
             notificationTitle: title,
             notificationText: body,
           );
-        } catch (_) {
+        } catch (error) {
+          // ignore: avoid_print
+          print(
+            '[TrainingActivity] Android notification update failed: $error',
+          );
           _androidServiceRunning = false;
         }
       }
@@ -293,11 +298,15 @@ class TrainingActivityService {
       }
       if (_androidServiceRunning) {
         try {
-          await FlutterForegroundTask.updateService(
+          _androidServiceRunning = await FlutterForegroundTask.updateService(
             notificationTitle: title,
             notificationText: body,
           );
-        } catch (_) {
+        } catch (error) {
+          // ignore: avoid_print
+          print(
+            '[TrainingActivity] Android notification update failed: $error',
+          );
           _androidServiceRunning = false;
         }
       }
@@ -424,12 +433,13 @@ class TrainingActivityService {
         paceMinKm: paceMinKm,
       );
       try {
-        await FlutterForegroundTask.updateService(
+        _androidServiceRunning = await FlutterForegroundTask.updateService(
           notificationTitle: title,
           notificationText: body,
         );
-        _androidServiceRunning = true;
-      } catch (_) {
+      } catch (error) {
+        // ignore: avoid_print
+        print('[TrainingActivity] Android notification update failed: $error');
         _androidServiceRunning = false;
       }
     }
@@ -456,14 +466,21 @@ class TrainingActivityService {
     }
     if (!_isAndroidInForeground()) return;
     try {
-      await FlutterForegroundTask.startService(
+      _androidServiceRunning = await FlutterForegroundTask.startService(
         notificationTitle: title,
         notificationText: body,
         callback: trainingStartCallback,
       );
-      _androidServiceRunning = true;
-    } catch (_) {
+      if (!_androidServiceRunning) {
+        // ignore: avoid_print
+        print('[TrainingActivity] Android foreground service did not start');
+      }
+    } catch (error) {
       // Android 14+ may reject start when app is backgrounded by system policy.
+      // ignore: avoid_print
+      print(
+        '[TrainingActivity] Android foreground service start failed: $error',
+      );
       _androidServiceRunning = false;
     }
   }

@@ -232,7 +232,23 @@ class ReferralApi {
       headers: await _headers(),
       body: jsonEncode({'decision': 'skip'}),
     );
-    _decode(response);
+    try {
+      _decode(response);
+    } on ReferralApiException catch (error) {
+      final message = error.message.toLowerCase();
+      final missingOptionalMigration =
+          error.statusCode == 503 &&
+          message.contains('referral onboarding migration 022');
+      final decisionAlreadyFinal =
+          error.statusCode == 409 &&
+          message.contains('referral decision') &&
+          message.contains('already final');
+
+      // Skipping is optional and grants no referral benefit. Older backend
+      // deployments must not prevent a new user from finishing signup.
+      if (missingOptionalMigration || decisionAlreadyFinal) return;
+      rethrow;
+    }
   }
 
   static Future<ReferralClaimPreparation> prepareClaim({

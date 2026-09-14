@@ -1249,6 +1249,13 @@ class AppLocalizations {
       "offline_banner_failed": "{count} changes need attention",
       "offline_banner_pending": "{count} changes waiting to sync",
       "offline_retry": "RETRY",
+      "app_update_available": "A new Taqa update is available",
+      "app_update_action": "Update",
+      "app_update_starting": "Preparing the update…",
+      "app_update_downloading": "Downloading update {percent}",
+      "app_update_ready": "Update ready to install",
+      "app_update_installing": "Installing update…",
+      "app_update_restart": "Restart",
       "exercise_saved_offline":
           "Exercise saved offline. Will sync when online.",
       "feedback_saved_offline":
@@ -3731,6 +3738,13 @@ class AppLocalizations {
       "offline_banner_failed": "تحتاج {count} تغييرات إلى الانتباه",
       "offline_banner_pending": "هناك {count} تغييرات بانتظار المزامنة",
       "offline_retry": "إعادة المحاولة",
+      "app_update_available": "يتوفر تحديث جديد لتطبيق طاقة",
+      "app_update_action": "تحديث",
+      "app_update_starting": "جارٍ تحضير التحديث…",
+      "app_update_downloading": "جارٍ تنزيل التحديث {percent}",
+      "app_update_ready": "التحديث جاهز للتثبيت",
+      "app_update_installing": "جارٍ تثبيت التحديث…",
+      "app_update_restart": "إعادة التشغيل",
       "exercise_saved_offline":
           "تم حفظ التمرين في وضع عدم الاتصال. سيتم المزامنة عند الاتصال.",
       "feedback_saved_offline":
