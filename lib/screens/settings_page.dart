@@ -26,6 +26,7 @@ import '../auth/expert_questionnaire.dart';
 import '../services/coach/progression_review_service.dart';
 import '../services/core/daily_provider_push_service.dart';
 import '../services/core/notification_service.dart';
+import '../services/core/avatar_picker_recovery.dart';
 import '../services/health/apple_watch_detection_service.dart';
 import '../services/whoop/whoop_daily_sync.dart';
 import '../services/whoop/whoop_latest_service.dart';
@@ -117,6 +118,7 @@ class _SettingsPageState extends State<SettingsPage>
     _loadCurrentPlan();
     _refreshAccountStatus();
     AccountStorage.accountChange.addListener(_handleAccountChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recoverAvatar());
   }
 
   Future<void> _showSuccessDialog(String message) async {
@@ -1245,61 +1247,95 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
+  Future<ImageSource?> _chooseAvatarSource() {
+    final t = AppLocalizations.of(context);
+    return showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+              child: Text(
+                t.translate('settings_change_avatar'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 17,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: Text(t.translate('diet_photo_take')),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(t.translate('diet_photo_pick')),
+              onTap: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickAvatar() async {
     if (_updatingAvatar) return;
-    final picker = ImagePicker();
-    setState(() => _updatingAvatar = true);
-    try {
-      // The system picker grants access only to the selected image.
-      final granted = await ConsentManager.requestCameraOrGalleryForAvatar();
+    final source = await _chooseAvatarSource();
+    if (source == null || !mounted) return;
+
+    if (source == ImageSource.camera) {
+      final granted = await ConsentManager.requestCameraJIT();
       if (!granted) {
         if (!mounted) return;
         AppToast.show(
           context,
-          AppLocalizations.of(context).translate("permissions_required"),
+          AppLocalizations.of(
+            context,
+          ).translate('avatar_camera_permission_required'),
           type: AppToastType.error,
         );
+        await _offerAvatarPermissionSettings();
         return;
       }
+    }
 
-      final picked = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
+    setState(() => _updatingAvatar = true);
+    try {
+      await AvatarPickerRecovery.begin();
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 1024,
+        maxHeight: 1024,
         imageQuality: 85,
+        requestFullMetadata: false,
       );
       if (picked == null) return;
-      final userId = await AccountStorage.getUserId();
-      if (userId == null) {
-        if (!mounted) return;
-        AppToast.show(
-          context,
-          AppLocalizations.of(context).translate("user_missing"),
-          type: AppToastType.error,
-        );
-        return;
-      }
-      final url = await ProfileApi.uploadAvatar(userId, picked.path);
-      final stamp = DateTime.now().millisecondsSinceEpoch;
-      final cacheBusted = url.contains("?") ? "$url&v=$stamp" : "$url?v=$stamp";
-      try {
-        final dir = await getApplicationDocumentsDirectory();
-        final ext = picked.path.split('.').last;
-        final localPath = "${dir.path}/avatar_${userId}_$stamp.$ext";
-        final saved = await File(picked.path).copy(localPath);
-        await AccountStorage.setAvatarPath(saved.path, userId: userId);
-      } catch (_) {
-        // Fallback to picker path if copy fails
-        await AccountStorage.setAvatarPath(picked.path, userId: userId);
-      }
-      await AccountStorage.setAvatarUrl(cacheBusted, userId: userId);
-      AccountStorage.notifyAccountChanged();
+      await AvatarPickerRecovery.remember(picked.path);
+      await _uploadAvatar(picked);
+    } on PlatformException catch (e) {
       if (!mounted) return;
+      final code = e.code.toLowerCase();
+      final permissionError =
+          code.contains('access_denied') ||
+          code.contains('permission') ||
+          code.contains('restricted');
       AppToast.show(
         context,
-        AppLocalizations.of(context).translate("avatar_updated"),
-        type: AppToastType.success,
+        permissionError
+            ? AppLocalizations.of(context).translate('permissions_required')
+            : userFriendlyErrorMessage(
+                e,
+                fallback: 'Could not open photos. Please try again.',
+              ),
+        type: AppToastType.error,
       );
+      if (source == ImageSource.camera && permissionError) {
+        await _offerAvatarPermissionSettings();
+      }
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -1311,8 +1347,88 @@ class _SettingsPageState extends State<SettingsPage>
         type: AppToastType.error,
       );
     } finally {
+      await AvatarPickerRecovery.clear();
       if (mounted) setState(() => _updatingAvatar = false);
     }
+  }
+
+  Future<void> _recoverAvatar() async {
+    if (_updatingAvatar || !mounted) return;
+    final recovered = await AvatarPickerRecovery.pendingPhoto();
+    if (recovered == null || !mounted) return;
+
+    setState(() => _updatingAvatar = true);
+    try {
+      await _uploadAvatar(recovered);
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(
+          e,
+          fallback: 'Could not update avatar. Please try again.',
+        ),
+        type: AppToastType.error,
+      );
+    } finally {
+      await AvatarPickerRecovery.clear();
+      if (mounted) setState(() => _updatingAvatar = false);
+    }
+  }
+
+  Future<void> _uploadAvatar(XFile picked) async {
+    final missingUserMessage = AppLocalizations.of(
+      context,
+    ).translate('user_missing');
+    final length = await picked.length();
+    if (length <= 0) throw Exception('The selected photo is empty.');
+    if (length > 5 * 1024 * 1024) {
+      throw Exception('Image must be <= 5 MB');
+    }
+    final userId = await AccountStorage.getUserId();
+    if (userId == null) {
+      throw Exception(missingUserMessage);
+    }
+    final url = await ProfileApi.uploadAvatar(userId, picked.path);
+    if (url.trim().isEmpty) {
+      throw Exception('The server did not return the updated avatar.');
+    }
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+    final cacheBusted = url.contains("?") ? "$url&v=$stamp" : "$url?v=$stamp";
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final candidateExt = picked.path.split('.').last.toLowerCase();
+      const supportedExts = {'jpg', 'jpeg', 'png', 'heic', 'heif', 'webp'};
+      final ext = supportedExts.contains(candidateExt) ? candidateExt : 'jpg';
+      final localPath = "${dir.path}/avatar_${userId}_$stamp.$ext";
+      final saved = await File(picked.path).copy(localPath);
+      await AccountStorage.setAvatarPath(saved.path, userId: userId);
+    } catch (_) {
+      // Fallback to picker path if copy fails
+      await AccountStorage.setAvatarPath(picked.path, userId: userId);
+    }
+    await AccountStorage.setAvatarUrl(cacheBusted, userId: userId);
+    AccountStorage.notifyAccountChanged();
+    if (!mounted) return;
+    AppToast.show(
+      context,
+      AppLocalizations.of(context).translate("avatar_updated"),
+      type: AppToastType.success,
+    );
+  }
+
+  Future<void> _offerAvatarPermissionSettings() async {
+    if (!mounted || !await ConsentManager.isCameraPermanentlyBlocked()) return;
+    if (!mounted) return;
+    final t = AppLocalizations.of(context);
+    final openSettings = await showTaqaConfirmDialog(
+      context: context,
+      title: t.translate('avatar_permission_title'),
+      message: t.translate('avatar_camera_permission_required'),
+      confirmLabel: t.translate('common_open_settings'),
+      cancelLabel: t.translate('common_cancel'),
+    );
+    if (openSettings) await ConsentManager.openApplicationSettings();
   }
 
   Future<void> _showSupportDialog({

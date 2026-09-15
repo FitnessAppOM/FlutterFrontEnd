@@ -3,34 +3,50 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../localization/app_localizations.dart';
+import '../services/core/app_release_policy_service.dart';
 
 class ReleaseNotesNotice {
   static const String _prefsKey = 'release_notes_shown_version';
 
   static Future<void> showIfNeeded(BuildContext context) async {
+    final languageCode = Localizations.localeOf(context).languageCode;
     final info = await PackageInfo.fromPlatform();
     final currentVersion = info.version.trim();
     if (currentVersion.isEmpty) return;
+    final currentRelease = '$currentVersion+${info.buildNumber.trim()}';
 
     final prefs = await SharedPreferences.getInstance();
     final shownVersion = prefs.getString(_prefsKey);
-    if (shownVersion == currentVersion) return;
+    if (shownVersion == currentRelease) return;
+    await AppReleasePolicyService.instance.initialize(
+      languageCode: languageCode,
+    );
+    final releaseNotes = AppReleasePolicyService.instance
+        .releaseNotesForInstalledVersion();
     if (!context.mounted) return;
 
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => ReleaseNotesDialog(version: currentVersion),
+      builder: (_) => ReleaseNotesDialog(
+        version: currentVersion,
+        releaseNotes: releaseNotes,
+      ),
     );
 
-    await prefs.setString(_prefsKey, currentVersion);
+    await prefs.setString(_prefsKey, currentRelease);
   }
 }
 
 class ReleaseNotesDialog extends StatelessWidget {
-  const ReleaseNotesDialog({super.key, required this.version});
+  const ReleaseNotesDialog({
+    super.key,
+    required this.version,
+    this.releaseNotes = const [],
+  });
 
   final String version;
+  final List<String> releaseNotes;
 
   @override
   Widget build(BuildContext context) {
@@ -91,13 +107,17 @@ class ReleaseNotesDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            _ReleaseNoteItem(text: l10n.translate('release_notes_bug_fixes')),
-            _ReleaseNoteItem(
-              text: l10n.translate('release_notes_referral_testing'),
-            ),
-            _ReleaseNoteItem(
-              text: l10n.translate('release_notes_experience_updates'),
-            ),
+            if (releaseNotes.isNotEmpty)
+              ...releaseNotes.map((note) => _ReleaseNoteItem(text: note))
+            else ...[
+              _ReleaseNoteItem(text: l10n.translate('release_notes_bug_fixes')),
+              _ReleaseNoteItem(
+                text: l10n.translate('release_notes_referral_testing'),
+              ),
+              _ReleaseNoteItem(
+                text: l10n.translate('release_notes_experience_updates'),
+              ),
+            ],
             const SizedBox(height: 18),
             Align(
               alignment: AlignmentDirectional.centerEnd,

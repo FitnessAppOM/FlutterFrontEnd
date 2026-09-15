@@ -46,6 +46,8 @@ dependencies:
   shared_preferences: ^2.3.2
   flutter_secure_storage: ^10.3.1
   image_picker: ^1.0.8
+  image_picker_android: ^0.8.13+10
+  image_picker_platform_interface: ^2.11.1
   file_picker: ^8.0.0
   record: ^6.1.2
   just_audio: ^0.9.46

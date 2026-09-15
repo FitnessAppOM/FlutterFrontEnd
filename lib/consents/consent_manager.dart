@@ -436,6 +436,13 @@ class ConsentManager {
     return res.isGranted;
   }
 
+  static Future<bool> isCameraPermanentlyBlocked() async {
+    final status = await Permission.camera.status;
+    return status.isPermanentlyDenied || status.isRestricted;
+  }
+
+  static Future<bool> openApplicationSettings() => openAppSettings();
+
   // ---------------------------------------------------------------------------
   // PHOTOS / MEDIA LIBRARY — JIT (for saving/reading images)
   // ---------------------------------------------------------------------------

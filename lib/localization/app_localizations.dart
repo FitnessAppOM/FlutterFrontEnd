@@ -1250,6 +1250,7 @@ class AppLocalizations {
       "offline_banner_pending": "{count} changes waiting to sync",
       "offline_retry": "RETRY",
       "app_update_available": "A new Taqa update is available",
+      "app_update_required": "A Taqa update is required to continue",
       "app_update_action": "Update",
       "app_update_starting": "Preparing the update…",
       "app_update_downloading": "Downloading update {percent}",
@@ -1505,9 +1506,12 @@ class AppLocalizations {
       "username_updated": "Username updated",
       "ok": "OK",
       "settings_change_avatar": "Change avatar",
-      "settings_change_avatar_sub": "Pick a new profile picture",
+      "settings_change_avatar_sub": "Take a photo or choose from your gallery",
       "permissions_required":
           "Camera or photo access is required to change your avatar.",
+      "avatar_permission_title": "Camera permission required",
+      "avatar_camera_permission_required":
+          "Allow camera access in Settings to take a profile photo.",
       "avatar_updated": "Avatar updated",
       "settings_be_expert": "Be an expert",
       "settings_be_expert_sub": "Start the expert questionnaire",
@@ -3739,6 +3743,7 @@ class AppLocalizations {
       "offline_banner_pending": "هناك {count} تغييرات بانتظار المزامنة",
       "offline_retry": "إعادة المحاولة",
       "app_update_available": "يتوفر تحديث جديد لتطبيق طاقة",
+      "app_update_required": "يلزم تحديث تطبيق طاقة للمتابعة",
       "app_update_action": "تحديث",
       "app_update_starting": "جارٍ تحضير التحديث…",
       "app_update_downloading": "جارٍ تنزيل التحديث {percent}",
@@ -3989,9 +3994,12 @@ class AppLocalizations {
       "username_updated": "تم تحديث اسم المستخدم",
       "ok": "حسناً",
       "settings_change_avatar": "تغيير الصورة الشخصية",
-      "settings_change_avatar_sub": "اختر صورة جديدة للملف الشخصي",
+      "settings_change_avatar_sub": "التقط صورة أو اختر صورة من المعرض",
       "permissions_required":
           "مطلوب إذن الكاميرا أو الصور لتغيير صورتك الشخصية.",
+      "avatar_permission_title": "إذن الكاميرا مطلوب",
+      "avatar_camera_permission_required":
+          "اسمح بالوصول إلى الكاميرا من الإعدادات لالتقاط صورة شخصية.",
       "avatar_updated": "تم تحديث الصورة الشخصية",
       "settings_be_expert": "كن خبيراً",
       "settings_be_expert_sub": "ابدأ استبيان الخبير",

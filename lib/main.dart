@@ -8,6 +8,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:image_picker_android/image_picker_android.dart';
+import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'firebase_options.dart';
 
 import 'localization/app_localizations.dart';
@@ -16,6 +18,7 @@ import 'screens/account_restore_page.dart';
 import 'screens/splash/boot_gate.dart';
 import 'TaqaUI/styles/taqa_ui_scale.dart';
 import 'TaqaUI/styles/taqa_ui_text_scale_guard.dart';
+import 'TaqaUI/components/taqa_ios_update_banner.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
 import 'consents/consent_manager.dart';
@@ -25,7 +28,10 @@ import 'screens/daily_journal.dart';
 import 'services/core/navigation_service.dart';
 import 'services/core/daily_provider_push_service.dart';
 import 'services/core/network_status_service.dart';
+import 'services/core/expert_selfie_recovery.dart';
+import 'services/core/avatar_picker_recovery.dart';
 import 'services/core/offline_sync_coordinator.dart';
+import 'services/core/app_release_policy_service.dart';
 import 'services/core/play_in_app_update_service.dart';
 import 'services/training/training_activity_service.dart';
 import 'services/training/training_service.dart';
@@ -82,6 +88,16 @@ Future<void> _bootstrap() async {
   final bootWatch = Stopwatch()..start();
   print('[Main] Entry');
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isAndroid) {
+    final imagePicker = ImagePickerPlatform.instance;
+    if (imagePicker is ImagePickerAndroid) {
+      // Keep gallery actions inside Android's image-only Photo Picker instead
+      // of the document browser used by ACTION_GET_CONTENT.
+      imagePicker.useAndroidPhotoPicker = true;
+    }
+  }
+  await ExpertSelfieRecovery.recoverAtStartup();
+  await AvatarPickerRecovery.recoverAtStartup();
   await localeController.loadSaved();
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
@@ -307,6 +323,11 @@ class _MyAppState extends State<MyApp> {
     unawaited(TrainingActivityService.refreshLocalization());
     unawaited(NotificationService.refreshLocalization());
     unawaited(RemotePushService.syncTokenForCurrentUser(force: true));
+    unawaited(
+      AppReleasePolicyService.instance.checkForUpdate(
+        languageCode: localeController.locale.languageCode,
+      ),
+    );
   }
 
   Future<void> _initializeOfflineServices() async {
@@ -316,6 +337,9 @@ class _MyAppState extends State<MyApp> {
 
   void _handleLifecycle() async {
     await NetworkStatusService.instance.checkNow();
+    await AppReleasePolicyService.instance.initialize(
+      languageCode: localeController.locale.languageCode,
+    );
     await PlayInAppUpdateService.instance.initialize();
     unawaited(PlayInAppUpdateService.instance.checkForUpdate());
     _maybeRequestAndroidHealthPermission();
@@ -360,6 +384,11 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _runPostStartupWork() async {
+    unawaited(
+      AppReleasePolicyService.instance.initialize(
+        languageCode: localeController.locale.languageCode,
+      ),
+    );
     await NavigationService.waitUntilStartupReady();
     if (!mounted) return;
     unawaited(PlayInAppUpdateService.instance.initialize());
@@ -420,7 +449,12 @@ class _MyAppState extends State<MyApp> {
           locale: localeController.locale,
           builder: (context, appChild) {
             return TaqaUiTextScaleGuard(
-              child: appChild ?? const SizedBox.shrink(),
+              child: Stack(
+                children: [
+                  appChild ?? const SizedBox.shrink(),
+                  const TaqaRequiredUpdateOverlay(),
+                ],
+              ),
             );
           },
           localizationsDelegates: const [

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,6 +16,7 @@ import '../../TaqaUI/taqa_ui_colors.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../consents/consent_manager.dart';
 import '../../services/core/expert_questionnaire_service.dart';
+import '../../services/core/expert_selfie_recovery.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -43,6 +42,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _ctrl = {};
   final Map<String, ExpertDocumentUpload> _documentUploads = {};
+  final Set<String> _uploadingDocuments = {};
 
   String? _gender;
   String? _role;
@@ -196,6 +196,12 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
       _ctrl.putIfAbsent(key, () => TextEditingController());
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recoverSelfie());
+  }
+
+  @override
   void dispose() {
     for (final c in _ctrl.values) {
       c.dispose();
@@ -212,6 +218,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
+    if (_uploadingDocuments.isNotEmpty) {
+      _toast("Please wait for the document upload to finish.");
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => _submitting = true);
 
@@ -456,7 +466,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               SizedBox(height: TaqaUiScale.h(8)),
               TaqaUploadRow(
                 display: _documentDisplay("gov", _c("government_id_file_url")),
-                actionLabel: "Upload",
+                actionLabel: _uploadingDocuments.contains("gov")
+                    ? "Uploading..."
+                    : "Upload",
                 onTap: () =>
                     _pickAndUpload("gov", _c("government_id_file_url")),
               ),
@@ -473,8 +485,10 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               SizedBox(height: TaqaUiScale.h(8)),
               TaqaUploadRow(
                 display: _documentDisplay("selfie", _c("selfie_file_url")),
-                actionLabel: "Upload",
-                onTap: () => _captureSelfie(_c("selfie_file_url")),
+                actionLabel: _uploadingDocuments.contains("selfie")
+                    ? "Uploading..."
+                    : "Add photo",
+                onTap: () => _chooseSelfieSource(_c("selfie_file_url")),
               ),
               const TaqaSectionDivider(),
 
@@ -702,7 +716,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
               TaqaFilledButton(
                 label: t.translate("expert_questionnaire_submit"),
                 loading: _isSubmitting,
-                onTap: _isSubmitting ? null : _submit,
+                onTap: _isSubmitting || _uploadingDocuments.isNotEmpty
+                    ? null
+                    : _submit,
               ),
               SizedBox(height: TaqaUiScale.h(12)),
               TaqaTextActionButton(
@@ -753,13 +769,15 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   }
 
   String _documentDisplay(String kind, TextEditingController controller) {
+    if (_uploadingDocuments.contains(kind)) return "Uploading securely...";
     if (controller.text.trim().isEmpty) return "No file uploaded";
     final upload = _documentUploads[kind];
     if (upload == null) return "Uploaded";
     switch (upload.status) {
       case "clean":
+        return "Verified";
       case "pending":
-        return "Uploaded";
+        return "Uploaded - security check pending";
       case "rejected":
         return "Upload rejected - choose another file";
       case "failed":
@@ -1025,30 +1043,38 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     String kind,
     TextEditingController controller,
   ) async {
-    final permitted = await ConsentManager.requestFileAccessJIT();
-    if (!permitted) {
-      _toast("Permission required to access files.", type: AppToastType.error);
+    if (_uploadingDocuments.isNotEmpty) {
+      _toast("Please wait for the current document upload to finish.");
       return;
     }
-
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ["jpg", "jpeg", "png", "heic", "heif", "webp", "pdf"],
-      withData: false,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.size > 5 * 1024 * 1024) {
-      _toast("File must be 5MB or less.", type: AppToastType.error);
-      return;
-    }
-    final path = file.path;
-    if (path == null) {
-      _toast("Invalid file.", type: AppToastType.error);
-      return;
-    }
-
     try {
+      final permitted = await ConsentManager.requestFileAccessJIT();
+      if (!permitted) {
+        _toast(
+          "Permission required to access files.",
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          "jpg",
+          "jpeg",
+          "png",
+          "heic",
+          "heif",
+          "webp",
+          "pdf",
+        ],
+        withData: false,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final path = result.files.first.path;
+      if (path == null) {
+        throw Exception("The selected file could not be opened.");
+      }
+      if (mounted) setState(() => _uploadingDocuments.add(kind));
       final upload = await ExpertQuestionnaireApi.upload(kind, path);
       if (!mounted) return;
       setState(() {
@@ -1062,42 +1088,95 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         type: AppToastType.success,
       );
     } catch (e) {
-      _toast("$e", type: AppToastType.error);
+      _toast(userFriendlyErrorMessage(e), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _uploadingDocuments.remove(kind));
     }
   }
 
-  Future<void> _captureSelfie(TextEditingController controller) async {
-    final cameraOk = await ConsentManager.requestCameraJIT();
-    if (!cameraOk) {
-      _toast(
-        "Camera permission is required to capture a selfie.",
-        type: AppToastType.error,
-      );
-      await _maybePromptOpenSettingsForSelfie();
+  Future<void> _chooseSelfieSource(TextEditingController controller) async {
+    if (_uploadingDocuments.isNotEmpty) {
+      _toast("Please wait for the current document upload to finish.");
       return;
     }
-
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      imageQuality: 85,
-      maxWidth: 1920,
-      maxHeight: 1920,
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_outlined),
+              title: const Text("Take photo"),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text("Choose existing photo"),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
     );
-    if (picked == null) {
-      await _maybePromptOpenSettingsForSelfie();
-      return;
-    }
+    if (source == null || !mounted) return;
+    await _pickSelfie(source, controller);
+  }
 
-    final file = File(picked.path);
-    final size = await file.length();
-    if (size > 5 * 1024 * 1024) {
-      _toast("File must be 5MB or less.", type: AppToastType.error);
-      return;
-    }
-
+  Future<void> _pickSelfie(
+    ImageSource source,
+    TextEditingController controller,
+  ) async {
     try {
+      if (source == ImageSource.camera) {
+        final cameraOk = await ConsentManager.requestCameraJIT();
+        if (!cameraOk) {
+          _toast(
+            "Camera permission is required to take a selfie.",
+            type: AppToastType.error,
+          );
+          await _maybePromptOpenSettingsForSelfie();
+          return;
+        }
+      }
+      await ExpertSelfieRecovery.begin();
+      XFile? picked;
+      try {
+        picked = await ImagePicker().pickImage(
+          source: source,
+          preferredCameraDevice: CameraDevice.front,
+          imageQuality: 85,
+          maxWidth: 1920,
+          maxHeight: 1920,
+          requestFullMetadata: false,
+        );
+      } finally {
+        await ExpertSelfieRecovery.clear();
+      }
+      if (picked == null) return;
+      await _uploadSelfie(picked, controller);
+    } catch (e) {
+      _toast(userFriendlyErrorMessage(e), type: AppToastType.error);
+    }
+  }
+
+  Future<void> _recoverSelfie() async {
+    try {
+      final recovered = await ExpertSelfieRecovery.takeRecoveredPhoto();
+      if (recovered == null || !mounted) return;
+      _toast("Restoring your selected selfie...");
+      await _uploadSelfie(recovered, _c("selfie_file_url"));
+    } catch (e) {
+      _toast(userFriendlyErrorMessage(e), type: AppToastType.error);
+    }
+  }
+
+  Future<void> _uploadSelfie(
+    XFile picked,
+    TextEditingController controller,
+  ) async {
+    if (_uploadingDocuments.contains("selfie")) return;
+    try {
+      if (mounted) setState(() => _uploadingDocuments.add("selfie"));
       final upload = await ExpertQuestionnaireApi.upload("selfie", picked.path);
       if (!mounted) return;
       setState(() {
@@ -1111,7 +1190,9 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
         type: AppToastType.success,
       );
     } catch (e) {
-      _toast("$e", type: AppToastType.error);
+      _toast(userFriendlyErrorMessage(e), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _uploadingDocuments.remove("selfie"));
     }
   }
 
@@ -1129,7 +1210,8 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
     final shouldOpenSettings = await showTaqaConfirmDialog(
       context: context,
       title: t.translate('expert_selfie_permission_title'),
-      message: t.translate('expert_selfie_permission_message'),
+      message:
+          "Camera access is blocked. Enable it in system settings to take a selfie.",
       confirmLabel: t.translate('common_open_settings'),
       cancelLabel: t.translate('common_cancel'),
     );
@@ -1415,6 +1497,7 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   late TextEditingController _fileCtrl;
   String? _documentId;
   String? _scanStatus;
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -1435,6 +1518,10 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   }
 
   void _save() {
+    if (_uploading) {
+      _toast("Please wait for the document upload to finish.");
+      return;
+    }
     if (_hasCert == "Yes") {
       if (_certType == null || _certType!.isEmpty) {
         _toast("Select certification type.", type: AppToastType.error);
@@ -1509,19 +1596,29 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
               ],
               SizedBox(height: TaqaUiScale.h(16)),
               TaqaUploadRow(
-                display: _fileCtrl.text.isEmpty
+                display: _uploading
+                    ? "Uploading securely..."
+                    : _fileCtrl.text.isEmpty
                     ? "No file uploaded"
+                    : _scanStatus == "pending"
+                    ? "Uploaded - security check pending"
+                    : _scanStatus == "clean"
+                    ? "Verified"
                     : _scanStatus == "rejected"
                     ? "Upload rejected - choose another file"
                     : _scanStatus == "failed"
                     ? "Upload failed - try again"
                     : "Uploaded",
-                actionLabel: "Upload",
+                actionLabel: _uploading ? "Uploading..." : "Upload",
                 onTap: () => _pickAndUpload("cert"),
               ),
             ],
             SizedBox(height: TaqaUiScale.h(28)),
-            TaqaFilledButton(label: "Save", onTap: _save),
+            TaqaFilledButton(
+              label: "Save",
+              loading: _uploading,
+              onTap: _uploading ? null : _save,
+            ),
           ],
         ),
       ),
@@ -1529,28 +1626,35 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
   }
 
   Future<void> _pickAndUpload(String kind) async {
-    final permitted = await ConsentManager.requestFileAccessJIT();
-    if (!permitted) {
-      _toast("Permission required to access files.", type: AppToastType.error);
-      return;
-    }
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ["jpg", "jpeg", "png", "heic", "heif", "webp", "pdf"],
-      withData: false,
-    );
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.size > 5 * 1024 * 1024) {
-      _toast("File must be 5MB or less.", type: AppToastType.error);
-      return;
-    }
-    final path = file.path;
-    if (path == null) {
-      _toast("Invalid file.", type: AppToastType.error);
-      return;
-    }
+    if (_uploading) return;
     try {
+      final permitted = await ConsentManager.requestFileAccessJIT();
+      if (!permitted) {
+        _toast(
+          "Permission required to access files.",
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: [
+          "jpg",
+          "jpeg",
+          "png",
+          "heic",
+          "heif",
+          "webp",
+          "pdf",
+        ],
+        withData: false,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final path = result.files.first.path;
+      if (path == null) {
+        throw Exception("The selected file could not be opened.");
+      }
+      if (mounted) setState(() => _uploading = true);
       final upload = await ExpertQuestionnaireApi.upload(kind, path);
       if (!mounted) return;
       setState(() {
@@ -1565,7 +1669,9 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
         type: AppToastType.success,
       );
     } catch (e) {
-      _toast("$e", type: AppToastType.error);
+      _toast(userFriendlyErrorMessage(e), type: AppToastType.error);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 

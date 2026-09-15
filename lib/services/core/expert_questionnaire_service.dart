@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
@@ -29,6 +30,8 @@ class ExpertDocumentUpload {
 }
 
 class ExpertQuestionnaireApi {
+  static const maxUploadBytes = 5 * 1024 * 1024;
+
   static Future<void> submit(Map<String, dynamic> data) async {
     final url = Uri.parse("${ApiConfig.baseUrl}/expert-questionnaire/submit");
     final res = await http
@@ -55,14 +58,28 @@ class ExpertQuestionnaireApi {
     String kind,
     String filePath,
   ) async {
+    final size = await File(filePath).length();
+    if (size == 0) throw Exception("The selected file is empty.");
+    if (size > maxUploadBytes) {
+      throw Exception("File must be 5MB or less.");
+    }
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/expert-questionnaire/upload/$kind",
     );
     final request = http.MultipartRequest("POST", url);
     request.headers.addAll(await AccountStorage.getAuthHeaders());
     request.files.add(await http.MultipartFile.fromPath("file", filePath));
-    final streamed = await request.send();
-    final res = await http.Response.fromStream(streamed);
+    // Closing the client also aborts the connection when the deadline expires.
+    final client = http.Client();
+    late http.Response res;
+    try {
+      res = await (() async {
+        final streamed = await client.send(request);
+        return http.Response.fromStream(streamed);
+      })().timeout(const Duration(seconds: 90));
+    } finally {
+      client.close();
+    }
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body) as Map<String, dynamic>;
@@ -84,10 +101,15 @@ class ExpertQuestionnaireApi {
     final url = Uri.parse(
       "${ApiConfig.baseUrl}/expert-questionnaire/upload/$documentId/status",
     );
-    final res = await http.get(
-      url,
-      headers: await AccountStorage.getAuthHeaders(),
-    );
+    final client = http.Client();
+    late http.Response res;
+    try {
+      res = await client
+          .get(url, headers: await AccountStorage.getAuthHeaders())
+          .timeout(const Duration(seconds: 20));
+    } finally {
+      client.close();
+    }
     await AccountStorage.handle401(res.statusCode);
     if (res.statusCode == 200) {
       return ExpertDocumentUpload.fromJson(
