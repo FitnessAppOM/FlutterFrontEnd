@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/base_url.dart';
@@ -55,6 +56,20 @@ class _LoginPageState extends State<LoginPage> {
   bool lastExpertQuestionnaireDone = false;
   String? lastAuthProvider;
 
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  Future<void> _dismissKeyboardBeforeExternalAuth() async {
+    _dismissKeyboard();
+    try {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } catch (_) {
+      // Unfocus is sufficient on platforms that do not expose this channel.
+    }
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +84,13 @@ class _LoginPageState extends State<LoginPage> {
         handleGoogleLogin();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    email.dispose();
+    password.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLastUser() async {
@@ -186,6 +208,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
+    _dismissKeyboard();
     final t = AppLocalizations.of(context);
 
     final mail = email.text.trim();
@@ -336,6 +359,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> handleGoogleLogin() async {
+    if (loading) return;
+    await _dismissKeyboardBeforeExternalAuth();
+    if (!mounted) return;
     final t = AppLocalizations.of(context);
 
     if (!mounted) return;
@@ -424,6 +450,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> handleAppleLogin() async {
+    if (loading) return;
+    await _dismissKeyboardBeforeExternalAuth();
+    if (!mounted) return;
     final t = AppLocalizations.of(context);
 
     if (!mounted) return;
@@ -524,6 +553,7 @@ class _LoginPageState extends State<LoginPage> {
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       ),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(
           child: ConstrainedBox(
@@ -556,6 +586,7 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
+                      _dismissKeyboard();
                       final enteredEmail = email.text.trim();
                       Navigator.push(
                         context,

@@ -36,7 +36,12 @@ class TaqaBackButton extends StatelessWidget {
     return SizedBox.square(
       dimension: targetSize,
       child: IconButton(
-        onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
+        onPressed:
+            onPressed ??
+            () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              Navigator.of(context).maybePop();
+            },
         splashRadius: TaqaUiScale.w(splashRadius),
         padding: EdgeInsets.zero,
         constraints: BoxConstraints.tightFor(

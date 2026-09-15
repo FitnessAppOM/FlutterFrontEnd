@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../config/base_url.dart';
 import '../services/auth/auth_service.dart';
@@ -52,6 +53,20 @@ class _SignupPageState extends State<SignupPage> {
 
   final RegExp emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   final RegExp usernameRegex = RegExp(r'^[A-Za-z0-9._-]+$');
+
+  void _dismissKeyboard() {
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  Future<void> _dismissKeyboardBeforeExternalAuth() async {
+    _dismissKeyboard();
+    try {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } catch (_) {
+      // Unfocus is sufficient on platforms that do not expose this channel.
+    }
+    await WidgetsBinding.instance.endOfFrame;
+  }
 
   @override
   void dispose() {
@@ -189,6 +204,7 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> signup() async {
+    _dismissKeyboard();
     final t = AppLocalizations.of(context);
 
     if (!_validateInput()) return;
@@ -248,6 +264,9 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> handleGoogleSignup() async {
+    if (loading) return;
+    await _dismissKeyboardBeforeExternalAuth();
+    if (!mounted) return;
     final t = AppLocalizations.of(context);
 
     if (!mounted) return;
@@ -387,6 +406,9 @@ class _SignupPageState extends State<SignupPage> {
   }
 
   Future<void> handleAppleSignup() async {
+    if (loading) return;
+    await _dismissKeyboardBeforeExternalAuth();
+    if (!mounted) return;
     final t = AppLocalizations.of(context);
 
     if (!mounted) return;
@@ -631,6 +653,7 @@ class _SignupPageState extends State<SignupPage> {
         backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       ),
       body: SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(
           child: ConstrainedBox(
