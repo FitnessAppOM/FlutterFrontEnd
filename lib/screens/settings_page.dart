@@ -10,7 +10,7 @@ import '../core/locale_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
-import '../TaqaUI/components/taqa_back_button.dart';
+import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_log_entry_card.dart';
 import '../TaqaUI/components/taqa_outline_tag_button.dart';
 import '../TaqaUI/components/taqa_switch.dart';
@@ -1657,36 +1657,14 @@ class _SettingsPageState extends State<SettingsPage>
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(
+        title: t.translate("settings"),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            Padding(
-              padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    t.translate("settings"),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(15),
-                      fontWeight: FontWeight.w700,
-                      height: 25 / 15,
-                      letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
-                    ),
-                  ),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TaqaBackButton(
-                      color: TaqaUiColors.charcoal,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
             Expanded(
               child: ListView(
                 padding: TaqaUiScale.insetsLTRB(16, 20, 16, 24),

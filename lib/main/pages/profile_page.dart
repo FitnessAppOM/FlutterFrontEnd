@@ -17,7 +17,7 @@ import '../../screens/welcome.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../../TaqaUI/components/taqa_back_button.dart';
+import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -367,38 +367,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      appBar: TaqaPageAppBar(
+        title: t.translate("profile_title"),
+        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      ),
       body: SafeArea(
+        top: false,
         child: Column(
           children: [
-            Padding(
-              padding: TaqaUiScale.insetsLTRB(16, 12, 16, 0),
-              child: SizedBox(
-                height: TaqaUiScale.h(25),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: TaqaBackButton(
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                    Text(
-                      t.translate("profile_title"),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: TaqaUiFontFamilies.interTight,
-                        fontSize: TaqaUiScale.sp(15),
-                        fontWeight: FontWeight.w700,
-                        height: 25 / 15,
-                        letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
             Expanded(
               child: (_error != null && _profile == null)
                   ? Center(
