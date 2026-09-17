@@ -1122,27 +1122,51 @@ class TrainingService {
   }
 
   static Future<List<dynamic>> fetchAllExercises({
-    int limit = 1000,
+    int? limit,
     int offset = 0,
     String? search,
     String? muscle,
   }) async {
-    final query = <String, String>{'limit': '$limit', 'offset': '$offset'};
+    // The API caps each page at 100. A larger single request silently loses
+    // exercises, including IDs needed to edit existing coach plans.
+    final query = <String, String>{};
     if ((search ?? '').trim().isNotEmpty) {
       query['search'] = search!.trim();
     }
     if ((muscle ?? '').trim().isNotEmpty) {
       query['muscle'] = muscle!.trim();
     }
-    final url = Uri.parse(
-      '$baseUrl/training/exercises',
-    ).replace(queryParameters: query);
-    final response = await http.get(url);
-    _recordServerClock(response);
-    if (response.statusCode != 200) {
-      throw Exception("Failed to load exercises");
+    if (limit != null && limit <= 0) return [];
+    final exercises = <dynamic>[];
+    var nextOffset = offset < 0 ? 0 : offset;
+    final client = http.Client();
+    try {
+      while (limit == null || exercises.length < limit) {
+        final pageSize = limit == null
+            ? 100
+            : (limit - exercises.length).clamp(1, 100);
+        final url = Uri.parse('$baseUrl/training/exercises').replace(
+          queryParameters: {
+            ...query,
+            'limit': '$pageSize',
+            'offset': '$nextOffset',
+          },
+        );
+        final response = await client.get(url);
+        _recordServerClock(response);
+        if (response.statusCode != 200) {
+          throw Exception('Failed to load exercises');
+        }
+        final page = json.decode(response.body);
+        if (page is! List) throw Exception('Invalid exercise list response');
+        exercises.addAll(page);
+        if (page.length < pageSize) break;
+        nextOffset += page.length;
+      }
+      return exercises;
+    } finally {
+      client.close();
     }
-    return json.decode(response.body);
   }
 
   static Future<List<String>> fetchCompletedExerciseNames(int userId) async {

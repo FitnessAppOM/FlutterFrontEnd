@@ -20,7 +20,6 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
   String title = 'Select Exercise',
 }) async {
   if (options.isEmpty) return null;
-  final searchController = TextEditingController();
   String query = '';
 
   final selected = await TaqaPopupGuard.bottomSheet<ExercisePickerItem>(
@@ -114,7 +113,8 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                     SizedBox(
                       height: TaqaUiScale.h(39),
                       child: TextField(
-                        controller: searchController,
+                        // Let the field own its controller until the sheet's
+                        // closing animation has finished and it is unmounted.
                         autofocus: true,
                         cursorColor: TaqaUiColors.charcoal,
                         textInputAction: TextInputAction.done,
@@ -231,6 +231,5 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
     },
   );
 
-  searchController.dispose();
   return selected;
 }

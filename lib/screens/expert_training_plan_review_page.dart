@@ -206,10 +206,7 @@ class _ExpertTrainingPlanReviewPageState
       _exerciseLoadError = null;
     });
     try {
-      final raw = await TrainingService.fetchAllExercises(
-        limit: 1500,
-        offset: 0,
-      );
+      final raw = await TrainingService.fetchAllExercises();
       final options = <ExercisePickerItem>[];
       for (final item in raw) {
         if (item is! Map) continue;
@@ -268,27 +265,63 @@ class _ExpertTrainingPlanReviewPageState
     });
   }
 
-  bool _draftIsValid() {
-    if (_draftDays.isEmpty || _draftDays.length > 7) return false;
-    for (final day in _draftDays) {
-      if (day.exercises.isEmpty) return false;
-      for (final ex in day.exercises) {
-        if (ex.exerciseId <= 0) return false;
-        if (ex.sets < 1 || ex.sets > 20) return false;
-        if (ex.reps < 1 || ex.reps > 200) return false;
-        if (ex.rir != null && (ex.rir! < 0 || ex.rir! > 6)) return false;
+  String? _draftValidationMessage() {
+    if (_draftDays.isEmpty) return 'Add at least one training day.';
+    if (_draftDays.length > 7) return 'A plan can have at most 7 days.';
+    for (var dayIndex = 0; dayIndex < _draftDays.length; dayIndex++) {
+      final day = _draftDays[dayIndex];
+      final dayName = 'Day ${dayIndex + 1}';
+      if (day.exercises.isEmpty) return '$dayName: add an exercise.';
+      for (
+        var exerciseIndex = 0;
+        exerciseIndex < day.exercises.length;
+        exerciseIndex++
+      ) {
+        final ex = day.exercises[exerciseIndex];
+        final name = ex.exerciseName.trim().isEmpty
+            ? 'Exercise ${exerciseIndex + 1}'
+            : ex.exerciseName;
+        final location = '$dayName, $name';
+        if (ex.exerciseId <= 0) {
+          return '$location: select this exercise again from the exercise list.';
+        }
+        if (ex.sets < 1 || ex.sets > 20) return '$location: sets must be 1–20.';
+        if (ex.reps < 1 || ex.reps > 200) {
+          return '$location: reps must be 1–200.';
+        }
+        if (ex.rir != null && (ex.rir! < 0 || ex.rir! > 6)) {
+          return '$location: RIR must be 0–6.';
+        }
+        if (ex.weightKg != null &&
+            (!ex.weightKg!.isFinite ||
+                ex.weightKg! < 0 ||
+                ex.weightKg! > 1000)) {
+          return '$location: weight must be between 0 and 1000 kg.';
+        }
       }
     }
-    return true;
+    return null;
+  }
+
+  String? _confirmBlockedReason() {
+    if (_loadingExercises) return 'Loading exercises…';
+    if (_exerciseLoadError != null) {
+      return 'Could not load the exercise list. Tap Retry exercises.';
+    }
+    if (_exerciseLibrary.isEmpty) {
+      return 'The exercise list is empty. Tap Retry exercises.';
+    }
+    return _draftValidationMessage();
   }
 
   Future<void> _verifyOnly() async {
     if (!_needsVerification() || _isDirty() || _verifying) return;
     setState(() => _verifying = true);
     try {
-      final result = await ProgressionReviewService.markClientTrainingPlanVerified(
-        clientUserId: widget.clientUserId,
-      );
+      final result =
+          await ProgressionReviewService.markClientTrainingPlanVerified(
+            clientUserId: widget.clientUserId,
+          );
       if (!mounted) return;
       // 'noop' means there was nothing to verify -- don't claim success.
       final verified = (result['status'] ?? '').toString() == 'verified';
@@ -325,19 +358,10 @@ class _ExpertTrainingPlanReviewPageState
   }
 
   Future<void> _confirmChanges() async {
-    if (_saving || !_draftIsValid() || !_isDirty()) return;
-    // Guard: the payload sends numeric exercise ids resolved from the loaded
-    // library. If the library is still loading or failed to load, ids may be
-    // unresolved/stale and the save would fail on the backend. Block instead of
-    // sending a bad plan.
-    if (_loadingExercises ||
-        _exerciseLoadError != null ||
-        _exerciseLibrary.isEmpty) {
-      AppToast.show(
-        context,
-        'Exercise list is still loading. Please wait a moment and try again.',
-        type: AppToastType.info,
-      );
+    if (_saving ||
+        _verifying ||
+        !_isDirty() ||
+        _confirmBlockedReason() != null) {
       return;
     }
     setState(() => _saving = true);
@@ -607,16 +631,12 @@ class _ExpertTrainingPlanReviewPageState
   @override
   Widget build(BuildContext context) {
     final dirty = _isDirty();
-    final validDraft = _draftIsValid();
+    final blockedReason = _confirmBlockedReason();
     final needsVerification = _needsVerification();
     final canVerifyOnly =
         needsVerification && !dirty && !_saving && !_verifying;
-    final libraryReady =
-        !_loadingExercises &&
-        _exerciseLoadError == null &&
-        _exerciseLibrary.isNotEmpty;
     final canConfirm =
-        dirty && validDraft && libraryReady && !_saving && !_verifying;
+        dirty && blockedReason == null && !_saving && !_verifying;
 
     return PopScope<Map<String, dynamic>?>(
       canPop: false,
@@ -719,13 +739,6 @@ class _ExpertTrainingPlanReviewPageState
                                       : _addDay,
                                 ),
                               ],
-                              if (needsVerification && dirty) ...[
-                                SizedBox(height: TaqaUiScale.h(10)),
-                                const TaqaClientAlertText(
-                                  text:
-                                      'Reset edits to verify the AI plan only.',
-                                ),
-                              ],
                             ],
                           ),
                         ),
@@ -743,10 +756,29 @@ class _ExpertTrainingPlanReviewPageState
                               ),
                             ),
                           ),
-                          child: _buildScrollableActions(
-                            dirty: dirty,
-                            canConfirm: canConfirm,
-                            canVerifyOnly: canVerifyOnly,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (dirty && blockedReason != null) ...[
+                                TaqaClientAlertText(text: blockedReason),
+                                SizedBox(height: TaqaUiScale.h(8)),
+                              ],
+                              if (!_loadingExercises &&
+                                  (_exerciseLoadError != null ||
+                                      _exerciseLibrary.isEmpty))
+                                TaqaTextActionButton(
+                                  label: 'Retry exercises',
+                                  onTap: !_saving && !_verifying
+                                      ? _loadExerciseLibrary
+                                      : null,
+                                ),
+                              _buildScrollableActions(
+                                dirty: dirty,
+                                canConfirm: canConfirm,
+                                canVerifyOnly: canVerifyOnly,
+                              ),
+                            ],
                           ),
                         ),
                     ],
