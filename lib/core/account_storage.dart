@@ -18,6 +18,7 @@ class AccountStorage {
   static const _kToken = 'auth_token';
   static const _kRefreshToken = 'auth_refresh_token';
   static const _kIsExpert = 'is_expert';
+  static const _kIsDeveloper = 'is_developer';
   static const _kQuestionnaireDone = 'questionnaire_done';
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
   static const _kAvatarPath = 'avatar_path';
@@ -415,6 +416,19 @@ class AccountStorage {
     final previous = sp.getBool(_kIsExpert);
     if (previous == isExpert) return;
     await sp.setBool(_kIsExpert, isExpert);
+    notifyAccountChanged();
+  }
+
+  static Future<bool> isDeveloper() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_kIsDeveloper) ?? false;
+  }
+
+  static Future<void> setIsDeveloper(bool isDeveloper) async {
+    final sp = await SharedPreferences.getInstance();
+    final previous = sp.getBool(_kIsDeveloper);
+    if (previous == isDeveloper) return;
+    await sp.setBool(_kIsDeveloper, isDeveloper);
     notifyAccountChanged();
   }
 
@@ -855,6 +869,7 @@ class AccountStorage {
     await sp.remove(_kToken); // JWT/session token
     await sp.remove(_kVerified); // verification flag
     await sp.remove(_kIsExpert);
+    await sp.remove(_kIsDeveloper);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);
@@ -935,6 +950,7 @@ class AccountStorage {
     await sp.remove(_kToken);
     await sp.remove(_kAuthProvider);
     await sp.remove(_kIsExpert);
+    await sp.remove(_kIsDeveloper);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);

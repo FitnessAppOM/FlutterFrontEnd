@@ -292,6 +292,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
         expertQuestionnaireDone || approvedCoach,
       );
       await AccountStorage.setIsExpert(isCoachAccount);
+      await AccountStorage.setIsDeveloper(profile['is_developer'] == true);
       if (!mounted) return;
       if (hasData) {
         final expertAiPending =

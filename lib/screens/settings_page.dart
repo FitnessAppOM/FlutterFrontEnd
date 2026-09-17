@@ -649,6 +649,7 @@ class _SettingsPageState extends State<SettingsPage>
         isExpert = profile["is_expert"] == true;
         await AccountStorage.setExpertQuestionnaireDone(done);
         await AccountStorage.setIsExpert(isExpert);
+        await AccountStorage.setIsDeveloper(profile['is_developer'] == true);
       } catch (_) {
         // Keep existing fallback behavior when profile API isn't reachable.
         return;

@@ -26,6 +26,17 @@ void main() {
       expect(AccountType.isCoach(null), isFalse);
       expect(AccountType.isCoach({'account_type': 'client'}), isFalse);
     });
+
+    test('developer role can open the coach portal from either account mode', () {
+      expect(
+        AccountType.isCoach({
+          'account_type': 'client',
+          'is_expert': false,
+          'is_developer': true,
+        }),
+        isTrue,
+      );
+    });
   });
 
   group('AccountType.isApprovedCoach', () {
@@ -55,6 +66,17 @@ void main() {
           'expert_profile_status': 'approved',
         }),
         isFalse,
+      );
+    });
+
+    test('developer role bypasses coach approval routing', () {
+      expect(
+        AccountType.isApprovedCoach({
+          'is_developer': true,
+          'is_expert': false,
+          'expert_profile_status': 'suspended',
+        }),
+        isTrue,
       );
     });
   });

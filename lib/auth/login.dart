@@ -141,6 +141,7 @@ class _LoginPageState extends State<LoginPage> {
         expertQuestionnaireDone || approvedCoach,
       );
       await AccountStorage.setIsExpert(isCoachAccount);
+      await AccountStorage.setIsDeveloper(profile['is_developer'] == true);
       await AccountStorage.setCoachApplicationStatus(
         expertQuestionnaireDone || approvedCoach
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)

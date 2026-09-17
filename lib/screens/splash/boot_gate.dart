@@ -58,6 +58,7 @@ class _BootGateState extends State<BootGate> {
         expertQuestionnaireDone || approvedCoach,
       ),
       AccountStorage.setIsExpert(isCoachAccount),
+      AccountStorage.setIsDeveloper(profile['is_developer'] == true),
       AccountStorage.setCoachApplicationStatus(
         expertQuestionnaireDone || approvedCoach
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
