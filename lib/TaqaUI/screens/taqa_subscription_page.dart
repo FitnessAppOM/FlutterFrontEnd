@@ -1296,6 +1296,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final replacementMode = switch (change.replacementMode) {
       'CHARGE_PRORATED_PRICE' => ReplacementMode.chargeProratedPrice,
       'CHARGE_FULL_PRICE' => ReplacementMode.chargeFullPrice,
+      'WITHOUT_PRORATION' => ReplacementMode.withoutProration,
       'DEFERRED' => ReplacementMode.deferred,
       _ => throw BillingApiException(_tr('subscription_change_not_supported')),
     };
@@ -1310,6 +1311,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     GoogleSubscriptionChange? change,
   ) {
     if (change?.action == 'upgrade_to_coach') {
+      if (change?.replacementMode == 'WITHOUT_PRORATION') {
+        final effectiveDate = _googleChangeEffectiveDate(change?.effectiveAt);
+        final timing = effectiveDate ?? 'your current free trial ends';
+        return 'Upgrade to Taqa Coach now with no immediate charge. Your remaining free trial stays active, and Google Play will charge the Coach price when the plan renews after $timing.';
+      }
       return change?.replacementMode == 'CHARGE_FULL_PRICE'
           ? 'Upgrade to Taqa Coach now. Google Play will charge the displayed new-plan price and apply the remaining value from your current plan before you confirm.'
           : _tr('subscription_confirm_upgrade_body');
