@@ -29,6 +29,7 @@ class TaqaBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolvedColor =
         color ??
+        IconTheme.of(context).color ??
         (Theme.of(context).brightness == Brightness.dark
             ? TaqaUiColors.white
             : TaqaUiColors.charcoal);

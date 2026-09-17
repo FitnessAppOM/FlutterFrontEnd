@@ -38,6 +38,10 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final navigationColor =
+        ThemeData.estimateBrightnessForColor(backgroundColor) == Brightness.dark
+        ? TaqaUiColors.white
+        : TaqaUiColors.charcoal;
     return AppBar(
       automaticallyImplyLeading: false,
       toolbarHeight: TaqaUiScale.h(_height),
@@ -46,6 +50,9 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
       shadowColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
+      foregroundColor: navigationColor,
+      iconTheme: IconThemeData(color: navigationColor),
+      actionsIconTheme: IconThemeData(color: navigationColor),
       bottom: bottom,
       flexibleSpace: SafeArea(
         bottom: false,
@@ -55,17 +62,10 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
               PositionedDirectional(
                 top: TaqaUiScale.h(4),
                 start: TaqaUiScale.w(4),
-                child:
-                    leading ??
-                    TaqaBackButton(
-                      color:
-                          ThemeData.estimateBrightnessForColor(
-                                backgroundColor,
-                              ) ==
-                              Brightness.dark
-                          ? TaqaUiColors.white
-                          : TaqaUiColors.charcoal,
-                    ),
+                child: IconTheme(
+                  data: IconThemeData(color: navigationColor),
+                  child: leading ?? TaqaBackButton(color: navigationColor),
+                ),
               ),
             Positioned(
               top: TaqaUiScale.h(12),

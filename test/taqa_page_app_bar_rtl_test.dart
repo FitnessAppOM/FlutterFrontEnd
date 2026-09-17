@@ -74,4 +74,29 @@ void main() {
     final icon = tester.widget<Icon>(find.byIcon(Icons.arrow_back_ios_new));
     expect(icon.color, TaqaUiColors.white);
   });
+
+  testWidgets(
+    'custom back button follows a light app bar, not dark app theme',
+    (tester) async {
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: TaqaUiScale.designSize,
+          builder: (_, _) => MaterialApp(
+            theme: ThemeData.dark(),
+            home: const Scaffold(
+              appBar: TaqaPageAppBar(
+                title: 'Questionnaire',
+                backgroundColor: TaqaUiColors.white,
+                leading: TaqaBackButton(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final icon = tester.widget<Icon>(find.byIcon(Icons.arrow_back_ios_new));
+      expect(icon.color, TaqaUiColors.charcoal);
+    },
+  );
 }
