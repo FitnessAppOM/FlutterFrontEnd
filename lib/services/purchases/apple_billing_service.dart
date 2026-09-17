@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'apple_promotional_offer.dart';
 
 class AppleBillingException implements Exception {
   const AppleBillingException(this.message, {this.statusCode});
@@ -190,12 +191,47 @@ class AppleBillingService {
     return token;
   }
 
+  static Future<CoachApprovalOfferStatus>
+  fetchCoachApprovalOfferStatus() async {
+    final response = await http
+        .get(
+          Uri.parse('${ApiConfig.baseUrl}/billing/apple/coach-approval-offer'),
+          headers: await _headers(),
+        )
+        .timeout(_timeout);
+    final body = _decode(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AppleBillingException(_errorMessage(body));
+    }
+    return CoachApprovalOfferStatus.fromJson(body);
+  }
+
+  static Future<CoachApprovalOfferPreparation> prepareCoachApprovalOffer({
+    required String productId,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse(
+            '${ApiConfig.baseUrl}/billing/apple/coach-approval-offer/prepare',
+          ),
+          headers: await _headers(jsonBody: true),
+          body: jsonEncode({'product_id': productId}),
+        )
+        .timeout(_timeout);
+    final body = _decode(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw AppleBillingException(_errorMessage(body));
+    }
+    return CoachApprovalOfferPreparation.fromJson(body);
+  }
+
   static Future<AppleBillingEntitlement> verifyPurchase({
     required String productId,
     required String signedTransaction,
     required String entitlementCode,
     bool reactivateAutoRenew = false,
     String? referralClaimToken,
+    String? coachApprovalClaimToken,
   }) async {
     if (signedTransaction.trim().isEmpty) {
       throw const AppleBillingException(
@@ -213,6 +249,8 @@ class AppleBillingService {
             'reactivate_auto_renew': reactivateAutoRenew,
             if (referralClaimToken != null)
               'referral_claim_token': referralClaimToken,
+            if (coachApprovalClaimToken != null)
+              'coach_approval_claim_token': coachApprovalClaimToken,
           }),
         )
         .timeout(_timeout);

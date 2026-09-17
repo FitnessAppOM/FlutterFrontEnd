@@ -1722,6 +1722,8 @@ class AppLocalizations {
       "subscription_trial_terms_annual":
           "Then {price}/year. Renews automatically until cancelled.",
       "subscription_start_free_trial": "Start free trial",
+      "subscription_coach_offer_check_failed":
+          "We couldn't verify your approved-coach free month. Please try again.",
       "subscription_intro_price": "Introductory payment: {price}",
       "subscription_referral_payment_free":
           "Referral reward: next payment free",
@@ -4216,6 +4218,8 @@ class AppLocalizations {
       "subscription_trial_terms_annual":
           "ثم {price} سنويًا. يتجدد الاشتراك تلقائيًا حتى الإلغاء.",
       "subscription_start_free_trial": "ابدأ الفترة المجانية",
+      "subscription_coach_offer_check_failed":
+          "تعذّر التحقق من الشهر المجاني للمدرب المعتمد. يُرجى المحاولة مجددًا.",
       "subscription_intro_price": "الدفعة التمهيدية: {price}",
       "subscription_referral_payment_free":
           "مكافأة الإحالة: الدفعة التالية مجانية",

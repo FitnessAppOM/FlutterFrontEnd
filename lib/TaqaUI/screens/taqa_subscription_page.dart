@@ -137,6 +137,10 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       const {};
   Set<String> _storeProductIds = const {};
   Map<String, bool> _appleIntroductoryOfferEligibility = const {};
+  bool _coachApprovalOfferEligible = false;
+  bool _coachApprovalOfferStatusLoaded = false;
+  String? _coachApprovalClaimToken;
+  ApplePromotionalOfferAuthorization? _coachApprovalOfferAuthorization;
 
   String _tr(String key, [Map<String, String> values = const {}]) {
     var text = AppLocalizations.of(context).translate(key);
@@ -156,6 +160,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     );
     _loadProducts();
     unawaited(_loadCoachPlanEligibility());
+    if (Platform.isIOS && widget.referralClaimToken == null) {
+      unawaited(_loadCoachApprovalOfferStatus());
+    }
     unawaited(_activeProductIdForCheckout());
   }
 
@@ -201,6 +208,32 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     if (!mounted) return;
     setState(() => _coachPlanAvailable = approved);
+  }
+
+  Future<bool> _loadCoachApprovalOfferStatus({bool required = false}) async {
+    if (!Platform.isIOS || widget.referralClaimToken != null) return true;
+    try {
+      final status = await AppleBillingService.fetchCoachApprovalOfferStatus();
+      if (!mounted) return false;
+      setState(() {
+        _coachApprovalOfferEligible = status.eligible;
+        _coachApprovalOfferStatusLoaded = true;
+        _coachApprovalClaimToken = status.pendingClaimToken;
+      });
+      return true;
+    } on AppleBillingException catch (error) {
+      if (!mounted) return false;
+      setState(() => _coachApprovalOfferStatusLoaded = false);
+      if (required) _setMessage(error.message);
+      return false;
+    } catch (_) {
+      if (!mounted) return false;
+      setState(() => _coachApprovalOfferStatusLoaded = false);
+      if (required) {
+        _setMessage(_tr('subscription_coach_offer_check_failed'));
+      }
+      return false;
+    }
   }
 
   Future<void> _selectMembershipType(bool coachMembership) async {
@@ -442,6 +475,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _restoring = false;
       _pendingReplacementProductId = null;
       _pendingChangeAction = null;
+      _coachApprovalOfferAuthorization = null;
+      _coachApprovalClaimToken = null;
       if (!preserveExpectedProduct) _checkoutProductId = null;
       _restoreRequested = false;
     });
@@ -675,6 +710,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }) async {
     _lastActivationChangePending = false;
     try {
+      if (Platform.isIOS &&
+          purchase != null &&
+          _isCoachProduct(purchase.productID) &&
+          _coachApprovalClaimToken == null &&
+          widget.referralClaimToken == null) {
+        await _loadCoachApprovalOfferStatus();
+      }
       final entitlementCode = purchase == null
           ? _coachMembership
                 ? 'coach_tools'
@@ -697,6 +739,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
               entitlementCode: entitlementCode,
               reactivateAutoRenew: purchase.status == PurchaseStatus.purchased,
               referralClaimToken: widget.referralClaimToken,
+              coachApprovalClaimToken: _coachApprovalClaimToken,
             );
       return _acceptVerifiedEntitlement(
         entitlement,
@@ -1010,11 +1053,21 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final product = productId == null ? null : _products[productId];
     if (product == null || _purchasePending) return;
 
+    if (Platform.isIOS &&
+        _isCoachProduct(product.id) &&
+        widget.referralClaimToken == null &&
+        (!_coachApprovalOfferStatusLoaded || !_coachApprovalOfferEligible)) {
+      final checked = await _loadCoachApprovalOfferStatus(required: true);
+      if (!checked || !mounted) return;
+    }
+
     final activeProductId = await _refreshBillingStateForCheckout();
     if (!mounted || _billingPreflightFailed || !_purchaseAllowedOnThisStore()) {
       return;
     }
-    if (activeProductId == product.id && _billingState?.active == true) {
+    if (activeProductId == product.id &&
+        _billingState?.active == true &&
+        !_shouldUseCoachApprovalOffer(product.id)) {
       if (widget.mandatory) {
         // Coach plans include normal app access, so the app-wide entitlement
         // can report this coach product even when coach access has not been
@@ -1104,6 +1157,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _message = null;
     });
     try {
+      if (_shouldUseCoachApprovalOffer(product.id)) {
+        final prepared = await AppleBillingService.prepareCoachApprovalOffer(
+          productId: product.id,
+        );
+        _coachApprovalClaimToken = prepared.claimToken;
+        _coachApprovalOfferAuthorization = prepared.authorization;
+      }
       final purchaseParam = await _purchaseParam(
         product: product,
         googleChangeParam: changeParam,
@@ -1263,6 +1323,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     if (change?.action == 'referral_reward') {
       return _tr('subscription_confirm_referral_body');
     }
+    final presentation = _pricePresentation(product);
+    if (presentation.hasFreeTrial) {
+      final plan = _catalogPlans
+          .where((candidate) => _storeProductIdForPlan(candidate) == product.id)
+          .firstOrNull;
+      if (plan != null) {
+        return '${presentation.promotionText}. '
+            '${_freeTrialTerms(plan, presentation.recurringPrice)}';
+      }
+    }
     return _tr('subscription_confirm_purchase_body', {
       'price': _pricePresentation(product).recurringPrice,
       'account': Platform.isAndroid ? 'Google Play' : 'Apple ID',
@@ -1277,9 +1347,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   _SubscriptionPricePresentation _pricePresentation(ProductDetails product) {
     if (product is! GooglePlayProductDetails) {
-      final freeTrialDuration =
-          widget.referralClaimToken == null &&
-              _appleIntroductoryOfferEligibility[product.id] == true
+      final freeTrialDuration = _shouldUseCoachApprovalOffer(product.id)
+          ? const SubscriptionTrialDuration(
+              value: 1,
+              unit: SubscriptionTrialUnit.month,
+            )
+          : widget.referralClaimToken == null &&
+                _appleIntroductoryOfferEligibility[product.id] == true
           ? _appleFreeTrialDuration(product)
           : null;
       return _SubscriptionPricePresentation(
@@ -1468,15 +1542,22 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }) async {
     if (!Platform.isAndroid) {
       final accountToken = await AppleBillingService.fetchAccountToken();
-      final authorization = widget.appleOfferAuthorization;
+      final authorization =
+          widget.appleOfferAuthorization ?? _coachApprovalOfferAuthorization;
       if (widget.referralClaimToken != null && authorization == null) {
         throw AppleBillingException(
           _tr('subscription_apple_referral_unavailable'),
         );
       }
       if (authorization != null) {
-        if (authorization.offerId != widget.googleReferralOfferTag ||
-            product.id != widget.referralProductId) {
+        final expectedOfferId = widget.appleOfferAuthorization != null
+            ? widget.googleReferralOfferTag
+            : authorization.offerId;
+        final expectedProductId = widget.appleOfferAuthorization != null
+            ? widget.referralProductId
+            : product.id;
+        if (authorization.offerId != expectedOfferId ||
+            product.id != expectedProductId) {
           throw AppleBillingException(
             _tr('subscription_apple_referral_mismatch'),
           );
@@ -1632,6 +1713,18 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
 
   bool _isStudentProduct(String productId) {
     return productId.toLowerCase().contains('student');
+  }
+
+  bool _isCoachProduct(String productId) {
+    return productId == TaqaSubscriptionCatalog.coachMonthly.appleProductId ||
+        productId == TaqaSubscriptionCatalog.coachAnnual.appleProductId;
+  }
+
+  bool _shouldUseCoachApprovalOffer(String productId) {
+    return Platform.isIOS &&
+        widget.referralClaimToken == null &&
+        _coachApprovalOfferEligible &&
+        _isCoachProduct(productId);
   }
 
   List<TaqaSubscriptionPlan> get _catalogPlans {
