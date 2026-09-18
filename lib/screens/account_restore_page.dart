@@ -6,6 +6,7 @@ import '../core/account_type.dart';
 import '../localization/app_localizations.dart';
 import '../main/main_layout.dart';
 import '../services/auth/profile_service.dart';
+import '../services/auth/auth_service.dart';
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
@@ -50,6 +51,8 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
   bool _confirming = false;
   bool _deleting = false;
   bool _hasActiveSession = false;
+  bool _restoreContextLoaded = false;
+  String? _provider;
   String? _deadline;
 
   @override
@@ -58,6 +61,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
     if (widget.prefilledEmail != null && widget.prefilledEmail!.isNotEmpty) {
       _emailController.text = widget.prefilledEmail!;
     }
+    _provider = widget.initialPayload?['provider']?.toString().toLowerCase();
     _extractDeadline();
     _loadSessionState();
   }
@@ -92,14 +96,23 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
   Future<void> _loadSessionState() async {
     final userId = await AccountStorage.getUserId();
     final token = await AccountStorage.getAccessToken();
+    final storedProvider = await AccountStorage.getAuthProvider();
     final hasSession =
         userId != null &&
         userId > 0 &&
         token != null &&
         token.trim().isNotEmpty;
     if (!mounted) return;
-    setState(() => _hasActiveSession = hasSession);
+    setState(() {
+      _hasActiveSession = hasSession;
+      if ((_provider ?? '').isEmpty) {
+        _provider = storedProvider?.trim().toLowerCase();
+      }
+      _restoreContextLoaded = true;
+    });
   }
+
+  bool get _isAppleAccount => _provider == 'apple';
 
   String _displayDate(String raw) {
     final parsed = DateTime.tryParse(raw);
@@ -137,11 +150,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
     }
     setState(() => _requesting = true);
     try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) {
-        throw Exception(t.translate("please_login_again"));
-      }
-      await ProfileApi.requestReactivation(userId);
+      await ProfileApi.requestReactivationByEmail(email);
       if (!mounted) return;
       setState(() => _step = _RestoreStep.code);
       AppToast.show(
@@ -217,53 +226,7 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
     try {
       final result = await ProfileApi.confirmReactivation(email, code);
       if (!mounted) return;
-
-      final rawId = result['user_id'] ?? result['id'];
-      final int userId = rawId is int
-          ? rawId
-          : int.tryParse(rawId?.toString() ?? '') ?? 0;
-      final accessToken = (result['access_token'] ?? result['token'])
-          ?.toString()
-          .trim();
-      final provider = (result['provider'] ?? 'local').toString();
-      final name =
-          (result['name'] ?? result['username'] ?? email.split('@').first)
-              .toString();
-
-      if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
-        AppToast.show(
-          context,
-          AppLocalizations.of(context).translate("account_restore_failed"),
-          type: AppToastType.error,
-        );
-        return;
-      }
-
-      await AccountStorage.saveUserSession(
-        userId: userId,
-        email: email,
-        name: name,
-        verified: true,
-        token: accessToken,
-        refreshToken: result['refresh_token']?.toString(),
-        isExpert: false,
-        questionnaireDone: false,
-        expertQuestionnaireDone: false,
-        authProvider: provider,
-      );
-
-      if (!mounted) return;
-
-      AppToast.show(
-        context,
-        AppLocalizations.of(context).translate("account_restore_success"),
-        type: AppToastType.success,
-      );
-
-      NotificationService.refreshDailyJournalRemindersForCurrentUser();
-      DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
-
-      await _navigatePostRestore(userId: userId);
+      await _completeRestore(result, fallbackEmail: email);
     } catch (e) {
       if (!mounted) return;
       AppToast.show(
@@ -274,6 +237,96 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
     } finally {
       if (mounted) setState(() => _confirming = false);
     }
+  }
+
+  Future<void> _reactivateWithApple() async {
+    if (_confirming) return;
+    setState(() => _confirming = true);
+    try {
+      final result = await reactivateWithApple();
+      if (!mounted) return;
+      if (result == null) {
+        AppToast.show(
+          context,
+          AppLocalizations.of(context).translate("account_restore_failed"),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final error = result['reactivation_error']?.toString().trim();
+      if (error != null && error.isNotEmpty) {
+        AppToast.show(context, error, type: AppToastType.error);
+        return;
+      }
+      await _completeRestore(
+        result,
+        fallbackEmail: _emailController.text.trim(),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(e),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _confirming = false);
+    }
+  }
+
+  Future<void> _completeRestore(
+    Map<String, dynamic> result, {
+    required String fallbackEmail,
+  }) async {
+    final rawId = result['user_id'] ?? result['id'];
+    final int userId = rawId is int
+        ? rawId
+        : int.tryParse(rawId?.toString() ?? '') ?? 0;
+    final accessToken = (result['access_token'] ?? result['token'])
+        ?.toString()
+        .trim();
+    final email = (result['email'] ?? fallbackEmail).toString().trim();
+    final provider = (result['provider'] ?? _provider ?? 'local').toString();
+    final name =
+        (result['name'] ??
+                result['username'] ??
+                (email.contains('@') ? email.split('@').first : email))
+            .toString();
+
+    if (userId <= 0 ||
+        accessToken == null ||
+        accessToken.isEmpty ||
+        email.isEmpty) {
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate("account_restore_failed"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
+    await AccountStorage.saveUserSession(
+      userId: userId,
+      email: email,
+      name: name,
+      verified: true,
+      token: accessToken,
+      refreshToken: result['refresh_token']?.toString(),
+      isExpert: AccountType.isCoach(result),
+      questionnaireDone: false,
+      expertQuestionnaireDone: false,
+      authProvider: provider,
+    );
+
+    if (!mounted) return;
+    AppToast.show(
+      context,
+      AppLocalizations.of(context).translate("account_restore_success"),
+      type: AppToastType.success,
+    );
+    NotificationService.refreshDailyJournalRemindersForCurrentUser();
+    DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
+    await _navigatePostRestore(userId: userId);
   }
 
   Future<void> _navigatePostRestore({required int userId}) async {
@@ -368,48 +421,57 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
               )
             : null,
       ),
-      body: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: SafeArea(
-          top: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: 560,
-                      minHeight: constraints.maxHeight - TaqaUiScale.h(40),
-                    ),
-                    child: IntrinsicHeight(
-                      child: isCodeStep ? _buildCodeStep(t) : _buildInfoStep(t),
-                    ),
-                  ),
+      body: !_restoreContextLoaded
+          ? const Center(child: TaqaLoadingIndicator())
+          : GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+              child: SafeArea(
+                top: false,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: 560,
+                            minHeight:
+                                constraints.maxHeight - TaqaUiScale.h(40),
+                          ),
+                          child: IntrinsicHeight(
+                            child: isCodeStep
+                                ? _buildCodeStep(t)
+                                : _buildInfoStep(t),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-        ),
-      ),
+              ),
+            ),
     );
   }
 
   Widget _buildInfoStep(AppLocalizations t) {
-    final busy = _requesting || _deleting;
+    final busy = _requesting || _confirming || _deleting;
     final canRequest = !busy && _emailController.text.trim().isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _RestoreIntroCard(
-          stepLabel: '1 / 2',
+          stepLabel: _isAppleAccount ? '1 / 1' : '1 / 2',
           icon: Icons.restore_rounded,
           title: t.translate("account_restore_subtitle"),
-          body: t.translate("account_restore_body"),
+          body: t.translate(
+            _isAppleAccount
+                ? "account_restore_apple_body"
+                : "account_restore_body",
+          ),
         ),
         SizedBox(height: TaqaUiScale.h(16)),
         if (_deadline != null) ...[
@@ -423,22 +485,29 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
           ),
           SizedBox(height: TaqaUiScale.h(16)),
         ],
-        TaqaTextField(
-          controller: _emailController,
-          label: t.translate("account_restore_email_label"),
-          hint: t.translate("email_hint"),
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.done,
-          enabled: !busy,
-          autofillHints: const [AutofillHints.email],
-          onChanged: (_) => setState(() {}),
-        ),
+        if (!_isAppleAccount)
+          TaqaTextField(
+            controller: _emailController,
+            label: t.translate("account_restore_email_label"),
+            hint: t.translate("email_hint"),
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+            enabled: !busy,
+            autofillHints: const [AutofillHints.email],
+            onChanged: (_) => setState(() {}),
+          ),
         const Spacer(),
         SizedBox(height: TaqaUiScale.h(32)),
         TaqaFilledButton(
-          label: t.translate("account_restore_send_code"),
-          loading: _requesting,
-          onTap: canRequest ? _requestCode : null,
+          label: t.translate(
+            _isAppleAccount
+                ? "account_restore_with_apple"
+                : "account_restore_send_code",
+          ),
+          loading: _isAppleAccount ? _confirming : _requesting,
+          onTap: _isAppleAccount
+              ? (busy ? null : _reactivateWithApple)
+              : (canRequest ? _requestCode : null),
         ),
         SizedBox(height: TaqaUiScale.h(6)),
         TaqaTextActionButton(

@@ -1910,12 +1910,12 @@ class AppLocalizations {
       "settings_deactivate_account_sub":
           "Switch to read-only mode for up to 30 days",
       "settings_deactivate_account_confirm_body":
-          "Deactivate account? Your account becomes read-only. You can reactivate within 30 days using an email verification code.",
+          "Deactivate account? Your account becomes read-only. You can reactivate it within 30 days by verifying your identity.",
       "settings_deactivate_account_confirm_yes": "Deactivate",
       "settings_deactivate_account_success":
           "Account deactivated. You can restore it within 30 days.",
       "settings_reactivate_account_sub":
-          "Request and confirm your reactivation code",
+          "Verify your identity to restore your account",
       "deactivated_banner_no_date":
           "Your account is deactivated. Reactivate before your deadline or your account will be permanently deleted.",
       "deactivated_banner_with_date":
@@ -1924,6 +1924,8 @@ class AppLocalizations {
       "account_restore_subtitle": "Your account is deactivated",
       "account_restore_body":
           "You can reactivate your account before the restore deadline.",
+      "account_restore_apple_body":
+          "Confirm your identity with Apple to reactivate your account. No email code is required.",
       "account_deactivated_at": "Deactivated at",
       "account_reactivable_until": "Recoverable until",
       "account_scheduled_purge_at": "Scheduled permanent delete",
@@ -1931,6 +1933,7 @@ class AppLocalizations {
       "account_restore_email_label":
           "Enter the email address linked to your account",
       "account_restore_send_code": "Send verification code",
+      "account_restore_with_apple": "Reactivate with Apple",
       "account_restore_not_now": "Not now",
       "account_restore_code_sent":
           "A verification code has been sent to your email.",
@@ -4393,11 +4396,11 @@ class AppLocalizations {
       "settings_deactivate_account_sub":
           "تحويل الحساب إلى وضع القراءة فقط لمدة تصل إلى 30 يوماً",
       "settings_deactivate_account_confirm_body":
-          "هل تريد تعطيل الحساب؟ سيصبح حسابك للقراءة فقط. يمكنك إعادة التفعيل خلال 30 يوماً باستخدام رمز تحقق عبر البريد الإلكتروني.",
+          "هل تريد تعطيل الحساب؟ سيصبح حسابك للقراءة فقط. يمكنك إعادة تفعيله خلال 30 يوماً بعد تأكيد هويتك.",
       "settings_deactivate_account_confirm_yes": "تعطيل",
       "settings_deactivate_account_success":
           "تم تعطيل الحساب. يمكنك استعادته خلال 30 يوماً.",
-      "settings_reactivate_account_sub": "اطلب رمز إعادة التفعيل ثم أكّده",
+      "settings_reactivate_account_sub": "أكّد هويتك لاستعادة حسابك",
       "deactivated_banner_no_date":
           "حسابك معطّل. أعد التفعيل قبل انتهاء المهلة وإلا سيتم حذف حسابك نهائياً.",
       "deactivated_banner_with_date":
@@ -4406,12 +4409,15 @@ class AppLocalizations {
       "account_restore_subtitle": "حسابك معطّل",
       "account_restore_body":
           "يمكنك إعادة تفعيل حسابك قبل انتهاء مهلة الاستعادة.",
+      "account_restore_apple_body":
+          "أكّد هويتك باستخدام Apple لإعادة تفعيل حسابك. لا تحتاج إلى رمز عبر البريد الإلكتروني.",
       "account_deactivated_at": "تاريخ التعطيل",
       "account_reactivable_until": "قابل للاستعادة حتى",
       "account_scheduled_purge_at": "موعد الحذف النهائي",
       "account_reactivate_action": "إعادة تفعيل الحساب",
       "account_restore_email_label": "أدخل البريد الإلكتروني المرتبط بحسابك",
       "account_restore_send_code": "إرسال رمز التحقق",
+      "account_restore_with_apple": "إعادة التفعيل باستخدام Apple",
       "account_restore_not_now": "ليس الآن",
       "account_restore_code_sent": "تم إرسال رمز التحقق إلى بريدك الإلكتروني.",
       "account_restore_code_title": "أدخل رمز التحقق",

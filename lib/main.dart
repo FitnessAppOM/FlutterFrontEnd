@@ -208,19 +208,21 @@ Future<void> _bootstrap() async {
       (_) => false,
     );
   };
-  AccountStorage.onDeactivated = (payload) {
-    Future<void>(() async {
-      final email = await AccountStorage.getEmail();
-      NavigationService.navigatorKey.currentState?.pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => AccountRestorePage(
-            initialPayload: payload,
-            prefilledEmail: email,
-          ),
-        ),
-        (_) => false,
-      );
-    });
+  AccountStorage.onDeactivated = (payload) async {
+    final responseEmail = payload['email']?.toString().trim();
+    final storedEmail = await AccountStorage.getEmail();
+    final email = responseEmail != null && responseEmail.isNotEmpty
+        ? responseEmail
+        : storedEmail;
+    final navigator = NavigationService.navigatorKey.currentState;
+    if (navigator == null) return;
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) =>
+            AccountRestorePage(initialPayload: payload, prefilledEmail: email),
+      ),
+      (_) => false,
+    );
   };
 
   print('[BOOT] Pre-runApp total ${bootWatch.elapsedMilliseconds}ms');

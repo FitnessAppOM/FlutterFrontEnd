@@ -75,6 +75,7 @@ class TaqaSubscriptionPage extends StatefulWidget {
     this.googleReferralOfferTag,
     this.referralProductId,
     this.appleOfferAuthorization,
+    this.mandatorySuccessDestination,
   });
 
   /// When opened after onboarding, the user must subscribe or restore a
@@ -101,6 +102,11 @@ class TaqaSubscriptionPage extends StatefulWidget {
   final String? googleReferralOfferTag;
   final String? referralProductId;
   final ApplePromotionalOfferAuthorization? appleOfferAuthorization;
+
+  /// Replaces the route stack after a mandatory checkout succeeds. Startup
+  /// can use this to open the paywall directly, without an intermediate app
+  /// shell showing a second launch loader.
+  final Widget? mandatorySuccessDestination;
 
   @override
   State<TaqaSubscriptionPage> createState() => _TaqaSubscriptionPageState();
@@ -1037,6 +1043,14 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       unawaited(_completePurchaseInBackground(purchase!));
     }
     if (!mounted) return;
+    final successDestination = widget.mandatorySuccessDestination;
+    if (successDestination != null) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => successDestination),
+        (_) => false,
+      );
+      return;
+    }
     Navigator.of(context).pop(true);
   }
 

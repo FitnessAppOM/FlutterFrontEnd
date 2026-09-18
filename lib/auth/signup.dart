@@ -425,6 +425,7 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack(t.translate("apple_failed"));
       return;
     }
+    if (isHandledAuthStatus(result)) return;
 
     final rawId = result["user_id"] ?? result["id"];
     final int userId = rawId is int

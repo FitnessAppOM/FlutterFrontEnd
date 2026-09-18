@@ -93,7 +93,16 @@ Map<String, dynamic>? _decodeJwtPayload(String token) {
   return null;
 }
 
-Future<Map<String, dynamic>?> signInWithApple({String? accountType}) async {
+Future<Map<String, dynamic>?> signInWithApple({String? accountType}) =>
+    _performAppleAuth(accountType: accountType, reactivate: false);
+
+Future<Map<String, dynamic>?> reactivateWithApple() =>
+    _performAppleAuth(reactivate: true);
+
+Future<Map<String, dynamic>?> _performAppleAuth({
+  String? accountType,
+  required bool reactivate,
+}) async {
   try {
     final rawNonce = _generateNonce();
     final nonce = _sha256ofString(rawNonce);
@@ -160,7 +169,11 @@ Future<Map<String, dynamic>?> signInWithApple({String? accountType}) async {
         .join(' ');
 
     final response = await http.post(
-      Uri.parse("${ApiConfig.baseUrl}/auth/apple"),
+      Uri.parse(
+        reactivate
+            ? "${ApiConfig.baseUrl}/auth/reactivate/apple"
+            : "${ApiConfig.baseUrl}/auth/apple",
+      ),
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "token": firebaseIdToken,
@@ -170,10 +183,31 @@ Future<Map<String, dynamic>?> signInWithApple({String? accountType}) async {
     );
 
     if (response.statusCode != 200) {
-      await AccountStorage.handleAuthStatus(
+      if (reactivate) {
+        try {
+          final decoded = jsonDecode(response.body);
+          final detail = decoded is Map ? decoded['detail']?.toString() : null;
+          return <String, dynamic>{
+            "reactivation_error": detail ?? "Account restoration failed",
+          };
+        } catch (_) {
+          return const <String, dynamic>{
+            "reactivation_error": "Account restoration failed",
+          };
+        }
+      }
+      final handled = await AccountStorage.handleAuthStatus(
         response.statusCode,
         responseBody: response.body,
+        payloadExtras: {
+          "provider": "apple",
+          if ((firebaseUser.email ?? '').trim().isNotEmpty)
+            "email": firebaseUser.email!.trim(),
+        },
       );
+      if (handled) {
+        return const <String, dynamic>{"auth_status_handled": true};
+      }
       throw Exception("Backend Apple login failed");
     }
 
@@ -183,3 +217,6 @@ Future<Map<String, dynamic>?> signInWithApple({String? accountType}) async {
     return null;
   }
 }
+
+bool isHandledAuthStatus(Map<String, dynamic>? result) =>
+    result?["auth_status_handled"] == true;

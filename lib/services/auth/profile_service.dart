@@ -423,6 +423,23 @@ class ProfileApi {
     throw Exception(data["detail"]?.toString() ?? "Request failed");
   }
 
+  static Future<Map<String, dynamic>> requestReactivationByEmail(
+    String email,
+  ) async {
+    final url = Uri.parse("${ApiConfig.baseUrl}/auth/reactivate/request");
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"email": email.trim()}),
+    );
+    if (res.statusCode == 200) return _decodeMap(res.body);
+    if (res.statusCode == 410) {
+      throw Exception("Account can no longer be restored");
+    }
+    final data = _decodeMap(res.body);
+    throw Exception(data["detail"]?.toString() ?? "Request failed");
+  }
+
   static Future<Map<String, dynamic>> confirmReactivation(
     String email,
     String code,

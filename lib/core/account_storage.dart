@@ -780,6 +780,7 @@ class AccountStorage {
   static Future<bool> handleAuthStatus(
     int statusCode, {
     String? responseBody,
+    Map<String, dynamic>? payloadExtras,
   }) async {
     if (statusCode == 401) {
       await clearSession();
@@ -789,6 +790,7 @@ class AccountStorage {
 
     if (statusCode == 403) {
       final payload = await _decodeAuthPayload(responseBody);
+      if (payloadExtras != null) payload.addAll(payloadExtras);
       // Only treat a 403 as "deactivated" when the server EXPLICITLY says so.
       // A bodyless/ambiguous 403 must NOT trigger the restore screen, which
       // previously fabricated a deactivated state and showed a stale "restore
@@ -800,7 +802,8 @@ class AccountStorage {
       if (dismissed) {
         return false;
       }
-      onDeactivated?.call(payload);
+      final callback = onDeactivated;
+      if (callback != null) await callback(payload);
       return true;
     }
 
@@ -823,7 +826,7 @@ class AccountStorage {
 
   /// Set from app (e.g. main.dart) to navigate to login when session expires (401).
   static void Function()? onUnauthorized;
-  static void Function(Map<String, dynamic>)? onDeactivated;
+  static Future<void> Function(Map<String, dynamic>)? onDeactivated;
 
   static Future<void> setName(String name) async {
     final sp = await SharedPreferences.getInstance();

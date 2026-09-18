@@ -472,6 +472,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       return;
     }
+    if (isHandledAuthStatus(result)) return;
 
     final rawId = result["user_id"] ?? result["id"];
     final int userId = rawId is int

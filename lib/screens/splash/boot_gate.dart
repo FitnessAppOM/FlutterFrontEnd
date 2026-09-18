@@ -11,11 +11,14 @@ import '../../core/account_storage.dart';
 import '../../core/account_type.dart';
 import '../../core/locale_controller.dart';
 import '../../main/main_layout.dart';
+import '../../screens/generating_training_screen.dart';
 import '../../screens/daily_journal.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/core/navigation_service.dart';
 import '../../services/core/network_status_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
+import '../../services/training/training_service.dart';
+import '../../TaqaUI/screens/taqa_subscription_page.dart';
 import '../../widgets/taqa_bolt_loading_screen.dart';
 import '../account_restore_page.dart';
 import '../welcome.dart';
@@ -76,6 +79,12 @@ class _BootGateState extends State<BootGate> {
     }
     // Coach approval and membership are evaluated inside the Coach tab.
     if (hasData) {
+      final subscriptionDestination = subscriptionRequired
+          ? await _subscriptionDestination(
+              isCoachAccount: AccountType.isCoach(profile),
+            )
+          : null;
+      if (!mounted) return;
       final expertAiPending =
           isApprovedExpert &&
           NavigationService.expertAiUpdatesNotificationPending;
@@ -89,7 +98,7 @@ class _BootGateState extends State<BootGate> {
             );
       if (!mounted) return;
       final target = subscriptionRequired
-          ? const MainLayout(initialSubscriptionRequired: true)
+          ? subscriptionDestination!
           : directNotificationTarget ??
                 (NavigationService.journalNotificationPending
                     ? const DailyJournalPage()
@@ -112,7 +121,7 @@ class _BootGateState extends State<BootGate> {
         MaterialPageRoute(builder: (_) => target),
         (route) => false,
       );
-      if (target is! MainLayout) {
+      if (!subscriptionRequired && target is! MainLayout) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           NavigationService.setNotificationNavigationReady(true);
           NavigationService.flushPendingNotificationNavigation();
@@ -132,6 +141,33 @@ class _BootGateState extends State<BootGate> {
     }
   }
 
+  Future<Widget> _subscriptionDestination({
+    required bool isCoachAccount,
+  }) async {
+    final trainingReady =
+        isCoachAccount || await _hasGeneratedTrainingProgram();
+    if (!trainingReady) return const GeneratingTrainingScreen();
+    return const TaqaSubscriptionPage(
+      mandatory: true,
+      mandatorySuccessDestination: MainLayout(
+        initialSubscriptionRequired: false,
+      ),
+    );
+  }
+
+  Future<bool> _hasGeneratedTrainingProgram() async {
+    final userId = await AccountStorage.getUserId();
+    if (userId == null || userId <= 0) return false;
+    try {
+      await TrainingService.fetchActiveProgram(userId);
+      return true;
+    } on TrainingGenerationInProgressException {
+      return false;
+    } catch (_) {
+      return await TrainingService.fetchActiveProgramFromCache() != null;
+    }
+  }
+
   DateTime? _startupSubscriptionExpiresAt;
 
   Future<void> _navigateOfflineMain() async {
@@ -141,14 +177,19 @@ class _BootGateState extends State<BootGate> {
     // An unknown legacy cache is not proof of paid access. Existing installs
     // must reconnect once to create the dated, server-verified snapshot.
     final cachedSubscriptionRequired = cachedAccess != true;
+    final subscriptionDestination =
+        questionnaireDone && cachedSubscriptionRequired
+        ? await _subscriptionDestination(
+            isCoachAccount: await AccountStorage.isExpert(),
+          )
+        : null;
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         builder: (_) => questionnaireDone
-            ? MainLayout(
-                initialSubscriptionRequired: cachedSubscriptionRequired,
-              )
+            ? subscriptionDestination ??
+                  const MainLayout(initialSubscriptionRequired: false)
             : const QuestionnairePage(),
       ),
       (route) => false,
