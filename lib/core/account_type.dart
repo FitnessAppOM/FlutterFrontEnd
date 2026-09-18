@@ -22,4 +22,14 @@ class AccountType {
         .toLowerCase();
     return status == 'approved';
   }
+
+  /// Admin and developer privileges bypass only the coach subscription gate.
+  /// Coach approval is evaluated separately before this access check.
+  static bool canUseCoachTools({
+    required bool hasActiveCoachMembership,
+    required bool isDeveloper,
+    required bool isAdmin,
+  }) {
+    return hasActiveCoachMembership || isDeveloper || isAdmin;
+  }
 }

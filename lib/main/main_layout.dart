@@ -425,6 +425,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       );
       await AccountStorage.setIsExpert(isExpert);
       await AccountStorage.setIsDeveloper(profile['is_developer'] == true);
+      await AccountStorage.setIsAdmin(profile['is_admin'] == true);
       await AccountStorage.setCoachApplicationStatus(
         filledExpertQuestionnaire
             ? (applicationStatus.isEmpty ? 'pending' : applicationStatus)
@@ -444,9 +445,15 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     // the cached value in the background so it's accurate next time.
     final isExpert = await AccountStorage.isExpert();
     final isDeveloper = await AccountStorage.isDeveloper();
+    final isAdmin = await AccountStorage.isAdmin();
     final applicationStatus = await AccountStorage.getCoachApplicationStatus();
     final hasActiveCoachMembership =
         await AccountStorage.isCoachMembershipActive();
+    final canUseCoachTools = AccountType.canUseCoachTools(
+      hasActiveCoachMembership: hasActiveCoachMembership,
+      isDeveloper: isDeveloper,
+      isAdmin: isAdmin,
+    );
     if (!mounted) return;
     if (!_expertStatusRefreshedThisSession) {
       _expertStatusRefreshedThisSession = true;
@@ -476,7 +483,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     }
 
     if (autoOpen) {
-      if (hasActiveCoachMembership || isDeveloper) {
+      if (canUseCoachTools) {
         _showExpertDashboard();
       } else {
         _showClientCoachPage();
@@ -492,7 +499,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       _showClientCoachPage();
       return;
     }
-    if (hasActiveCoachMembership || isDeveloper) {
+    if (canUseCoachTools) {
       _showExpertDashboard();
       return;
     }

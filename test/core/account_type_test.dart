@@ -80,4 +80,47 @@ void main() {
       );
     });
   });
+
+  group('AccountType.canUseCoachTools', () {
+    test('allows administrators without a paid coach membership', () {
+      expect(
+        AccountType.canUseCoachTools(
+          hasActiveCoachMembership: false,
+          isDeveloper: false,
+          isAdmin: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('keeps the normal membership and developer paths', () {
+      expect(
+        AccountType.canUseCoachTools(
+          hasActiveCoachMembership: true,
+          isDeveloper: false,
+          isAdmin: false,
+        ),
+        isTrue,
+      );
+      expect(
+        AccountType.canUseCoachTools(
+          hasActiveCoachMembership: false,
+          isDeveloper: true,
+          isAdmin: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects users with no coach access source', () {
+      expect(
+        AccountType.canUseCoachTools(
+          hasActiveCoachMembership: false,
+          isDeveloper: false,
+          isAdmin: false,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

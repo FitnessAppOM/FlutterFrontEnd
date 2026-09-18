@@ -19,6 +19,7 @@ class AccountStorage {
   static const _kRefreshToken = 'auth_refresh_token';
   static const _kIsExpert = 'is_expert';
   static const _kIsDeveloper = 'is_developer';
+  static const _kIsAdmin = 'is_admin';
   static const _kQuestionnaireDone = 'questionnaire_done';
   static const _kExpertQuestionnaireDone = 'expert_questionnaire_done';
   static const _kAvatarPath = 'avatar_path';
@@ -429,6 +430,19 @@ class AccountStorage {
     final previous = sp.getBool(_kIsDeveloper);
     if (previous == isDeveloper) return;
     await sp.setBool(_kIsDeveloper, isDeveloper);
+    notifyAccountChanged();
+  }
+
+  static Future<bool> isAdmin() async {
+    final sp = await SharedPreferences.getInstance();
+    return sp.getBool(_kIsAdmin) ?? false;
+  }
+
+  static Future<void> setIsAdmin(bool isAdmin) async {
+    final sp = await SharedPreferences.getInstance();
+    final previous = sp.getBool(_kIsAdmin);
+    if (previous == isAdmin) return;
+    await sp.setBool(_kIsAdmin, isAdmin);
     notifyAccountChanged();
   }
 
@@ -870,6 +884,7 @@ class AccountStorage {
     await sp.remove(_kVerified); // verification flag
     await sp.remove(_kIsExpert);
     await sp.remove(_kIsDeveloper);
+    await sp.remove(_kIsAdmin);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);
@@ -902,6 +917,7 @@ class AccountStorage {
     await _secureStorage.delete(key: _kRefreshToken);
     await sp.remove(_kToken);
     await sp.remove(_kUserId);
+    await sp.remove(_kIsAdmin);
     if (currentUserId != null) {
       await sp.remove(_whoopLinkedKey(currentUserId));
       await sp.remove(_fitbitLinkedKey(currentUserId));
@@ -951,6 +967,7 @@ class AccountStorage {
     await sp.remove(_kAuthProvider);
     await sp.remove(_kIsExpert);
     await sp.remove(_kIsDeveloper);
+    await sp.remove(_kIsAdmin);
     await sp.remove(_kQuestionnaireDone);
     await sp.remove(_kExpertQuestionnaireDone);
     await sp.remove(_kAvatarUrl);

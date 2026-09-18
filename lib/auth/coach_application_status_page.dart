@@ -67,6 +67,7 @@ class _CoachApplicationStatusPageState
       await AccountStorage.setCoachApplicationStatus(
         status.isEmpty ? 'pending' : status,
       );
+      await AccountStorage.setIsAdmin(profile['is_admin'] == true);
       if (!mounted) return;
       setState(() {
         _status = status.isEmpty ? 'pending' : status;
@@ -87,6 +88,15 @@ class _CoachApplicationStatusPageState
 
   Future<bool> _continueIfCoachMembershipIsActive() async {
     if (_status != 'approved') return false;
+
+    if (await AccountStorage.isAdmin()) {
+      if (!mounted) return false;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainLayout()),
+        (_) => false,
+      );
+      return true;
+    }
 
     var active = false;
     try {
@@ -322,8 +332,13 @@ class _CoachModuleGateState extends State<CoachModuleGate> {
           : null;
       await AccountStorage.setExpertQuestionnaireDone(submitted);
       await AccountStorage.setCoachApplicationStatus(status);
+      await AccountStorage.setIsAdmin(profile['is_admin'] == true);
 
       if (status == 'approved') {
+        if (await AccountStorage.isAdmin()) {
+          if (mounted) widget.onCoachMembershipReady();
+          return;
+        }
         try {
           final entitlement = await AppleBillingService.fetchEntitlement(
             'coach_tools',

@@ -15,6 +15,14 @@ void main() {
     expect(await AccountStorage.isCoachMembershipActive(), isFalse);
   });
 
+  test('persists server-confirmed administrator access', () async {
+    expect(await AccountStorage.isAdmin(), isFalse);
+
+    await AccountStorage.setIsAdmin(true);
+
+    expect(await AccountStorage.isAdmin(), isTrue);
+  });
+
   test('accepts a current StoreKit expiration', () async {
     await AccountStorage.setCoachMembershipActive(
       true,
