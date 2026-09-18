@@ -9,11 +9,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
 import '../TaqaUI/components/taqa_back_button.dart';
-import '../TaqaUI/components/taqa_value_dialog.dart';
-import 'questionnaire.dart';
 import '../main/main_layout.dart';
-import '../screens/welcome.dart';
-import '../services/auth/profile_service.dart';
 import '../services/core/expert_questionnaire_service.dart';
 
 class ExpertQuestionnairePage extends StatefulWidget {
@@ -27,7 +23,6 @@ class ExpertQuestionnairePage extends StatefulWidget {
 class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
   bool _started = false;
   bool _submitting = false;
-  bool _switchingAccountType = false;
 
   String _t(String key) => AppLocalizations.of(context).translate(key);
 
@@ -49,7 +44,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
                 child: ExpertQuestionnaireForm(
                   onSubmit: _submitting ? null : _submit,
                   submitting: _submitting,
-                  onCancel: _exitToWelcome,
+                  onCancel: _closeQuestionnaire,
                 ),
               )
             : Column(
@@ -122,20 +117,23 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
             onTap: () => setState(() => _started = true),
           ),
           SizedBox(height: TaqaUiScale.h(6)),
-          TaqaTextActionButton(
-            label: _t("switch_to_personalized_form"),
-            onTap: _switchingAccountType ? null : _switchToPersonalizedForm,
-          ),
-          SizedBox(height: TaqaUiScale.h(4)),
-          TaqaTextActionButton(label: _t("cancel"), onTap: _exitToWelcome),
+          TaqaTextActionButton(label: _t("cancel"), onTap: _closeQuestionnaire),
         ],
       ),
     );
   }
 
-  void _exitToWelcome() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const WelcomePage(fromLogout: true)),
+  void _closeQuestionnaire() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    navigator.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) =>
+            const MainLayout(initialIndex: MainLayout.coachTabIndex),
+      ),
       (_) => false,
     );
   }
@@ -149,45 +147,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
       Navigator.of(context).pop();
       return;
     }
-    _exitToWelcome();
-  }
-
-  Future<void> _switchToPersonalizedForm() async {
-    final confirmed = await showTaqaConfirmDialog(
-      context: context,
-      title: _t("switch_account_type_title"),
-      message: _t("switch_to_personalized_message"),
-      cancelLabel: _t("switch_account_type_cancel"),
-      confirmLabel: _t("switch_account_type_confirm"),
-    );
-    if (!mounted || !confirmed) return;
-
-    setState(() => _switchingAccountType = true);
-    try {
-      final userId = await AccountStorage.getUserId();
-      if (userId == null || userId <= 0) {
-        throw Exception(_t("user_missing"));
-      }
-      await ProfileApi.updateAccountType(userId: userId, accountType: "client");
-      await AccountStorage.setIsExpert(false);
-      await AccountStorage.setQuestionnaireDone(false);
-      await AccountStorage.setExpertQuestionnaireDone(false);
-      await AccountStorage.setCoachApplicationStatus(null);
-      if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      final message = e.toString().replaceFirst("Exception: ", "").trim();
-      AppToast.show(
-        context,
-        message.isEmpty ? _t("switch_account_type_failed") : message,
-        type: AppToastType.error,
-      );
-    } finally {
-      if (mounted) setState(() => _switchingAccountType = false);
-    }
+    _closeQuestionnaire();
   }
 
   Future<void> _submit(Map<String, dynamic> values) async {
