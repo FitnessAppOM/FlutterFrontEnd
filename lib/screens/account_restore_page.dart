@@ -510,15 +510,15 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
               : (canRequest ? _requestCode : null),
         ),
         SizedBox(height: TaqaUiScale.h(6)),
-        TaqaTextActionButton(
-          label: t.translate("account_restore_not_now"),
-          onTap: busy ? null : _closeRestorePrompt,
-        ),
-        SizedBox(height: TaqaUiScale.h(6)),
         _RestoreDeleteButton(
           label: t.translate("settings_delete_account"),
           loading: _deleting,
           onTap: busy ? null : _deleteAccount,
+        ),
+        SizedBox(height: TaqaUiScale.h(6)),
+        TaqaTextActionButton(
+          label: t.translate("account_restore_not_now"),
+          onTap: busy ? null : _closeRestorePrompt,
         ),
       ],
     );

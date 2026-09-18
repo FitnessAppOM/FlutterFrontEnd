@@ -1608,18 +1608,29 @@ class _SettingsPageState extends State<SettingsPage>
 
     setState(() => _deactivatingAccount = true);
     try {
+      final provider = await AccountStorage.getAuthProvider();
       final result = await ProfileApi.deactivateAccount(userId);
       if (!mounted) return;
-      setState(() {
-        _isDeactivated = true;
-        _scheduledPurgeAtDisplay = _normalizeDate(
-          result["scheduled_purge_at"]?.toString(),
-        );
-      });
       AppToast.show(
         context,
         t.translate("settings_deactivate_account_success"),
         type: AppToastType.success,
+      );
+      final payload = <String, dynamic>{
+        ...result,
+        "status": "deactivated",
+        if (provider != null && provider.trim().isNotEmpty)
+          "provider": provider.trim().toLowerCase(),
+      };
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AccountRestorePage(
+            initialPayload: payload,
+            prefilledEmail: _email,
+          ),
+        ),
+        (_) => false,
       );
     } catch (e) {
       if (!mounted) return;
