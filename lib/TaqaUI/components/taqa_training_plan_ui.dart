@@ -16,6 +16,7 @@ class TaqaTrainingDaySection extends StatelessWidget {
     required this.exercises,
     required this.onAddExercise,
     this.onDelete,
+    this.onReorder,
   });
 
   final int dayNumber;
@@ -25,6 +26,7 @@ class TaqaTrainingDaySection extends StatelessWidget {
   final List<Widget> exercises;
   final VoidCallback? onAddExercise;
   final VoidCallback? onDelete;
+  final ReorderCallback? onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +67,17 @@ class TaqaTrainingDaySection extends StatelessWidget {
           onChanged: onDayNameChanged,
         ),
         SizedBox(height: TaqaUiScale.h(15)),
-        ...exercises,
+        if (onReorder == null)
+          ...exercises
+        else
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: exercises.length,
+            itemBuilder: (context, index) => exercises[index],
+            onReorder: onReorder!,
+          ),
         TaqaOutlineTagButton(
           label: '+ Add Exercise',
           width: TaqaUiScale.w(100),
@@ -136,12 +148,14 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
     required this.onExerciseTap,
     required this.metricFields,
     this.onDelete,
+    this.reorderIndex,
   });
 
   final String exerciseName;
   final VoidCallback? onExerciseTap;
   final List<Widget> metricFields;
   final VoidCallback? onDelete;
+  final int? reorderIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +188,25 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (reorderIndex != null)
+                  Semantics(
+                    label: 'Reorder exercise',
+                    button: true,
+                    child: ReorderableDragStartListener(
+                      index: reorderIndex!,
+                      child: Padding(
+                        padding: EdgeInsetsDirectional.only(
+                          start: TaqaUiScale.w(8),
+                          end: TaqaUiScale.w(8),
+                        ),
+                        child: Icon(
+                          Icons.drag_indicator,
+                          color: TaqaUiColors.charcoal,
+                          size: TaqaUiScale.w(20),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (onDelete != null)
                   Transform.translate(
                     offset: Offset(0, -TaqaUiScale.h(3)),

@@ -529,7 +529,9 @@ class _ExpertTrainingPlanReviewPageState
         exercises: List.generate(day.exercises.length, (exIndex) {
           final ex = day.exercises[exIndex];
           return TaqaTrainingExerciseCard(
+            key: ObjectKey(ex),
             exerciseName: _exerciseDisplayName(ex),
+            reorderIndex: !(_saving || _verifying) ? exIndex : null,
             onExerciseTap:
                 !(_saving || _verifying) && _exerciseLibrary.isNotEmpty
                 ? () => _pickExercise(ex)
@@ -573,6 +575,15 @@ class _ExpertTrainingPlanReviewPageState
             ],
           );
         }),
+        onReorder: _saving || _verifying
+            ? null
+            : (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) newIndex -= 1;
+                  final exercise = day.exercises.removeAt(oldIndex);
+                  day.exercises.insert(newIndex, exercise);
+                });
+              },
         onAddExercise: (_saving || _verifying || _exerciseLibrary.isEmpty)
             ? null
             : () {
