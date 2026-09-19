@@ -74,6 +74,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   final Set<int> _assigningPlanTemplateIds = <int>{};
   final Set<int> _deletingPlanTemplateIds = <int>{};
   int _newPendingConnectionRequestCount = 0;
+  int _newConnectionRequestCount = 0;
+  int _newDetachNoticeCount = 0;
   final Set<int> _dietBadgeSuppressedClientIds = <int>{};
   final Set<int> _newClientBadgeSuppressedClientIds = <int>{};
   final Set<int> _supportChatUnreadClientIds = <int>{};
@@ -484,7 +486,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
               !_newClientBadgeSuppressedClientIds.contains(client.userId),
         )
         .length;
-    final previousNewRequestCount = _newPendingConnectionRequestCount;
+    final previousNewConnectionRequestCount = _newConnectionRequestCount;
+    final previousNewDetachNoticeCount = _newDetachNoticeCount;
     try {
       final results = await Future.wait([
         ProgressionReviewService.fetchClients(),
@@ -496,6 +499,12 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       final fetchedClients = results[0] as List<ProgressionClient>;
       final fetchedReviews = results[1] as List<ProgressionReview>;
       final requestSummary = results[2] as CoachConnectionRequestSummary;
+      final newConnectionRequestCount = requestSummary.items
+          .where((item) => item.isNew && !item.isDetachEvent)
+          .length;
+      final newDetachNoticeCount = requestSummary.items
+          .where((item) => item.isNew && item.isDetachEvent)
+          .length;
       final fetchedPlanTemplates = results[3] as List<Map<String, dynamic>>;
       final fetchedNutritionDocuments = results[4] as List<CoachDietDocument>;
       final visibleNewClientCount = fetchedClients
@@ -512,6 +521,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         _planTemplates = fetchedPlanTemplates;
         _nutritionDocuments = fetchedNutritionDocuments;
         _newPendingConnectionRequestCount = requestSummary.newPendingCount;
+        _newConnectionRequestCount = newConnectionRequestCount;
+        _newDetachNoticeCount = newDetachNoticeCount;
         _dietBadgeSuppressedClientIds.removeWhere((userId) {
           final matched = _clients.where((c) => c.userId == userId);
           if (matched.isEmpty) return true;
@@ -544,14 +555,21 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
           type: AppToastType.info,
         );
       }
-      if (_newPendingConnectionRequestCount > previousNewRequestCount) {
-        AppToast.show(
-          context,
-          _newPendingConnectionRequestCount == 1
-              ? 'You have 1 new connection request.'
-              : 'You have $_newPendingConnectionRequestCount new connection requests.',
-          type: AppToastType.info,
-        );
+      final hasNewConnectionRequest =
+          newConnectionRequestCount > previousNewConnectionRequestCount;
+      final hasNewDetachNotice =
+          newDetachNoticeCount > previousNewDetachNoticeCount;
+      if (hasNewConnectionRequest || hasNewDetachNotice) {
+        final message = hasNewConnectionRequest && hasNewDetachNotice
+            ? 'You have new inbox updates.'
+            : hasNewDetachNotice
+            ? newDetachNoticeCount == 1
+                  ? 'A client detached from you.'
+                  : '$newDetachNoticeCount clients detached from you.'
+            : newConnectionRequestCount == 1
+            ? 'You have 1 new connection request.'
+            : 'You have $newConnectionRequestCount new connection requests.';
+        AppToast.show(context, message, type: AppToastType.info);
       }
     } catch (e) {
       if (!mounted) return;
@@ -665,6 +683,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
     if (_newPendingConnectionRequestCount > 0) {
       setState(() {
         _newPendingConnectionRequestCount = 0;
+        _newConnectionRequestCount = 0;
+        _newDetachNoticeCount = 0;
       });
       unawaited(
         ProgressionReviewService.markConnectionRequestsSeen().catchError((_) {

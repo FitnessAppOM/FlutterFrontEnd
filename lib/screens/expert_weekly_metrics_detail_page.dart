@@ -1412,7 +1412,7 @@ class _ExpertWeeklyMetricsDetailPageState
                   return Padding(
                     padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
                     child: TaqaProfileInfoSection(
-                      title: _cardioSessionTitle(session, entry.key),
+                      title: _cardioSessionTitle(session),
                       items: [
                         TaqaProfileInfoItem(
                           label: 'Date',
@@ -1457,18 +1457,8 @@ class _ExpertWeeklyMetricsDetailPageState
     );
   }
 
-  String _cardioSessionTitle(Map<String, dynamic> session, int index) {
-    final exerciseName = (session['exercise_name'] ?? '').toString().trim();
-    if (exerciseName.isNotEmpty) return exerciseName;
-    final activityKind = (session['activity_kind'] ?? '').toString().trim();
-    if (activityKind.isEmpty) return 'Cardio Session ${index + 1}';
-    return activityKind
-        .split('_')
-        .where((part) => part.isNotEmpty)
-        .map(
-          (part) => '${part.substring(0, 1).toUpperCase()}${part.substring(1)}',
-        )
-        .join(' ');
+  String _cardioSessionTitle(Map<String, dynamic> session) {
+    return (session['exercise_name'] ?? '').toString().trim();
   }
 
   String _cardioSessionDate(Map<String, dynamic> session) {
