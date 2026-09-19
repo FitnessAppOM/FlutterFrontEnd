@@ -108,6 +108,9 @@ class RemotePushService {
   static void _handleNotificationTapData(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString().trim();
     if (type.isEmpty) return;
+    final eventType = (data['event_type'] ?? data['eventType'])
+        ?.toString()
+        .trim();
     final senderUserId = _firstIntFromKeys(data, const [
       'sender_user_id',
       'senderUserId',
@@ -144,6 +147,7 @@ class RemotePushService {
 
     NavigationService.handleNotificationTap(
       type: type,
+      eventType: eventType,
       senderUserId: senderUserId,
       senderRole: senderRole,
       clientUserId: clientUserId,

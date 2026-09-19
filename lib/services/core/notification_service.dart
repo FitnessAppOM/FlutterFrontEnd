@@ -757,6 +757,7 @@ class NotificationService {
     }
 
     String? type;
+    String? eventType;
     int? senderUserId;
     int? clientUserId;
     int? coachUserId;
@@ -767,6 +768,7 @@ class NotificationService {
       if (decoded is Map) {
         final map = Map<String, dynamic>.from(decoded);
         type = map['type']?.toString().trim();
+        eventType = (map['event_type'] ?? map['eventType'])?.toString().trim();
         senderUserId = _firstIntFromMap(map, const [
           'sender_user_id',
           'senderUserId',
@@ -807,6 +809,7 @@ class NotificationService {
     if ((type ?? '').isEmpty) return;
     NavigationService.handleNotificationTap(
       type: type!,
+      eventType: eventType,
       senderUserId: senderUserId,
       senderRole: senderRole,
       clientUserId: clientUserId,

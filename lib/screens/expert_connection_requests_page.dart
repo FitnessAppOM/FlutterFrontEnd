@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/user_friendly_error.dart';
@@ -35,6 +37,9 @@ class _ExpertConnectionRequestsPageState
   @override
   void initState() {
     super.initState();
+    unawaited(
+      ProgressionReviewService.markConnectionRequestsSeen().catchError((_) {}),
+    );
     _load();
   }
 

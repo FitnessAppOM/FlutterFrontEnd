@@ -8,6 +8,7 @@ import '../../screens/coach_page.dart';
 import '../../screens/expert_client_chat_page.dart';
 import '../../screens/expert_client_habits_page.dart';
 import '../../screens/expert_client_diet_review_page.dart';
+import '../../screens/expert_connection_requests_page.dart';
 import '../../screens/daily_journal.dart';
 
 enum _NotificationAccessState { allowed, subscriptionRequired, unavailable }
@@ -24,6 +25,7 @@ class NavigationService {
   static bool _notificationNavigationReady = false;
   static Completer<void> _startupReady = Completer<void>();
   static String? _pendingNotificationType;
+  static String? _pendingNotificationEventType;
   static int? _pendingNotificationSenderUserId;
   static String? _pendingNotificationSenderRole;
   static int? _pendingNotificationClientUserId;
@@ -100,6 +102,7 @@ class NavigationService {
 
   static void queuePendingNotificationNavigation({
     required String type,
+    String? eventType,
     int? senderUserId,
     String? senderRole,
     int? clientUserId,
@@ -109,6 +112,10 @@ class NavigationService {
     final normalizedType = type.trim().toLowerCase();
     if (normalizedType.isEmpty) return;
     _pendingNotificationType = normalizedType;
+    final normalizedEventType = (eventType ?? '').trim().toLowerCase();
+    _pendingNotificationEventType = normalizedEventType.isEmpty
+        ? null
+        : normalizedEventType;
     _pendingNotificationSenderUserId = senderUserId;
     _pendingNotificationSenderRole = senderRole;
     _pendingNotificationClientUserId = clientUserId;
@@ -119,6 +126,7 @@ class NavigationService {
 
   static Future<void> handleNotificationTap({
     required String type,
+    String? eventType,
     int? senderUserId,
     String? senderRole,
     int? clientUserId,
@@ -127,6 +135,7 @@ class NavigationService {
   }) async {
     queuePendingNotificationNavigation(
       type: type,
+      eventType: eventType,
       senderUserId: senderUserId,
       senderRole: senderRole,
       clientUserId: clientUserId,
@@ -172,6 +181,7 @@ class NavigationService {
     }
 
     final type = pendingType;
+    final eventType = (_pendingNotificationEventType ?? '').trim();
     final senderUserId = _pendingNotificationSenderUserId;
     final senderRole = _pendingNotificationSenderRole;
     final clientUserId = _pendingNotificationClientUserId;
@@ -179,6 +189,7 @@ class NavigationService {
     final groupId = _pendingNotificationGroupId;
 
     _pendingNotificationType = null;
+    _pendingNotificationEventType = null;
     _pendingNotificationSenderUserId = null;
     _pendingNotificationSenderRole = null;
     _pendingNotificationClientUserId = null;
@@ -200,6 +211,10 @@ class NavigationService {
       return true;
     }
     if (type == 'coach_client_assignment') {
+      if (eventType == 'connection_request') {
+        await navigateToExpertConnectionRequests();
+        return true;
+      }
       await navigateToExpertDashboard(fromNotification: true);
       return true;
     }
@@ -304,6 +319,7 @@ class NavigationService {
     }
 
     final type = pendingType;
+    final eventType = (_pendingNotificationEventType ?? '').trim();
     final senderUserId = _pendingNotificationSenderUserId;
     final senderRole = (_pendingNotificationSenderRole ?? '')
         .trim()
@@ -314,6 +330,7 @@ class NavigationService {
     final effectiveClientId = clientUserId ?? senderUserId;
 
     _pendingNotificationType = null;
+    _pendingNotificationEventType = null;
     _pendingNotificationSenderUserId = null;
     _pendingNotificationSenderRole = null;
     _pendingNotificationClientUserId = null;
@@ -338,6 +355,9 @@ class NavigationService {
       );
     }
     if (type == 'coach_client_assignment') {
+      if (eventType == 'connection_request') {
+        return const ExpertConnectionRequestsPage();
+      }
       return MainLayout(
         initialIndex: MainLayout.coachTabIndex,
         autoOpenExpertDashboard: true,
@@ -503,6 +523,16 @@ class NavigationService {
           autoOpenExpertDashboard: true,
         ),
       ),
+    );
+  }
+
+  static Future<void> navigateToExpertConnectionRequests() async {
+    launchedFromNotificationPayload = false;
+    final nav = navigatorKey.currentState;
+    if (nav == null) return;
+
+    nav.push(
+      MaterialPageRoute(builder: (_) => const ExpertConnectionRequestsPage()),
     );
   }
 
