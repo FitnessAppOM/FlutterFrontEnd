@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
@@ -74,6 +76,11 @@ class TaqaTrainingDaySection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             buildDefaultDragHandles: false,
+            proxyDecorator: (child, index, animation) =>
+                _TaqaTrainingReorderProxy(
+                  liftAnimation: animation,
+                  child: child,
+                ),
             itemCount: exercises.length,
             itemBuilder: (context, index) => exercises[index],
             onReorder: onReorder!,
@@ -85,6 +92,59 @@ class TaqaTrainingDaySection extends StatelessWidget {
           onTap: enabled ? onAddExercise : null,
         ),
       ],
+    );
+  }
+}
+
+class _TaqaTrainingReorderProxy extends StatefulWidget {
+  const _TaqaTrainingReorderProxy({
+    required this.liftAnimation,
+    required this.child,
+  });
+
+  final Animation<double> liftAnimation;
+  final Widget child;
+
+  @override
+  State<_TaqaTrainingReorderProxy> createState() =>
+      _TaqaTrainingReorderProxyState();
+}
+
+class _TaqaTrainingReorderProxyState extends State<_TaqaTrainingReorderProxy>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _wiggleController;
+
+  @override
+  void initState() {
+    super.initState();
+    _wiggleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _wiggleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([widget.liftAnimation, _wiggleController]),
+      child: widget.child,
+      builder: (context, child) {
+        final lift = Curves.easeOut.transform(widget.liftAnimation.value);
+        final wave = math.sin(_wiggleController.value * math.pi * 2);
+        return Transform.translate(
+          offset: Offset(wave * 0.8, 0),
+          child: Transform.rotate(
+            angle: wave * 0.012,
+            child: Transform.scale(scale: 1 + (lift * 0.035), child: child),
+          ),
+        );
+      },
     );
   }
 }

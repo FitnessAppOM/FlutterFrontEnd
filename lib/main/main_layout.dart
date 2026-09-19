@@ -394,6 +394,11 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
         _dashboardKey.currentState?.refreshLiveSteps();
       });
     }
+    if (idx == MainLayout._trainTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_trainKey.currentState?.refreshProgram());
+      });
+    }
     if (idx == MainLayout._dietTab) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final selectedDate = _dashboardKey.currentState?.selectedDate;
@@ -460,8 +465,8 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
       unawaited(_refreshExpertStatusInBackground());
     }
 
-    final isVerifiedCoach = isDeveloper ||
-        (isExpert && applicationStatus == 'approved');
+    final isVerifiedCoach =
+        isDeveloper || (isExpert && applicationStatus == 'approved');
     if (!isVerifiedCoach) {
       _showClientCoachPage();
       final hasSubmittedApplication =

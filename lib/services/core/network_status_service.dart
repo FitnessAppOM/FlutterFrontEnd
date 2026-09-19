@@ -22,6 +22,7 @@ class NetworkStatusService extends ChangeNotifier {
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   Timer? _debounce;
+  Timer? _offlineProbeTimer;
   Future<void>? _probeInFlight;
   bool _initialized = false;
   TaqaNetworkStatus _status = TaqaNetworkStatus.unknown;
@@ -111,6 +112,14 @@ class NetworkStatusService extends ChangeNotifier {
   void markOffline() => _setStatus(TaqaNetworkStatus.offline);
 
   void _setStatus(TaqaNetworkStatus next) {
+    if (next == TaqaNetworkStatus.offline) {
+      _offlineProbeTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+        unawaited(checkNow());
+      });
+    } else {
+      _offlineProbeTimer?.cancel();
+      _offlineProbeTimer = null;
+    }
     if (_status == next) return;
     _status = next;
     notifyListeners();
@@ -119,6 +128,7 @@ class NetworkStatusService extends ChangeNotifier {
   @override
   void dispose() {
     _debounce?.cancel();
+    _offlineProbeTimer?.cancel();
     _subscription?.cancel();
     super.dispose();
   }

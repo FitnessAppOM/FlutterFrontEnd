@@ -13,6 +13,7 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/coach/progression_review_service.dart';
+import '../services/core/network_status_service.dart';
 import '../services/training/training_service.dart';
 import '../core/user_friendly_error.dart';
 
@@ -52,6 +53,7 @@ class _ExpertTrainingPlanReviewPageState
   List<ExercisePickerItem> _exerciseLibrary = const [];
   final Map<String, int> _exerciseIdByName = <String, int>{};
   bool _didCheckPlan = false;
+  bool _retryVerificationWhenOnline = false;
 
   @override
   void initState() {
@@ -60,7 +62,26 @@ class _ExpertTrainingPlanReviewPageState
     _originalDays = _buildDraftDays(_activeProgram['days']);
     _draftDays = _cloneDays(_originalDays);
     _plannedDaysPerWeek = _toInt(_activeProgram['training_days_per_week']);
+    NetworkStatusService.instance.addListener(_handleNetworkChanged);
     _loadExerciseLibrary();
+  }
+
+  @override
+  void dispose() {
+    NetworkStatusService.instance.removeListener(_handleNetworkChanged);
+    super.dispose();
+  }
+
+  void _handleNetworkChanged() {
+    if (!mounted ||
+        !_retryVerificationWhenOnline ||
+        !NetworkStatusService.instance.isOnline) {
+      return;
+    }
+    _retryVerificationWhenOnline = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _verifyOnly();
+    });
   }
 
   int _toInt(dynamic value, {int fallback = 0}) {
@@ -316,12 +337,14 @@ class _ExpertTrainingPlanReviewPageState
 
   Future<void> _verifyOnly() async {
     if (!_needsVerification() || _isDirty() || _verifying) return;
+    _retryVerificationWhenOnline = false;
     setState(() => _verifying = true);
     try {
       final result =
           await ProgressionReviewService.markClientTrainingPlanVerified(
             clientUserId: widget.clientUserId,
           );
+      NetworkStatusService.instance.reportServerReached();
       if (!mounted) return;
       // 'noop' means there was nothing to verify -- don't claim success.
       final verified = (result['status'] ?? '').toString() == 'verified';
@@ -347,6 +370,10 @@ class _ExpertTrainingPlanReviewPageState
       );
     } catch (e) {
       if (!mounted) return;
+      if (isNetworkError(e)) {
+        _retryVerificationWhenOnline = true;
+        NetworkStatusService.instance.reportNetworkFailure(e);
+      }
       setState(() => _verifying = false);
       final msg = userFriendlyErrorMessage(e);
       AppToast.show(
@@ -391,6 +418,7 @@ class _ExpertTrainingPlanReviewPageState
         days: payloadDays,
         archiveExisting: true,
       );
+      NetworkStatusService.instance.reportServerReached();
       if (!mounted) return;
       final syncedDays = _draftDays
           .asMap()
@@ -452,6 +480,9 @@ class _ExpertTrainingPlanReviewPageState
       AppToast.show(context, 'Changes saved.', type: AppToastType.success);
     } catch (e) {
       if (!mounted) return;
+      if (isNetworkError(e)) {
+        NetworkStatusService.instance.reportNetworkFailure(e);
+      }
       setState(() => _saving = false);
       final msg = userFriendlyErrorMessage(e);
       AppToast.show(

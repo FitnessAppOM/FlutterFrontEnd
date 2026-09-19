@@ -2567,6 +2567,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _historyWorkedLoadedForWeek = false;
   int _unseenPlanChangeCount = 0;
   bool _resumeRefreshInFlight = false;
+  Future<void>? _programRefreshInFlight;
   bool _hasCardioSession = false;
   bool _cardioSessionPaused = false;
   String? _sessionExerciseName;
@@ -2642,6 +2643,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     AccountStorage.trainingChange.addListener(_onTrainingChanged);
     AccountStorage.accountChange.addListener(_onAccountChanged);
+    NetworkStatusService.instance.addListener(_onNetworkChanged);
     _loadCardioLibraryFromCache();
     _init();
   }
@@ -2653,6 +2655,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     AccountStorage.trainingChange.removeListener(_onTrainingChanged);
     AccountStorage.accountChange.removeListener(_onAccountChanged);
+    NetworkStatusService.instance.removeListener(_onNetworkChanged);
     super.dispose();
   }
 
@@ -2675,6 +2678,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   }
 
   Future<void> _refreshLightTrainState() async {
+    await refreshProgram();
     await _loadWorkoutTimer();
     await _refreshTrainingPlanChangeState();
     await _refreshAccountStatus();
@@ -2682,16 +2686,23 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   void _onTrainingChanged() {
     _loadWorkoutTimer();
+    unawaited(refreshProgram());
   }
 
   void _onAccountChanged() {
     _refreshAccountStatus();
   }
 
+  void _onNetworkChanged() {
+    if (NetworkStatusService.instance.isOnline) {
+      unawaited(refreshProgram());
+    }
+  }
+
   Future<void> _init() async {
     await TrainingResetCoordinator.ensureInitialized();
     _userId = await AccountStorage.getUserId();
-    await _loadProgram();
+    await refreshProgram();
     await _loadWorkoutTimer();
     await _refreshAccountStatus();
     await _loadExRestPreset();
@@ -3440,6 +3451,19 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         });
       }
     }
+  }
+
+  Future<void> refreshProgram() {
+    final active = _programRefreshInFlight;
+    if (active != null) return active;
+    final future = _loadProgram();
+    _programRefreshInFlight = future;
+    future.whenComplete(() {
+      if (identical(_programRefreshInFlight, future)) {
+        _programRefreshInFlight = null;
+      }
+    });
+    return future;
   }
 
   void _rebuildExerciseLists() {

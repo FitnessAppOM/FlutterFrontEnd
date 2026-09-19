@@ -34,7 +34,14 @@ class TaqaConnectivityBanner extends StatelessWidget {
                       child: InkWell(
                         borderRadius: TaqaUiScale.radius(15),
                         onTap: presentation.canRetry
-                            ? () => sync.syncNow()
+                            ? () async {
+                                if (network.isOffline) {
+                                  await network.checkNow();
+                                }
+                                if (network.isOnline) {
+                                  await sync.syncNow(showSuccess: true);
+                                }
+                              }
                             : null,
                         child: Padding(
                           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 10),
@@ -91,6 +98,7 @@ class TaqaConnectivityBanner extends StatelessWidget {
         keyName: 'offline',
         message: t.translate('offline_banner_cached'),
         icon: Icons.cloud_off_rounded,
+        canRetry: true,
       );
     }
     switch (sync.status) {
@@ -190,7 +198,9 @@ class _StatusIcon extends StatelessWidget {
       height: TaqaUiScale.h(26),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: presentation.isError ? TaqaUiColors.recordRed : TaqaUiColors.lime,
+        color: presentation.isError
+            ? TaqaUiColors.recordRed
+            : TaqaUiColors.lime,
         shape: BoxShape.circle,
       ),
       child: presentation.showProgress

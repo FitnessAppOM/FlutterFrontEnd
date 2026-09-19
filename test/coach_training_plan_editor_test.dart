@@ -228,6 +228,47 @@ void main() {
     },
   );
 
+  testWidgets('reordering exercises saves the new client order', (
+    tester,
+  ) async {
+    Map<String, dynamic>? saved;
+    await http.runWithClient(
+      () async {
+        final program = plan(verified: true, name: 'Exercise 1');
+        final firstDay =
+            (program['days'] as List).first as Map<String, dynamic>;
+        (firstDay['exercises'] as List).add({
+          'exercise_name': 'Exercise 2',
+          'sets': 3,
+          'reps': 10,
+          'rir': 2,
+        });
+
+        await openEditor(tester, program);
+        final reorderable = tester.widget<ReorderableListView>(
+          find.byType(ReorderableListView),
+        );
+        reorderable.onReorder(0, 2);
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<TaqaFilledButton>(confirm).onTap, isNotNull);
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
+
+        final exercises = saved!['days'][0]['exercises'] as List;
+        expect(exercises[0]['exercise_id'], 2);
+        expect(exercises[1]['exercise_id'], 1);
+      },
+      () => MockClient((request) async {
+        if (request.method == 'POST') {
+          saved = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response('{"status":"created"}', 200);
+        }
+        return catalogPage(request);
+      }),
+    );
+  });
+
   testWidgets('unresolved exercise explains why Confirm is disabled', (
     tester,
   ) async {
