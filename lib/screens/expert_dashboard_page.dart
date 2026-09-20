@@ -966,15 +966,15 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
         .where((client) {
           return matchesCoachClientSearch(
             query: _clientSearchQuery,
-            fields: <String?>[
+            identityFields: <String?>[
               client.name,
               client.firstName,
               client.lastName,
               client.fullName,
               client.username,
-              client.email,
-              client.userId.toString(),
             ],
+            email: client.email,
+            userId: client.userId.toString(),
           );
         })
         .toList(growable: false);
@@ -1049,7 +1049,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             TaqaSearchField(
               controller: _clientSearchController,
               focusNode: _clientSearchFocusNode,
-              hint: 'Search name, email or username',
+              hint: 'Search name, username, full email or ID',
               onChanged: _onClientSearchChanged,
               onSubmitted: (_) => _clientSearchFocusNode.unfocus(),
             ),
@@ -1077,7 +1077,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
             if (prioritizedClients.isEmpty)
               const TaqaEmptyStateRow(
                 text:
-                    'No clients match your search. Try a different name, email or username.',
+                    'No clients match your search. Try a name, username, full email or exact user ID.',
               )
             else
               ...prioritizedClients.map((client) {
