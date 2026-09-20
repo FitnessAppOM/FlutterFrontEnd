@@ -9,6 +9,10 @@ import 'form_check_service.dart';
 class ProgressionClient {
   final int userId;
   final String? name;
+  final String? firstName;
+  final String? lastName;
+  final String? fullName;
+  final String? username;
   final String? email;
   final String? avatarUrl;
   final String? specialty;
@@ -32,6 +36,10 @@ class ProgressionClient {
   const ProgressionClient({
     required this.userId,
     this.name,
+    this.firstName,
+    this.lastName,
+    this.fullName,
+    this.username,
     this.email,
     this.avatarUrl,
     this.specialty,
@@ -55,6 +63,10 @@ class ProgressionClient {
 
   ProgressionClient copyWith({
     String? name,
+    String? firstName,
+    String? lastName,
+    String? fullName,
+    String? username,
     String? email,
     String? avatarUrl,
     String? specialty,
@@ -78,6 +90,10 @@ class ProgressionClient {
     return ProgressionClient(
       userId: userId,
       name: name ?? this.name,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      fullName: fullName ?? this.fullName,
+      username: username ?? this.username,
       email: email ?? this.email,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       specialty: specialty ?? this.specialty,
@@ -148,6 +164,10 @@ class ProgressionClient {
     return ProgressionClient(
       userId: parseInt(json['user_id']),
       name: parseString(json['name']),
+      firstName: parseString(json['first_name'] ?? json['firstName']),
+      lastName: parseString(json['last_name'] ?? json['lastName']),
+      fullName: parseString(json['full_name'] ?? json['fullName']),
+      username: parseString(json['username']),
       email: parseString(json['email']),
       avatarUrl: pickFirstNonEmpty([
         json['avatar_url'],

@@ -7,6 +7,7 @@ import '../config/base_url.dart';
 import '../core/user_friendly_error.dart';
 import '../localization/app_localizations.dart';
 import '../services/coach/coach_support_chat_service.dart';
+import '../services/coach/coach_client_search.dart';
 import '../services/coach/diet_document_file_service.dart';
 import '../services/core/pdf_open_service.dart';
 import '../services/coach/progression_review_service.dart';
@@ -21,6 +22,7 @@ import '../TaqaUI/components/taqa_loading_indicator.dart';
 import '../TaqaUI/components/taqa_pill_tab.dart';
 import '../TaqaUI/components/taqa_program_template_sheets.dart';
 import '../TaqaUI/components/taqa_refresh_indicator.dart';
+import '../TaqaUI/components/taqa_search_field.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -79,6 +81,9 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
   final Set<int> _supportChatUnreadClientIds = <int>{};
   int _supportChatUnreadRefreshSequence = 0;
   bool _openingPlanCreator = false;
+  final TextEditingController _clientSearchController = TextEditingController();
+  final FocusNode _clientSearchFocusNode = FocusNode();
+  String _clientSearchQuery = '';
 
   @override
   void initState() {
@@ -88,6 +93,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       NavigationService.flushPendingNotificationNavigation();
     });
     _load();
+  }
+
+  @override
+  void dispose() {
+    _clientSearchController.dispose();
+    _clientSearchFocusNode.dispose();
+    super.dispose();
   }
 
   String _clientDisplayName(ProgressionClient client) {
@@ -879,7 +891,13 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
 
   void _selectTab(int index) {
     if (index == _tabIndex) return;
+    _clientSearchFocusNode.unfocus();
     setState(() => _tabIndex = index);
+  }
+
+  void _onClientSearchChanged(String value) {
+    if (value == _clientSearchQuery) return;
+    setState(() => _clientSearchQuery = value);
   }
 
   Widget _buildInboxButton() {
@@ -924,7 +942,24 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       return mapped;
     }).toList();
 
-    final prioritizedClients = [...displayClients]
+    final filteredClients = displayClients
+        .where((client) {
+          return matchesCoachClientSearch(
+            query: _clientSearchQuery,
+            fields: <String?>[
+              client.name,
+              client.firstName,
+              client.lastName,
+              client.fullName,
+              client.username,
+              client.email,
+              client.userId.toString(),
+            ],
+          );
+        })
+        .toList(growable: false);
+
+    final prioritizedClients = [...filteredClients]
       ..sort((a, b) {
         final aHasPending =
             a.hasNewAssignment ||
@@ -983,30 +1018,65 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       onRefresh: _load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: TaqaUiScale.insetsLTRB(20, 20, 20, 20),
         children: [
           const TaqaManagementSectionTitle(title: 'My Clients'),
           SizedBox(height: TaqaUiScale.h(10)),
           if (_clients.isEmpty)
             const TaqaEmptyStateRow(text: 'No assigned clients yet.')
-          else
-            ...prioritizedClients.map((client) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: TaqaExpertClientCard(
-                  name: _clientDisplayName(client),
-                  avatarUrl: _normalizeAvatarUrlForUi(client.avatarUrl),
-                  status: client.activityStatus,
-                  alerts: _clientAlerts(
-                    client,
-                    hasSupportChatUnread: _supportChatUnreadClientIds.contains(
-                      client.userId,
+          else ...[
+            TaqaSearchField(
+              controller: _clientSearchController,
+              focusNode: _clientSearchFocusNode,
+              hint: 'Search name, email or username',
+              onChanged: _onClientSearchChanged,
+              onSubmitted: (_) => _clientSearchFocusNode.unfocus(),
+            ),
+            SizedBox(height: TaqaUiScale.h(8)),
+            if (_clientSearchQuery.trim().isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(
+                  left: TaqaUiScale.w(4),
+                  bottom: TaqaUiScale.h(8),
+                ),
+                child: Text(
+                  prioritizedClients.length == 1
+                      ? '1 matching client'
+                      : '${prioritizedClients.length} matching clients',
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(11),
+                    fontWeight: FontWeight.w500,
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.60,
                     ),
                   ),
-                  onTap: () => _openClientDetail(client),
                 ),
-              );
-            }),
+              ),
+            if (prioritizedClients.isEmpty)
+              const TaqaEmptyStateRow(
+                text:
+                    'No clients match your search. Try a different name, email or username.',
+              )
+            else
+              ...prioritizedClients.map((client) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: TaqaExpertClientCard(
+                    name: _clientDisplayName(client),
+                    avatarUrl: _normalizeAvatarUrlForUi(client.avatarUrl),
+                    status: client.activityStatus,
+                    alerts: _clientAlerts(
+                      client,
+                      hasSupportChatUnread: _supportChatUnreadClientIds
+                          .contains(client.userId),
+                    ),
+                    onTap: () => _openClientDetail(client),
+                  ),
+                );
+              }),
+          ],
         ],
       ),
     );

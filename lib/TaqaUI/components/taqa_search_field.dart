@@ -10,19 +10,21 @@ class TaqaSearchField extends StatelessWidget {
     super.key,
     required this.controller,
     this.hint = 'Search',
+    this.focusNode,
     this.onChanged,
     this.onSubmitted,
   });
 
   final TextEditingController controller;
   final String hint;
+  final FocusNode? focusNode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: TaqaUiScale.w(357),
+      width: double.infinity,
       height: TaqaUiScale.h(39),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -32,9 +34,20 @@ class TaqaSearchField extends StatelessWidget {
       padding: TaqaUiScale.insetsLTRB(14, 0, 10, 0),
       child: TextField(
         controller: controller,
+        focusNode: focusNode,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
+        onTapOutside: (_) {
+          if (focusNode != null) {
+            focusNode!.unfocus();
+          } else {
+            FocusScope.of(context).unfocus();
+          }
+        },
         textInputAction: TextInputAction.search,
+        textCapitalization: TextCapitalization.none,
+        autocorrect: false,
+        enableSuggestions: false,
         minLines: 1,
         maxLines: 1,
         textAlignVertical: TextAlignVertical.center,
