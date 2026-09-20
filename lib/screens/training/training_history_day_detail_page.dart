@@ -9,6 +9,7 @@ import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
+import '../../services/training/timer_based_exercises.dart';
 
 class TrainingHistoryDayDetailPage extends StatelessWidget {
   const TrainingHistoryDayDetailPage({
@@ -118,8 +119,32 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
     return value.toString();
   }
 
+  int? _positiveInt(dynamic value) {
+    if (value is int) return value > 0 ? value : null;
+    if (value is num) {
+      final parsed = value.toInt();
+      return parsed > 0 ? parsed : null;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      return parsed != null && parsed > 0 ? parsed : null;
+    }
+    return null;
+  }
+
+  String _formatElapsed(int totalSeconds) {
+    final safe = totalSeconds < 0 ? 0 : totalSeconds;
+    final h = safe ~/ 3600;
+    final m = (safe % 3600) ~/ 60;
+    final s = safe % 60;
+    final mm = m.toString().padLeft(2, '0');
+    final ss = s.toString().padLeft(2, '0');
+    return h > 0 ? "${h.toString().padLeft(2, '0')}:$mm:$ss" : "$mm:$ss";
+  }
+
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     String lower(dynamic v) => (v ?? '').toString().trim().toLowerCase();
     final category = lower(exercise['category']);
     final exType = lower(exercise['exercise_type']);
@@ -146,6 +171,14 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
     final setsLabel = performedSets ?? _valueAsText(exercise['sets']) ?? '-';
     final repsLabel = performedReps ?? _valueAsText(exercise['reps']) ?? '-';
     final rirLabel = performedRir ?? _valueAsText(exercise['rir']) ?? '-';
+    final isTimerBased = isTimerBasedExercise(exercise);
+    final performedTimeSeconds = _positiveInt(
+      compliance?['performed_time_seconds'] ??
+          exercise['performed_time_seconds'],
+    );
+    final timeLabel = performedTimeSeconds == null
+        ? '-'
+        : _formatElapsed(performedTimeSeconds);
 
     final title = exercise['exercise_name']?.toString() ?? '';
     final muscles = (exercise['primary_muscles'] ?? '').toString();
@@ -209,10 +242,18 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
                   Wrap(
                     spacing: TaqaUiScale.w(8),
                     runSpacing: TaqaUiScale.h(6),
-                    children: [
-                      TaqaMiniTag(label: "$setsLabel x $repsLabel"),
-                      TaqaMiniTag(label: "RIR $rirLabel"),
-                    ],
+                    children: isTimerBased
+                        ? [
+                            TaqaMiniTag(
+                              label:
+                                  "$setsLabel × ${t.translate("training_time")}",
+                            ),
+                            TaqaMiniTag(label: timeLabel),
+                          ]
+                        : [
+                            TaqaMiniTag(label: "$setsLabel x $repsLabel"),
+                            TaqaMiniTag(label: "RIR $rirLabel"),
+                          ],
                   ),
                 ],
                 if (muscles.isNotEmpty) ...[

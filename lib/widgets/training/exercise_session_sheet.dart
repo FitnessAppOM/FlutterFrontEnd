@@ -627,6 +627,24 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _activeSetTimer = null;
   }
 
+  Future<void> _toggleActiveSetTimer() async {
+    if (_activeSetTimerRunning) {
+      _pauseActiveSetTimer();
+      await _persistActiveSetTiming();
+      await _saveTimerState();
+      return;
+    }
+    final setIndex = _activeSetIndex;
+    if (setIndex == null) return;
+    if (!started || _paused) {
+      await _startExercise();
+      if (!mounted) return;
+    }
+    _syncTotalToSubTimerStartIfNeeded();
+    _startActiveSetTimer();
+    await _saveTimerState();
+  }
+
   Future<void> _persistActiveSetTiming() async {
     final setIndex = _activeSetIndex;
     if (!_supportsSetRows || setIndex == null) return;
@@ -2234,9 +2252,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   List<Widget> _buildSetRowsSection(bool isTimer) {
     final t = AppLocalizations.of(context);
     final rows = _setRows;
+    final showActiveSetTimer =
+        _activeSetIndex != null &&
+        (_activeSetTimerRunning || _activeSetElapsedSeconds > 0) &&
+        !_restCountdownActive;
     final showRestPreset =
         _activeSetIndex != null &&
-        !_activeSetTimerRunning &&
+        !showActiveSetTimer &&
         !_restCountdownActive &&
         !_hideRestPresetAfterStart;
 
@@ -2262,7 +2284,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         ),
       ),
       SizedBox(height: TaqaUiScale.h(16)),
-      if (_activeSetIndex != null && _activeSetTimerRunning) ...[
+      if (showActiveSetTimer) ...[
         Container(
           padding: TaqaUiScale.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
@@ -2298,6 +2320,17 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 ),
               ),
               const Spacer(),
+              _CompactIconButton(
+                icon: _activeSetTimerRunning
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                label: _activeSetTimerRunning
+                    ? t.translate("training_pause")
+                    : t.translate("training_resume"),
+                color: Colors.white,
+                onTap: _toggleActiveSetTimer,
+              ),
+              SizedBox(width: TaqaUiScale.w(8)),
               _CompactButton(
                 label: t.translate("training_finish_set"),
                 color: Colors.greenAccent,
@@ -2313,7 +2346,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
         curve: Curves.easeInOut,
         alignment: Alignment.topCenter,
         clipBehavior: Clip.hardEdge,
-        child: !_activeSetTimerRunning
+        child: !showActiveSetTimer
             ? Column(
                 key: const ValueKey("rest_section_on"),
                 children: [
@@ -4344,6 +4377,40 @@ class _CompactButton extends StatelessWidget {
             fontWeight: FontWeight.w700,
             fontSize: TaqaUiScale.sp(12),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactIconButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CompactIconButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: TaqaUiScale.w(34),
+          height: TaqaUiScale.h(32),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.13),
+            borderRadius: TaqaUiScale.radius(8),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Icon(icon, color: color, size: TaqaUiScale.w(17)),
         ),
       ),
     );

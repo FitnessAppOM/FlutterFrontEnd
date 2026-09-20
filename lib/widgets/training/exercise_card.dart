@@ -51,6 +51,19 @@ class ExerciseCard extends StatelessWidget {
     return h > 0 ? "${h.toString().padLeft(2, '0')}:$mm:$ss" : "$mm:$ss";
   }
 
+  int? _positiveInt(dynamic value) {
+    if (value is int) return value > 0 ? value : null;
+    if (value is num) {
+      final parsed = value.toInt();
+      return parsed > 0 ? parsed : null;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value.trim());
+      return parsed != null && parsed > 0 ? parsed : null;
+    }
+    return null;
+  }
+
   Map<String, dynamic>? _extractCompliance(dynamic value) {
     if (value == null) return null;
     if (value is Map<String, dynamic>) return value;
@@ -323,10 +336,38 @@ class ExerciseCard extends StatelessWidget {
     final String rirLabel = overrideRir ?? exercise['rir'].toString();
     final String? weightLabel = _formatWeightLabel(_resolvedWeight(exercise));
     final isTimerBased = isTimerBasedExercise(exercise);
+    final performedTimeSeconds = (complianceDone || hasCurrentWeekDate)
+        ? _positiveInt(
+            compliance?['performed_time_seconds'] ??
+                exercise['performed_time_seconds'],
+          )
+        : null;
+    final lastPerformedTimeSeconds = _positiveInt(
+      exercise['last_performed_time_seconds'],
+    );
     final metaTags = <(IconData, String)>[];
     if (!isCardio) {
       if (isTimerBased) {
-        metaTags.add((Icons.timer_outlined, "$setsLabel × ${t.translate("training_time")}"));
+        final completedTimeLabel = performedTimeSeconds == null
+            ? null
+            : _formatElapsed(performedTimeSeconds);
+        final lastTimeLabel =
+            completedTimeLabel ??
+            (lastPerformedTimeSeconds == null
+                ? null
+                : _formatElapsed(lastPerformedTimeSeconds));
+        metaTags.add((
+          Icons.timer_outlined,
+          completedTimeLabel != null
+              ? "${t.translate("training_time")} $completedTimeLabel"
+              : "$setsLabel × ${t.translate("training_time")}",
+        ));
+        if (completedTimeLabel == null && lastTimeLabel != null) {
+          metaTags.add((
+            Icons.history,
+            "${t.translate("training_last_time")} $lastTimeLabel",
+          ));
+        }
       } else {
         metaTags.add((Icons.repeat, "$setsLabel x $repsLabel"));
         metaTags.add((Icons.speed, "RIR $rirLabel"));

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
@@ -35,13 +37,19 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
   bool submitting = false;
   bool suggestionsOffline = false;
   bool allOffline = false;
+  bool allLoadFailed = false;
+  bool searchingAll = false;
+  bool allSearchFailed = false;
 
   List<dynamic> suggestions = [];
   List<dynamic> allExercises = [];
+  List<dynamic> allSearchResults = [];
   List<String> muscleTags = [];
 
   String search = '';
   String? selectedMuscle;
+  Timer? _searchDebounce;
+  int _searchRequestId = 0;
 
   @override
   void initState() {
@@ -128,6 +136,21 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       });
     }
 
+    await _loadAllExercises();
+
+    // Keep the local flags separate: either endpoint can be unavailable while
+    // the other tab still has useful data.
+  }
+
+  Future<void> _loadAllExercises() async {
+    if (mounted) {
+      setState(() {
+        loadingAll = true;
+        allOffline = false;
+        allLoadFailed = false;
+      });
+    }
+
     try {
       final all = await TrainingService.fetchAllExercises();
       if (!mounted) return;
@@ -141,17 +164,90 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       setState(() {
         loadingAll = false;
         allOffline = isNetworkError(error);
+        allLoadFailed = true;
       });
     }
+  }
 
-    // Keep the local flags separate: either endpoint can be unavailable while
-    // the other tab still has useful data.
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    final requestId = ++_searchRequestId;
+    final query = value.trim();
+
+    setState(() {
+      search = value;
+      if (query.isEmpty) {
+        searchingAll = false;
+        allSearchFailed = false;
+        allSearchResults = [];
+      } else {
+        searchingAll = true;
+        allSearchFailed = false;
+        allSearchResults = [];
+      }
+    });
+
+    if (query.isEmpty) return;
+
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _searchAllExercises(query, requestId),
+    );
+  }
+
+  Future<void> _searchAllExercises(String query, int requestId) async {
+    if (!mounted || requestId != _searchRequestId) return;
+    setState(() {
+      searchingAll = true;
+      allSearchFailed = false;
+    });
+
+    try {
+      // Search is intentionally one server request. It avoids making users
+      // download the whole catalog before a specific replacement can appear.
+      final results = await TrainingService.fetchAllExercises(
+        search: query,
+        limit: 100,
+      ).timeout(const Duration(seconds: 12));
+      if (!mounted || requestId != _searchRequestId) return;
+      setState(() {
+        allSearchResults = results;
+        searchingAll = false;
+      });
+    } catch (_) {
+      if (!mounted || requestId != _searchRequestId) return;
+      setState(() {
+        allSearchResults = [];
+        searchingAll = false;
+        allSearchFailed = true;
+      });
+    }
+  }
+
+  void _retryAllExercises() {
+    final query = search.trim();
+    if (query.isEmpty) {
+      _loadAllExercises();
+      return;
+    }
+
+    _searchDebounce?.cancel();
+    final requestId = ++_searchRequestId;
+    _searchAllExercises(query, requestId);
+  }
+
+  void _showAllExercises() {
+    if (_tab.index != 1) {
+      _tab.animateTo(1);
+      setState(() {});
+    }
   }
 
   List<dynamic> get filteredAll {
     final s = search.trim().toLowerCase();
+    final source = s.isEmpty ? allExercises : allSearchResults;
 
-    return allExercises.where((item) {
+    return source.where((item) {
       if (item is! Map<String, dynamic>) return false;
 
       final name = _exerciseTitle(item).toLowerCase();
@@ -589,6 +685,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _tab.dispose();
     super.dispose();
   }
@@ -665,7 +762,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                   ),
                   prefixIconConstraints: const BoxConstraints(minWidth: 26),
                 ),
-                onChanged: (v) => setState(() => search = v),
+                onChanged: _onSearchChanged,
               ),
             ),
             const SizedBox(height: 12),
@@ -726,10 +823,13 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
     final items = filteredSuggestions;
     if (items.isEmpty) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).translate("training_no_suggestions"),
-        ),
+      final t = AppLocalizations.of(context);
+      return _buildListMessage(
+        message: t.translate("training_no_suggestions"),
+        actionLabel: search.trim().isEmpty
+            ? null
+            : t.translate("training_search_all_exercises"),
+        onAction: search.trim().isEmpty ? null : _showAllExercises,
       );
     }
 
@@ -763,26 +863,43 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
   }
 
   Widget _buildAllList() {
-    if (loadingAll) {
+    final hasSearch = search.trim().isNotEmpty;
+
+    if (hasSearch && searchingAll) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (allOffline && allExercises.isEmpty) {
+    if (hasSearch && allSearchFailed) {
       final t = AppLocalizations.of(context);
-      return TaqaOfflineEmptyState(
-        message: t.translate("offline_replace_all_exercises"),
+      return _buildListMessage(
+        message: t.translate("training_exercises_load_error"),
+        actionLabel: t.translate("common_retry"),
+        onAction: _retryAllExercises,
+      );
+    }
+
+    if (!hasSearch && loadingAll && allExercises.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!hasSearch && (allOffline || allLoadFailed) && allExercises.isEmpty) {
+      final t = AppLocalizations.of(context);
+      return _buildListMessage(
+        message: allOffline
+            ? t.translate("offline_replace_all_exercises")
+            : t.translate("training_exercises_load_error"),
+        actionLabel: t.translate("common_retry"),
+        onAction: _retryAllExercises,
       );
     }
 
     final items = filteredAll;
 
     return items.isEmpty
-        ? Center(
-            child: Text(
-              AppLocalizations.of(
-                context,
-              ).translate("training_no_search_results"),
-            ),
+        ? _buildListMessage(
+            message: AppLocalizations.of(
+              context,
+            ).translate("training_no_search_results"),
           )
         : ListView.separated(
             itemCount: items.length,
@@ -813,6 +930,44 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               );
             },
           );
+  }
+
+  Widget _buildListMessage({
+    required String message,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Center(
+      child: Padding(
+        padding: TaqaUiScale.insetsLTRB(24, 24, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(15),
+                fontWeight: FontWeight.w600,
+                color: TaqaUiColors.white,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              SizedBox(height: TaqaUiScale.h(16)),
+              SizedBox(
+                width: TaqaUiScale.w(220),
+                child: TaqaSheetActionButton(
+                  label: actionLabel,
+                  onTap: onAction,
+                  height: TaqaUiScale.h(48),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   String _titleCase(String input) {
