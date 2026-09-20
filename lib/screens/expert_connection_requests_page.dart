@@ -304,6 +304,9 @@ class _ExpertConnectionRequestsPageState
                         request.stableKey,
                       );
                       final isDetachEvent = request.isDetachEvent;
+                      final unseenAccent = isDetachEvent
+                          ? TaqaUiColors.recordRed
+                          : const Color(0xFF3BE971);
                       return Container(
                         margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
                         padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
@@ -312,9 +315,7 @@ class _ExpertConnectionRequestsPageState
                           borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
                             color: request.isNew
-                                ? const Color(
-                                    0xFF3BE971,
-                                  ).withValues(alpha: 0.55)
+                                ? unseenAccent.withValues(alpha: 0.55)
                                 : TaqaUiColors.unnamedColor1c1d17.withValues(
                                     alpha: 0.10,
                                   ),
@@ -340,12 +341,16 @@ class _ExpertConnectionRequestsPageState
                                 ),
                                 if (request.isNew)
                                   TaqaOutlineTagButton(
-                                    label: 'New',
-                                    width: TaqaUiScale.w(38),
+                                    label: isDetachEvent ? 'Detached' : 'New',
+                                    width: TaqaUiScale.w(
+                                      isDetachEvent ? 58 : 38,
+                                    ),
                                     height: TaqaUiScale.h(20),
-                                    borderColor: const Color(0xFF3BE971),
+                                    borderColor: unseenAccent,
                                     textStyle: TaqaUiStyles.streakTag.copyWith(
-                                      color: const Color(0xFF15803D),
+                                      color: isDetachEvent
+                                          ? TaqaUiColors.recordRed
+                                          : const Color(0xFF15803D),
                                     ),
                                   ),
                               ],

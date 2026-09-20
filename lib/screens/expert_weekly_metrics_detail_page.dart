@@ -1024,6 +1024,13 @@ class _ExpertWeeklyMetricsDetailPageState
           onTap: () => _openAllExercisesDonePage(selectedWeekHistory),
         ),
         const SizedBox(height: 12),
+        TaqaClientDashboardNavigationCard(
+          title: 'Cardio Session History',
+          description:
+              '${cardioRows.length} session${cardioRows.length == 1 ? '' : 's'} in ${_weekRangeLabel()}',
+          onTap: () => _openCardioSessionsPage(cardioRows),
+        ),
+        const SizedBox(height: 12),
         _buildChartCard(
           title: 'Volume Trend per Training Day',
           subtitle: selectedDayVolumeIndex == null
@@ -1364,6 +1371,115 @@ class _ExpertWeeklyMetricsDetailPageState
         ),
       ),
     );
+  }
+
+  void _openCardioSessionsPage(List<Map<String, dynamic>> sessions) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          appBar: TaqaPageAppBar(
+            title: 'Cardio Sessions',
+            backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+            titleColor: TaqaUiColors.charcoal,
+            leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
+          ),
+          body: ListView(
+            padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
+            children: [
+              TaqaExpertClientCard(
+                name: widget.clientName,
+                avatarUrl: widget.clientAvatarUrl,
+                status: widget.clientActivityStatus,
+                showStatus: (widget.clientActivityStatus ?? '')
+                    .trim()
+                    .isNotEmpty,
+                subtitle: _weekRangeLabel(),
+                alerts: const [],
+              ),
+              SizedBox(height: TaqaUiScale.h(12)),
+              if (sessions.isEmpty)
+                const TaqaEmptyStateRow(
+                  text: 'No cardio sessions recorded for this week.',
+                )
+              else
+                ...sessions.asMap().entries.map((entry) {
+                  final session = entry.value;
+                  final incline = _toDouble(
+                    session['incline_percent'],
+                    fallback: -1,
+                  );
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
+                    child: TaqaProfileInfoSection(
+                      title: _cardioSessionTitle(session),
+                      items: [
+                        TaqaProfileInfoItem(
+                          label: 'Date',
+                          value: _cardioSessionDate(session),
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Duration',
+                          value: _formatSecondsCompact(
+                            _toInt(session['duration_seconds']),
+                          ),
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Distance',
+                          value:
+                              '${_toDouble(session['distance_km']).toStringAsFixed(2)} km',
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Average pace',
+                          value: _formatCardioPace(
+                            _toDouble(session['avg_pace_min_km']),
+                          ),
+                        ),
+                        TaqaProfileInfoItem(
+                          label: 'Session steps',
+                          value: session['steps'] == null
+                              ? '-'
+                              : '${_toInt(session['steps'])}',
+                        ),
+                        if (incline >= 0)
+                          TaqaProfileInfoItem(
+                            label: 'Incline',
+                            value: '${incline.toStringAsFixed(1)}%',
+                          ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _cardioSessionTitle(Map<String, dynamic> session) {
+    return (session['exercise_name'] ?? '').toString().trim();
+  }
+
+  String _cardioSessionDate(Map<String, dynamic> session) {
+    final raw = (session['occurred_at'] ?? session['entry_date'] ?? '')
+        .toString()
+        .trim();
+    if (raw.isEmpty) return '-';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final hasTime = session['occurred_at'] != null;
+    return DateFormat(
+      hasTime ? 'EEE, dd MMM yyyy • HH:mm' : 'EEE, dd MMM yyyy',
+    ).format(parsed.toLocal());
+  }
+
+  String _formatCardioPace(double paceMinutesPerKm) {
+    if (!paceMinutesPerKm.isFinite || paceMinutesPerKm <= 0) return '-';
+    final totalSeconds = (paceMinutesPerKm * 60).round();
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    return '$minutes:${seconds.toString().padLeft(2, '0')} min/km';
   }
 
   DateTime? _selectedTrainingWeekStart() {
