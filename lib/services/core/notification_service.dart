@@ -51,8 +51,9 @@ class NotificationService {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return false;
     final cached = await AccountStorage.cachedSubscriptionAccessAllowed();
-    if (cached != null) return cached;
-    return !(await AccountStorage.isSubscriptionRequired());
+    // Notification access must be positively established by a recent,
+    // server-verified entitlement. A missing/unknown snapshot is not enough.
+    return cached == true;
   }
 
   static Future<void> cancelAccountNotifications({int? userId}) async {
