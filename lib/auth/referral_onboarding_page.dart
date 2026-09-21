@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,6 +11,7 @@ import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../localization/app_localizations.dart';
+import '../services/referrals/pending_referral_code_store.dart';
 import '../services/referrals/referral_api.dart';
 
 Widget referralOnboardingIfNeeded({
@@ -21,16 +24,12 @@ Widget referralOnboardingIfNeeded({
 }
 
 class ReferralOnboardingPage extends StatefulWidget {
-  const ReferralOnboardingPage({
-    super.key,
-    required this.nextPage,
-  });
+  const ReferralOnboardingPage({super.key, required this.nextPage});
 
   final Widget nextPage;
 
   @override
-  State<ReferralOnboardingPage> createState() =>
-      _ReferralOnboardingPageState();
+  State<ReferralOnboardingPage> createState() => _ReferralOnboardingPageState();
 }
 
 class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
@@ -38,7 +37,31 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
   bool _submitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    PendingReferralCodeStore.code.addListener(_applyPendingCode);
+    unawaited(_loadPendingCode());
+  }
+
+  Future<void> _loadPendingCode() async {
+    await PendingReferralCodeStore.load();
+    if (mounted) _applyPendingCode();
+  }
+
+  void _applyPendingCode() {
+    final code = PendingReferralCodeStore.code.value;
+    if (!mounted || code == null || _codeController.text.trim().isNotEmpty) {
+      return;
+    }
+    _codeController.value = TextEditingValue(
+      text: code,
+      selection: TextSelection.collapsed(offset: code.length),
+    );
+  }
+
+  @override
   void dispose() {
+    PendingReferralCodeStore.code.removeListener(_applyPendingCode);
     _codeController.dispose();
     super.dispose();
   }
@@ -61,6 +84,7 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
     setState(() => _submitting = true);
     try {
       await ReferralApi.redeem(code, source: 'onboarding');
+      await PendingReferralCodeStore.clear();
       if (!mounted) return;
       _continue();
     } on ReferralApiException catch (error) {
@@ -88,6 +112,7 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
     setState(() => _submitting = true);
     try {
       await ReferralApi.skipOnboarding();
+      await PendingReferralCodeStore.clear();
       if (!mounted) return;
       _continue();
     } on ReferralApiException catch (error) {
@@ -102,9 +127,9 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -153,7 +178,9 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(14),
                     height: 1.4,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.65),
+                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      alpha: 0.65,
+                    ),
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(28)),
