@@ -781,6 +781,9 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
                   child: Stack(
                     children: [
                       _WorkoutLauncherExerciseCard(
+                        key: ValueKey<String>(
+                          'workout-exercise-${_programExerciseId(ex) ?? sourceIndex}',
+                        ),
                         exercise: ex,
                         name: name,
                         sets: sets,
@@ -832,6 +835,7 @@ class _WorkoutLauncherPageState extends State<_WorkoutLauncherPage> {
 
 class _WorkoutLauncherExerciseCard extends StatefulWidget {
   const _WorkoutLauncherExerciseCard({
+    super.key,
     required this.exercise,
     required this.name,
     required this.sets,
@@ -874,6 +878,8 @@ class _WorkoutLauncherExerciseCardState
   Timer? _activeTicker;
   int? _exerciseStartedAtMs;
   int? _setStartedAtMs;
+  bool _timerPaused = false;
+  int? _timerPausedAtMs;
   late int _restSeconds;
   bool _restCountdownActive = false;
   int _restRemainingSeconds = 0;
@@ -976,6 +982,15 @@ class _WorkoutLauncherExerciseCardState
       fallback: 0,
     );
     var setInProgress = state['launcher_set_in_progress'] == true;
+    final timerPaused =
+        _isTimerBased && setInProgress && state['paused'] == true;
+    var timerPausedAtMs = _toInt(
+      state['launcher_paused_at_ms'],
+      fallback: savedAtMs,
+    );
+    if (timerPausedAtMs <= 0) {
+      timerPausedAtMs = savedAtMs;
+    }
     int? setStartedAtMs = _toInt(
       state['launcher_set_started_at_ms'],
       fallback: 0,
@@ -1017,6 +1032,8 @@ class _WorkoutLauncherExerciseCardState
         _exerciseStartedAtMs = null;
       }
       _setStartedAtMs = _setInProgress ? setStartedAtMs : null;
+      _timerPaused = timerPaused;
+      _timerPausedAtMs = timerPaused ? timerPausedAtMs : null;
       _restoredProgress = true;
     });
 
@@ -1035,7 +1052,7 @@ class _WorkoutLauncherExerciseCardState
 
     await TrainingProgressStorage.saveExerciseTimerState(programExerciseId, {
       'started': widget.isActive || _exerciseStartedAtMs != null,
-      'paused': false,
+      'paused': _timerPaused,
       'seconds': _elapsedSecondsSince(_exerciseStartedAtMs),
       'start_ms': _exerciseStartedAtMs,
       'saved_set_rows': _rows
@@ -1054,6 +1071,7 @@ class _WorkoutLauncherExerciseCardState
       'launcher_flow_set_index': _flowSetIndex,
       'launcher_set_in_progress': _setInProgress,
       'launcher_set_started_at_ms': _setStartedAtMs,
+      'launcher_paused_at_ms': _timerPausedAtMs,
       'launcher_rest_seconds': _restSeconds,
       'launcher_rest_countdown_active': _restCountdownActive,
       'launcher_rest_countdown_remaining': _restRemainingSeconds,
@@ -1105,6 +1123,53 @@ class _WorkoutLauncherExerciseCardState
     return _setInProgress ? "FINISH SET $setNo" : "START SET $setNo";
   }
 
+  Future<void> _toggleTimerPause() async {
+    if (!_isTimerBased || !widget.isActive || !_setInProgress) return;
+
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    setState(() {
+      if (_timerPaused) {
+        final pausedAtMs = _timerPausedAtMs;
+        if (pausedAtMs != null && nowMs > pausedAtMs) {
+          final pausedForMs = nowMs - pausedAtMs;
+          if (_exerciseStartedAtMs != null) {
+            _exerciseStartedAtMs = _exerciseStartedAtMs! + pausedForMs;
+          }
+          if (_setStartedAtMs != null) {
+            _setStartedAtMs = _setStartedAtMs! + pausedForMs;
+          }
+        }
+        _timerPaused = false;
+        _timerPausedAtMs = null;
+      } else {
+        _timerPaused = true;
+        _timerPausedAtMs = nowMs;
+      }
+    });
+    await _saveLauncherProgressState();
+
+    final exerciseName = (widget.exercise['exercise_name'] ?? widget.name)
+        .toString()
+        .trim();
+    if (exerciseName.isEmpty) return;
+    final elapsedSeconds = _elapsedSecondsSince(_exerciseStartedAtMs);
+    if (_timerPaused) {
+      await TrainingActivityService.pauseSession(
+        exerciseName: exerciseName,
+        sets: _rows.length,
+        reps: widget.reps,
+        seconds: elapsedSeconds,
+      );
+    } else {
+      await TrainingActivityService.resumeSession(
+        exerciseName: exerciseName,
+        sets: _rows.length,
+        reps: widget.reps,
+        seconds: elapsedSeconds,
+      );
+    }
+  }
+
   Future<void> _onSetActionPressed() async {
     if (_rows.isEmpty) return;
     final idx = _activeFlowSetIndex();
@@ -1136,6 +1201,8 @@ class _WorkoutLauncherExerciseCardState
           _flowSetIndex = idx + 1;
           _setInProgress = false;
           _setStartedAtMs = null;
+          _timerPaused = false;
+          _timerPausedAtMs = null;
           _restCountdownActive = rest > 0;
           _restRemainingSeconds = rest;
         });
@@ -1147,6 +1214,8 @@ class _WorkoutLauncherExerciseCardState
     if (mounted) {
       setState(() {
         _setInProgress = true;
+        _timerPaused = false;
+        _timerPausedAtMs = null;
         _restCountdownActive = false;
         _restRemainingSeconds = 0;
         _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
@@ -1302,6 +1371,8 @@ class _WorkoutLauncherExerciseCardState
       _activeTicker?.cancel();
       _activeTicker = null;
       _setInProgress = false;
+      _timerPaused = false;
+      _timerPausedAtMs = null;
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
       _exerciseFinished = true;
@@ -1343,6 +1414,8 @@ class _WorkoutLauncherExerciseCardState
       // naturally), so skipping rest doesn't require a manual "START SET" tap.
       _setInProgress = true;
       _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+      _timerPaused = false;
+      _timerPausedAtMs = null;
     });
     _ensureActiveTimers();
     unawaited(_saveLauncherProgressState());
@@ -1442,7 +1515,9 @@ class _WorkoutLauncherExerciseCardState
 
   int _elapsedSecondsSince(int? startedAtMs) {
     if (startedAtMs == null) return 0;
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = _timerPaused && _timerPausedAtMs != null
+        ? _timerPausedAtMs!
+        : DateTime.now().millisecondsSinceEpoch;
     final diffMs = now - startedAtMs;
     if (diffMs <= 0) return 0;
     return (diffMs / 1000).floor();
@@ -1737,6 +1812,10 @@ class _WorkoutLauncherExerciseCardState
         _flowSetIndex = nextFlowSetIndex;
         _setInProgress = nextSetInProgress;
         _setStartedAtMs = nextSetStartedAtMs;
+        if (!nextSetInProgress) {
+          _timerPaused = false;
+          _timerPausedAtMs = null;
+        }
       });
     }
     await _saveLauncherProgressState();
@@ -1769,6 +1848,8 @@ class _WorkoutLauncherExerciseCardState
     final now = DateTime.now().millisecondsSinceEpoch;
     _exerciseStartedAtMs = now;
     _setStartedAtMs = now;
+    _timerPaused = false;
+    _timerPausedAtMs = null;
     _restCountdownActive = false;
     _restRemainingSeconds = 0;
     _flowSetIndex = _initialFlowSetIndex();
@@ -2098,6 +2179,42 @@ class _WorkoutLauncherExerciseCardState
                       fontWeight: FontWeight.w700,
                     ),
                   ),
+                  if (_isTimerBased && _setInProgress) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => unawaited(_toggleTimerPause()),
+                        icon: Icon(
+                          _timerPaused
+                              ? Icons.play_arrow_rounded
+                              : Icons.pause_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          AppLocalizations.of(context)
+                              .translate(
+                                _timerPaused
+                                    ? "training_resume"
+                                    : "training_pause",
+                              )
+                              .toUpperCase(),
+                          style: const TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE4E93B),
+                          side: const BorderSide(color: Color(0x99E4E93B)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,

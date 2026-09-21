@@ -810,10 +810,12 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     return [
       Text(
         _t("questionnaire_nutrition_intro"),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Theme.of(
-            context,
-          ).colorScheme.onSurface.withValues(alpha: 0.75),
+        style: TextStyle(
+          fontFamily: TaqaUiFontFamilies.interTight,
+          fontSize: TaqaUiScale.sp(13),
+          fontWeight: FontWeight.w500,
+          height: 18 / 13,
+          color: TaqaUiColors.unnamedColor1c1d17,
         ),
       ),
       const SizedBox(height: 8),
