@@ -2036,7 +2036,13 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       final result = freeze
           ? await ProfileApi.deactivateAccount(userId)
           : await ProfileApi.deleteAccount(userId);
-      if (!freeze) await AccountStorage.clear();
+      if (freeze) {
+        // This flow returns to Welcome rather than the restore-actions page,
+        // so it must explicitly end the now-restricted local session.
+        await AccountStorage.clearSession();
+      } else {
+        await AccountStorage.clear();
+      }
       await NotificationService.refreshDailyJournalRemindersForCurrentUser();
       if (!mounted) return;
 

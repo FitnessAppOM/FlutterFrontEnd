@@ -123,16 +123,9 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
   }
 
   Future<void> _closeRestorePrompt() async {
-    await AccountStorage.dismissDeactivatedPrompt();
-    if (_hasActiveSession) {
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-        (_) => false,
-      );
-      return;
-    }
+    // "Not now" leaves the account deactivated. End the local session instead
+    // of letting a restricted account return to the main application.
+    await AccountStorage.clearSession();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -509,12 +502,14 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
               ? (busy ? null : _reactivateWithApple)
               : (canRequest ? _requestCode : null),
         ),
-        SizedBox(height: TaqaUiScale.h(6)),
-        _RestoreDeleteButton(
-          label: t.translate("settings_delete_account"),
-          loading: _deleting,
-          onTap: busy ? null : _deleteAccount,
-        ),
+        if (_hasActiveSession) ...[
+          SizedBox(height: TaqaUiScale.h(6)),
+          _RestoreDeleteButton(
+            label: t.translate("settings_delete_account"),
+            loading: _deleting,
+            onTap: busy ? null : _deleteAccount,
+          ),
+        ],
         SizedBox(height: TaqaUiScale.h(6)),
         TaqaTextActionButton(
           label: t.translate("account_restore_not_now"),

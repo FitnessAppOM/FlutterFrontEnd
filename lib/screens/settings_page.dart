@@ -326,6 +326,9 @@ class _SettingsPageState extends State<SettingsPage>
     if (plan == null || !plan.active) {
       return t.translate('settings_plan_none');
     }
+    if (plan.isComplimentaryAccess) {
+      return t.translate('settings_plan_complimentary');
+    }
 
     final code = (plan.planCode ?? '').toLowerCase();
     final productId = (plan.productId ?? '').toLowerCase();
@@ -387,6 +390,15 @@ class _SettingsPageState extends State<SettingsPage>
     final plan = _currentPlan;
     if (plan == null || !plan.active) {
       return t.translate('settings_plan_none_sub');
+    }
+    if (plan.isComplimentaryAccess) {
+      final expiresAt = plan.expiresAt;
+      if (expiresAt == null) {
+        return t.translate('settings_plan_complimentary_active');
+      }
+      return t
+          .translate('settings_plan_complimentary_until')
+          .replaceAll('{date}', _formatPlanDate(expiresAt));
     }
     final pendingProductId = _pendingPlanProductId;
     final pendingEffectiveAt = _pendingPlanEffectiveAt;
@@ -1712,7 +1724,9 @@ class _SettingsPageState extends State<SettingsPage>
                         ? _currentPlanSubtitle(t)
                         : '${_currentPlanName(t)} · ${_currentPlanSubtitle(t)}',
                     onTap: _currentPlanLoadFailed ? _loadCurrentPlan : null,
-                    footer: _currentPlan?.active == true
+                    footer:
+                        _currentPlan?.active == true &&
+                            _currentPlan?.hasStoreSubscription == true
                         ? _RenewalControl(
                             label: t.translate('settings_auto_renewal'),
                             status: t.translate(

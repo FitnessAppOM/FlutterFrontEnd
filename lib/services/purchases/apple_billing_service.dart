@@ -44,6 +44,13 @@ class AppleBillingEntitlement {
 
   bool get changePending => pendingProductId != null;
 
+  bool get hasStoreSubscription =>
+      subscriptions.isNotEmpty ||
+      ((platform ?? '').trim().isNotEmpty &&
+          (productId ?? '').trim().isNotEmpty);
+
+  bool get isComplimentaryAccess => active && !hasStoreSubscription;
+
   bool hasActiveSubscriptionFromAnotherStore(String currentPlatform) {
     if (subscriptions.isNotEmpty) {
       return subscriptions.any(

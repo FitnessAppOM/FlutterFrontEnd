@@ -1381,6 +1381,11 @@ class AppLocalizations {
       "settings_plan_none": "No active plan",
       "settings_plan_none_sub": "You do not have an active subscription yet.",
       "settings_plan_active": "Active subscription",
+      "settings_plan_complimentary": "Complimentary access",
+      "settings_plan_complimentary_active":
+          "Granted access · No payment or auto-renewal",
+      "settings_plan_complimentary_until":
+          "Granted access until {date} · No auto-renewal",
       "settings_plan_active_until": "Active until {date}",
       "settings_plan_renews_on": "Renews on {date}",
       "settings_plan_ends_on": "Ends on {date}",
@@ -3893,6 +3898,11 @@ class AppLocalizations {
       "settings_plan_none": "لا توجد خطة نشطة",
       "settings_plan_none_sub": "ليس لديك اشتراك نشط بعد.",
       "settings_plan_active": "اشتراك نشط",
+      "settings_plan_complimentary": "وصول مجاني",
+      "settings_plan_complimentary_active":
+          "وصول ممنوح · من دون دفع أو تجديد تلقائي",
+      "settings_plan_complimentary_until":
+          "وصول ممنوح حتى {date} · من دون تجديد تلقائي",
       "settings_plan_active_until": "نشطة حتى {date}",
       "settings_plan_renews_on": "يتجدد في {date}",
       "settings_plan_ends_on": "ينتهي في {date}",

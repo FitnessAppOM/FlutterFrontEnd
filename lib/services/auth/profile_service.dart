@@ -371,10 +371,9 @@ class ProfileApi {
       responseBody: res.body,
     );
     if (res.statusCode == 200) {
-      // Stop the device from acting on behalf of the now-deactivated account.
-      // Leaving the cached token/email caused a stale "restore account" prompt
-      // on next launch even after the account was removed server-side.
-      await AccountStorage.clearSession();
+      // Keep the restricted session until the caller chooses Reactivate,
+      // Delete, or Not now. Deactivated sessions are blocked from normal app
+      // features by the backend, but Delete still needs the user id and token.
       return _decodeMap(res.body);
     }
 
