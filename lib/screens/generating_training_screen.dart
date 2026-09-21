@@ -64,7 +64,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
       if (!_checkedForExistingProgram) {
         _checkedForExistingProgram = true;
         try {
-          await TrainingService.fetchActiveProgram(
+          await TrainingService.ensureGeneratedProgramReady(
             userId,
           ).timeout(const Duration(seconds: 20));
           AccountStorage.notifyTrainingChanged();
@@ -77,7 +77,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
             pollInterval: _pollInterval,
             timeout: _pollTimeout,
           );
-          await TrainingService.fetchActiveProgram(
+          await TrainingService.ensureGeneratedProgramReady(
             userId,
           ).timeout(const Duration(seconds: 20));
           AccountStorage.notifyTrainingChanged();
@@ -97,10 +97,11 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         timeout: _pollTimeout,
       );
 
-      // Refresh local program cache to reset progress for the new plan.
+      // Confirm that generation persisted a plan without exposing the paid
+      // program contents before checkout.
       bool synced = false;
       try {
-        await TrainingService.fetchActiveProgram(
+        await TrainingService.ensureGeneratedProgramReady(
           userId,
         ).timeout(const Duration(seconds: 20));
         synced = true;
@@ -111,7 +112,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
           pollInterval: _pollInterval,
           timeout: const Duration(seconds: 30),
         );
-        await TrainingService.fetchActiveProgram(
+        await TrainingService.ensureGeneratedProgramReady(
           userId,
         ).timeout(const Duration(seconds: 20));
         synced = true;
@@ -178,7 +179,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         pollInterval: _pollInterval,
         timeout: const Duration(seconds: 20),
       );
-      await TrainingService.fetchActiveProgram(
+      await TrainingService.ensureGeneratedProgramReady(
         userId,
       ).timeout(const Duration(seconds: 20));
       AccountStorage.notifyTrainingChanged();

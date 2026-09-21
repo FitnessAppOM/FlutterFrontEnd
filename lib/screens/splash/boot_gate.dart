@@ -159,7 +159,7 @@ class _BootGateState extends State<BootGate> {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return false;
     try {
-      await TrainingService.fetchActiveProgram(userId);
+      await TrainingService.ensureGeneratedProgramReady(userId);
       return true;
     } on TrainingGenerationInProgressException {
       return false;

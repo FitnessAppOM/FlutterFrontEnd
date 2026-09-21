@@ -53,6 +53,7 @@ class DailyProviderPushService {
 
   Future<void> _pushIfAfterOneAmLocal({required bool force}) async {
     if (!force && !_isAfterWindowStart(DateTime.now())) return;
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return;
 

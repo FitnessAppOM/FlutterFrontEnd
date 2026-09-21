@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../../core/account_storage.dart';
 import '../training/cardio_session_queue.dart';
 import '../training/exercise_action_queue.dart';
 import '../diet/diet_action_queue.dart';
@@ -34,7 +35,9 @@ class OfflineSyncCoordinator extends ChangeNotifier {
     _network.addListener(_handleNetworkChanged);
     OfflineQueueSignal.change.addListener(_handleQueueChanged);
     await refreshPendingCount();
-    if (_network.isOnline && _pendingCount > 0) {
+    if (_network.isOnline &&
+        _pendingCount > 0 &&
+        await AccountStorage.hasVerifiedSubscriptionAccess()) {
       unawaited(syncNow(showSuccess: true));
     }
   }
@@ -77,6 +80,12 @@ class OfflineSyncCoordinator extends ChangeNotifier {
   }
 
   Future<void> _runSync({required bool showSuccess}) async {
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) {
+      await refreshPendingCount();
+      _status = OfflineSyncStatus.idle;
+      notifyListeners();
+      return;
+    }
     if (_network.isOffline) {
       await refreshPendingCount();
       return;

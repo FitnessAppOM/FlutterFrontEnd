@@ -559,6 +559,12 @@ class AccountStorage {
     return now.difference(verifiedAt.toUtc()) < const Duration(hours: 24);
   }
 
+  /// Background work and paid feature calls require positive, recently
+  /// verified entitlement state. Unknown state is deliberately denied.
+  static Future<bool> hasVerifiedSubscriptionAccess() async {
+    return await cachedSubscriptionAccessAllowed() == true;
+  }
+
   /// Queues the feature introduction after this account's first verified
   /// store purchase. Restores and already-active subscriptions do not call
   /// this method, so returning users are not shown new-user onboarding again.

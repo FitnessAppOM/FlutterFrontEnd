@@ -792,6 +792,16 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     }
     _lastActivationChangePending = requestedChangeIsPending;
     _applyBillingState(entitlement);
+    await AccountStorage.setVerifiedSubscriptionAccess(
+      required: false,
+      expiresAt: entitlement.expiresAt,
+    );
+    unawaited(NotificationService.syncForSubscriptionAccess(active: true));
+    unawaited(
+      RemotePushService.init()
+          .then((_) => RemotePushService.syncTokenForCurrentUser(force: true))
+          .catchError((_) {}),
+    );
     if (entitlementCode == 'coach_tools') {
       final expiration = entitlement.expiresAt;
       if (expiration == null || !expiration.isAfter(DateTime.now().toUtc())) {

@@ -36,6 +36,8 @@ class RemotePushService {
   static Uri _uri(String path) => Uri.parse('${ApiConfig.baseUrl}$path');
 
   static Future<void> init() async {
+    await _initDeepLinks();
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     if (_initialized) return;
     _initialized = true;
 
@@ -74,8 +76,6 @@ class RemotePushService {
         _handleNotificationTapData(initialMessage.data);
       }
     } catch (_) {}
-
-    await _initDeepLinks();
 
     FirebaseMessaging.instance.onTokenRefresh.listen((String token) {
       syncTokenForCurrentUser(
@@ -306,6 +306,7 @@ class RemotePushService {
     required bool force,
     String? tokenOverride,
   }) async {
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return;
 

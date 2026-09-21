@@ -50,10 +50,9 @@ class NotificationService {
   static Future<bool> _hasNotificationAccess() async {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return false;
-    final cached = await AccountStorage.cachedSubscriptionAccessAllowed();
     // Notification access must be positively established by a recent,
     // server-verified entitlement. A missing/unknown snapshot is not enough.
-    return cached == true;
+    return AccountStorage.hasVerifiedSubscriptionAccess();
   }
 
   static Future<void> cancelAccountNotifications({int? userId}) async {
@@ -107,7 +106,9 @@ class NotificationService {
       await _createAndroidChannel();
     }
 
-    await _requestPermissions();
+    if (await AccountStorage.hasVerifiedSubscriptionAccess()) {
+      await _requestPermissions();
+    }
     // ignore: avoid_print
     print('[Notif] init() complete');
   }

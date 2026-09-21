@@ -274,6 +274,10 @@ Future<void> _bootstrap() async {
         print('[Main] RemotePushService deferred init skipped: $e');
       }
 
+      final hasSubscriptionAccess =
+          await AccountStorage.hasVerifiedSubscriptionAccess();
+      if (!hasSubscriptionAccess) return;
+
       if (Platform.isIOS) {
         await ConsentManager.requestStartupConsents();
       }
@@ -344,6 +348,10 @@ class _MyAppState extends State<MyApp> {
     );
     await PlayInAppUpdateService.instance.initialize();
     unawaited(PlayInAppUpdateService.instance.checkForUpdate());
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) {
+      await NotificationService.syncForSubscriptionAccess(active: false);
+      return;
+    }
     _maybeRequestAndroidHealthPermission();
     await _prefetchTrainingHistorySnapshot();
     try {
@@ -370,12 +378,18 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _handleAccountChangeAfterStartup() async {
     await NavigationService.waitUntilStartupReady();
+    await RemotePushService.init();
+    final hasSubscriptionAccess =
+        await AccountStorage.hasVerifiedSubscriptionAccess();
+    if (!hasSubscriptionAccess) {
+      await NotificationService.syncForSubscriptionAccess(active: false);
+      await RemotePushService.unregisterTokenForCurrentUser();
+      return;
+    }
     NotificationService.refreshDailyJournalRemindersForCurrentUser();
     NotificationService.refreshExpertAiUpdatesReminderForCurrentUser();
     DailyProviderPushService().pushIfAfterOneAmLocal().catchError((_) {});
-    RemotePushService.init()
-        .then((_) => RemotePushService.syncTokenForCurrentUser(force: true))
-        .catchError((_) {});
+    RemotePushService.syncTokenForCurrentUser(force: true).catchError((_) {});
     _maybeRequestAndroidHealthPermission();
     unawaited(_prefetchTrainingHistorySnapshot(force: true));
     await OfflineSyncCoordinator.instance.refreshPendingCount();
@@ -394,6 +408,7 @@ class _MyAppState extends State<MyApp> {
     await NavigationService.waitUntilStartupReady();
     if (!mounted) return;
     unawaited(PlayInAppUpdateService.instance.initialize());
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     unawaited(_prefetchTrainingHistorySnapshot());
     unawaited(_maybeRequestAndroidHealthPermission());
   }
@@ -415,6 +430,7 @@ class _MyAppState extends State<MyApp> {
         _androidHealthPermissionInFlight) {
       return;
     }
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null) return;
 

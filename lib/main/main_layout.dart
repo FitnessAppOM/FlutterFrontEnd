@@ -305,7 +305,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return false;
     try {
-      await TrainingService.fetchActiveProgram(userId);
+      await TrainingService.ensureGeneratedProgramReady(userId);
       return true;
     } on TrainingGenerationInProgressException {
       return false;

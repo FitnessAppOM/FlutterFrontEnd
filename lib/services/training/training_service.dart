@@ -455,6 +455,26 @@ class TrainingService {
     return _decodeMapBody(response.body);
   }
 
+  static Future<void> ensureGeneratedProgramReady(int userId) async {
+    final url = Uri.parse('$baseUrl/training/generation/ready/$userId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final response = await http.get(url, headers: headers);
+    _recordServerClock(response);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception('Failed to check training generation readiness');
+    }
+    final payload = _decodeMapBody(response.body);
+    if (payload['ready'] == true) return;
+    final status = payload['status']?.toString().trim().toLowerCase() ?? 'idle';
+    if (status == 'queued' || status == 'running') {
+      throw TrainingGenerationInProgressException(
+        'Training generation is in progress',
+      );
+    }
+    throw Exception('No generated program found');
+  }
+
   static Future<Map<String, dynamic>> waitForGenerationToComplete(
     int userId, {
     Duration pollInterval = const Duration(seconds: 3),
@@ -980,6 +1000,7 @@ class TrainingService {
     bool force = false,
     Duration maxAge = const Duration(minutes: 20),
   }) async {
+    if (!await AccountStorage.hasVerifiedSubscriptionAccess()) return;
     final userId = await AccountStorage.getUserId();
     if (userId == null || userId <= 0) return;
     final now = DateTime.now().toUtc();

@@ -79,7 +79,22 @@ void main() {
 
   test('cached access is unknown before server verification', () async {
     expect(await AccountStorage.cachedSubscriptionAccessAllowed(), isNull);
+    expect(await AccountStorage.hasVerifiedSubscriptionAccess(), isFalse);
   });
+
+  test(
+    'background access requires positive verified subscription state',
+    () async {
+      await AccountStorage.setVerifiedSubscriptionAccess(
+        required: false,
+        expiresAt: DateTime.now().toUtc().add(const Duration(days: 1)),
+      );
+      expect(await AccountStorage.hasVerifiedSubscriptionAccess(), isTrue);
+
+      await AccountStorage.setVerifiedSubscriptionAccess(required: true);
+      expect(await AccountStorage.hasVerifiedSubscriptionAccess(), isFalse);
+    },
+  );
 
   test('cached access does not leak to another account', () async {
     await AccountStorage.setVerifiedSubscriptionAccess(
