@@ -235,13 +235,14 @@ class _SignupPageState extends State<SignupPage> {
         final emailDeliveryPending = data["email_delivery_pending"] == true;
 
         if (!mounted) return;
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (_) => EmailVerificationPage(
               email: mail,
               isExpert: widget.isExpert,
               initialDeliveryPending: emailDeliveryPending,
+              preventBackNavigation: true,
             ),
           ),
         );
@@ -291,6 +292,7 @@ class _SignupPageState extends State<SignupPage> {
       _showSnack(t.translate("google_failed"));
       return;
     }
+    if (isHandledAuthStatus(result)) return;
 
     // Same as Google sign-in: read access_token and user_id from response
     final rawId = result["user_id"] ?? result["id"];

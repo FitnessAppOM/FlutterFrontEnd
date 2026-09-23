@@ -24,6 +24,7 @@ class EmailVerificationPage extends StatefulWidget {
   final bool isExpert;
   final bool initialDeliveryPending;
   final bool studentPlanVerification;
+  final bool preventBackNavigation;
 
   const EmailVerificationPage({
     super.key,
@@ -31,6 +32,7 @@ class EmailVerificationPage extends StatefulWidget {
     this.isExpert = false,
     this.initialDeliveryPending = false,
     this.studentPlanVerification = false,
+    this.preventBackNavigation = false,
   }) : assert(email != null || studentPlanVerification);
 
   @override
@@ -357,12 +359,13 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
     );
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
         title: isStudentFlow
             ? 'Verify student status'
             : t.translate("verification_title"),
+        showBackButton: !widget.preventBackNavigation,
       ),
       body: Column(
         children: [
@@ -475,5 +478,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         ],
       ),
     );
+
+    return PopScope(canPop: !widget.preventBackNavigation, child: page);
   }
 }

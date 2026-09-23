@@ -2490,6 +2490,8 @@ class AppLocalizations {
       "strava_missing_permission":
           "Missing Strava activity:write permission. Disconnect and reconnect Strava, then try again.",
       "common_retry": "Retry",
+      "auth_profile_load_retry":
+          "We couldn't load your account details. Check your connection and try again.",
       "strava_name_required": "Name is required.",
       "strava_elapsed_positive": "Elapsed minutes must be a positive number.",
       "strava_distance_positive": "Distance must be a valid positive number.",
@@ -4976,6 +4978,8 @@ class AppLocalizations {
       "strava_missing_permission":
           "صلاحية الكتابة لـ Strava مفقودة. افصل وأعد الربط ثم حاول مجدداً.",
       "common_retry": "إعادة المحاولة",
+      "auth_profile_load_retry":
+          "تعذّر تحميل تفاصيل حسابك. تحقّق من اتصالك وحاول مرة أخرى.",
       "strava_name_required": "الاسم مطلوب.",
       "strava_elapsed_positive": "يجب أن يكون الوقت المنقضي رقماً موجباً.",
       "strava_distance_positive": "يجب أن تكون المسافة رقماً موجباً صحيحاً.",

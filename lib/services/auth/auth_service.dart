@@ -30,6 +30,7 @@ Future<Map<String, dynamic>?> signInWithGoogle({String? accountType}) async {
     if (firebaseUser == null) return null;
 
     final firebaseIdToken = await firebaseUser.getIdToken();
+    final firebaseEmail = firebaseUser.email?.trim();
 
     final response = await http.post(
       Uri.parse("${ApiConfig.baseUrl}/auth/google"),
@@ -41,10 +42,18 @@ Future<Map<String, dynamic>?> signInWithGoogle({String? accountType}) async {
     );
 
     if (response.statusCode != 200) {
-      await AccountStorage.handleAuthStatus(
+      final handled = await AccountStorage.handleAuthStatus(
         response.statusCode,
         responseBody: response.body,
+        payloadExtras: {
+          "provider": "google",
+          if (firebaseEmail != null && firebaseEmail.isNotEmpty)
+            "email": firebaseEmail,
+        },
       );
+      if (handled) {
+        return const <String, dynamic>{"auth_status_handled": true};
+      }
       throw Exception("Backend Google login failed");
     }
 
