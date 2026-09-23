@@ -21,6 +21,7 @@ import 'email_verification_page.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../core/account_storage.dart';
 import '../core/account_type.dart';
+import '../core/user_friendly_error.dart';
 import 'questionnaire.dart';
 import 'expert_questionnaire.dart';
 import 'referral_onboarding_page.dart';
@@ -245,6 +246,10 @@ class _SignupPageState extends State<SignupPage> {
           ),
         );
       } else {
+        if (response.statusCode >= 500) {
+          _showSnack(t.translate('signup_failed'));
+          return;
+        }
         Map<String, dynamic>? decoded;
         try {
           decoded = jsonDecode(response.body);
@@ -258,8 +263,11 @@ class _SignupPageState extends State<SignupPage> {
         _showSnack(msg);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => loading = false);
-      _showSnack("${t.translate("network_error")}: $e");
+      _showSnack(
+        safeRequestErrorMessage(e, fallback: t.translate('signup_failed')),
+      );
     }
   }
 

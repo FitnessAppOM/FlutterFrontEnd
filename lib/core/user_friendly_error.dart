@@ -4,6 +4,13 @@ import 'dart:io';
 import '../localization/app_localizations.dart';
 import 'locale_controller.dart';
 
+String safeRequestErrorMessage(Object error, {String? fallback}) {
+  final t = AppLocalizations(localeController.locale);
+  return isNetworkError(error)
+      ? t.translate('error_connection')
+      : (fallback ?? t.translate('error_generic'));
+}
+
 String userFriendlyErrorMessage(Object error, {String? fallback}) {
   final t = AppLocalizations(localeController.locale);
   final fallbackText = fallback ?? t.translate('error_generic');

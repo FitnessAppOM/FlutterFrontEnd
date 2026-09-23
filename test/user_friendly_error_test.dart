@@ -43,6 +43,20 @@ void main() {
     expect(isNetworkError(Exception('Failed host lookup')), isTrue);
   });
 
+  test('safe request errors never expose hostnames or exception details', () {
+    const host = 'api.example.test';
+    expect(
+      safeRequestErrorMessage(
+        const SocketException('Failed host lookup: $host'),
+      ),
+      'تعذّر الاتصال. تحقق من الإنترنت وحاول مرة أخرى.',
+    );
+    expect(
+      safeRequestErrorMessage(Exception('Internal database path: $host')),
+      'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
+    );
+  });
+
   test('HTTP and validation failures are not classified as offline', () {
     expect(
       isNetworkError(Exception('HTTP 500: internal server error')),

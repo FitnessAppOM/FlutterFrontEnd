@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../core/account_storage.dart';
 import '../core/account_type.dart';
+import '../core/user_friendly_error.dart';
 import '../config/base_url.dart';
 import '../localization/app_localizations.dart'; // ADDED
 import 'verification_success_page.dart';
@@ -156,8 +157,11 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         _show(msg);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => loading = false);
-      _show("${t.translate("network_error")}: $e");
+      _show(
+        safeRequestErrorMessage(e, fallback: t.translate('verified_failed')),
+      );
     }
   }
 
@@ -192,7 +196,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         _show(msg);
       }
     } catch (e) {
-      _show("${t.translate("network_error")}: $e");
+      _show(safeRequestErrorMessage(e, fallback: t.translate('resend_failed')));
     }
   }
 
@@ -241,7 +245,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => loading = false);
-      _show('Network error: $error');
+      _show(safeRequestErrorMessage(error));
     }
   }
 
@@ -281,7 +285,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     } catch (error) {
       if (!mounted) return;
       setState(() => loading = false);
-      _show('Network error: $error');
+      _show(safeRequestErrorMessage(error));
     }
   }
 
