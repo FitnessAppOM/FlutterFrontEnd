@@ -12,6 +12,7 @@ import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_filled_button.dart';
 import '../TaqaUI/components/taqa_text_field.dart';
 import '../TaqaUI/components/taqa_page_app_bar.dart';
+import '../TaqaUI/components/taqa_value_dialog.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../widgets/social_button.dart';
@@ -200,11 +201,17 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
       if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const QuestionnairePage()),
-        (route) => false,
+      final t = AppLocalizations.of(context);
+      final retry = await showTaqaConfirmDialog(
+        context: context,
+        title: t.translate("network_error"),
+        message: t.translate("auth_profile_load_retry"),
+        confirmLabel: t.translate("common_retry"),
+        cancelLabel: t.translate("common_cancel"),
       );
+      if (retry && mounted) {
+        await _navigatePostAuth(userId: userId);
+      }
     }
   }
 
@@ -381,6 +388,7 @@ class _LoginPageState extends State<LoginPage> {
       );
       return;
     }
+    if (isHandledAuthStatus(result)) return;
 
     final rawId = result["user_id"] ?? result["id"];
     final int userId = rawId is int
