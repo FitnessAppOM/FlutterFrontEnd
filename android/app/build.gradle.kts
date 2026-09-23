@@ -68,8 +68,9 @@ android {
         // Google Play requirement (Aug 31, 2026): must target Android 16 (API 36)
         targetSdk = 36
 
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        // Android release version; iOS continues to use pubspec.yaml.
+        versionCode = 35
+        versionName = "1.0.49"
 
         // Mapbox access token from .env
         manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxToken
