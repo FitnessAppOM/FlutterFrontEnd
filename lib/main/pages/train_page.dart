@@ -41,6 +41,7 @@ import '../../services/training/cardio_exercises_storage.dart';
 import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_network_resilience.dart';
+import '../../services/training/previous_exercise_weight.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -908,6 +909,7 @@ class _WorkoutLauncherExerciseCardState
   @override
   void didUpdateWidget(covariant _WorkoutLauncherExerciseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _previousBySetIndex = _buildPreviousLabels();
     if (widget.isActive && !oldWidget.isActive) {
       if (!_restoredProgress) {
         _setInProgress = true;
@@ -1557,9 +1559,7 @@ class _WorkoutLauncherExerciseCardState
     return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
   }
 
-  // Build the "previous session" label per set index for the PREVIOUS column.
-  // Prefers per-set rows; falls back to a single compliance value applied to
-  // all sets. Returns {} when there's no prior data.
+  // Show a completed exercise's last recorded weight in the PREVIOUS column.
   Map<int, String> _buildPreviousLabels() {
     String? fmtWeight(double w) {
       if (w <= 0) return null;
@@ -1570,49 +1570,22 @@ class _WorkoutLauncherExerciseCardState
     }
 
     // Show only the previous weight (no reps), e.g. "60 kg".
-    String? label(double weight, int reps) {
+    String? label(double weight) {
       final wl = fmtWeight(weight);
       if (wl != null) return "$wl kg";
       return null;
     }
 
     final out = <int, String>{};
-    // The PREVIOUS column reflects the previous logged session, not the current
-    // prescription. Prefer compliance history (weight_used / performed_reps);
-    // program_exercise_sets.weight_kg is the prescribed/current load and must
-    // NOT be used here, otherwise PREVIOUS mirrors the CURRENT weight column.
-    final compliance =
-        _extractComplianceMap(widget.exercise['program_compliance']) ??
-        _extractComplianceMap(widget.exercise['compliance']);
-    final prevWeight = _toDouble(
-      compliance?['weight_used'] ?? widget.exercise['weight_used'],
-      fallback: 0,
-    );
-    final prevReps = _toInt(
-      compliance?['performed_reps'] ?? widget.exercise['performed_reps'],
-      fallback: 0,
-    );
-    final l = label(prevWeight, prevReps);
+    // An uncompleted exercise may have a prescribed weight but no past log.
+    final prevWeight = previousCompletedExerciseWeight(widget.exercise);
+    final l = prevWeight == null ? null : label(prevWeight);
     if (l != null) {
       for (var i = 1; i <= widget.sets; i++) {
         out[i] = l;
       }
     }
     return out;
-  }
-
-  Map<String, dynamic>? _extractComplianceMap(dynamic value) {
-    if (value == null) return null;
-    if (value is Map<String, dynamic>) return value;
-    if (value is Map) return Map<String, dynamic>.from(value);
-    if (value is String) {
-      try {
-        final decoded = jsonDecode(value);
-        if (decoded is Map<String, dynamic>) return decoded;
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      } catch (_) {}
-    }
-    return null;
   }
 
   List<_LauncherSetRow> _seedRows() {

@@ -69,8 +69,8 @@ android {
         targetSdk = 36
 
         // Android release version; iOS continues to use pubspec.yaml.
-        versionCode = 35
-        versionName = "1.0.49"
+        versionCode = 36
+        versionName = "1.0.50"
 
         // Mapbox access token from .env
         manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxToken
