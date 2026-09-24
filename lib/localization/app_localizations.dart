@@ -568,7 +568,7 @@ class AppLocalizations {
       "generating_waiting_hint": "This may take a few seconds.",
       "generating_error_title": "Taking longer than usual",
       "generating_error_body":
-          "We couldn't generate your plan yet. You can try again, or continue to the app while we keep working in the background.",
+          "We couldn't generate your plan yet. Check your internet connection, then try again.",
       "generating_retry": "Try again",
       "bolt_loading_caption": "Hang tight, we're charging up your {taqa}",
       "bolt_loading_taqa_word": "Taqa",
@@ -3113,7 +3113,7 @@ class AppLocalizations {
       "generating_waiting_hint": "قد يستغرق الأمر بضع ثوانٍ.",
       "generating_error_title": "الأمر يستغرق وقتاً أطول من المعتاد",
       "generating_error_body":
-          "لم نتمكن من إنشاء خطتك بعد. يمكنك المحاولة مرة أخرى أو المتابعة إلى التطبيق بينما نتابع العمل في الخلفية.",
+          "لم نتمكن من إنشاء خطتك بعد. تحقق من اتصالك بالإنترنت، ثم حاول مرة أخرى.",
       "generating_retry": "إعادة المحاولة",
       "bolt_loading_caption": "لحظة من فضلك، نقوم بشحن {taqa} الخاصة بك",
       "bolt_loading_taqa_word": "Taqa",

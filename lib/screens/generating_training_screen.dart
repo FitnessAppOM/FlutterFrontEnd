@@ -28,7 +28,7 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
   static const Duration _pollTimeout = Duration(seconds: 90);
   static const Duration _pollInterval = Duration(seconds: 3);
   static const Duration _toastThreshold = Duration(minutes: 2);
-  final DateTime _startedAt = DateTime.now();
+  DateTime _startedAt = DateTime.now();
 
   bool get _showFinalError => _error != null && _retryCount >= _maxRetries;
 
@@ -208,6 +208,14 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
     );
   }
 
+  void _retry() {
+    if (_isGenerating) return;
+    _retryCount = 0;
+    _checkedForExistingProgram = false;
+    _startedAt = DateTime.now();
+    _generateTraining();
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -230,10 +238,16 @@ class _GeneratingTrainingScreenState extends State<GeneratingTrainingScreen> {
         backgroundColor: TaqaBoltLoadingScreen.background,
         body: TaqaBoltStatusScreen(
           title: t.translate("generating_training_title"),
-          body: t.translate("generating_training_body"),
+          body: t.translate(
+            _showFinalError
+                ? "generating_error_body"
+                : "generating_training_body",
+          ),
           showError: _showFinalError,
           errorHeadline: t.translate("generating_error_title"),
           errorDetail: _error,
+          buttonLabel: _showFinalError ? t.translate("generating_retry") : null,
+          onButtonTap: _showFinalError ? _retry : null,
           note: t.translate("generating_training_note"),
         ),
       ),

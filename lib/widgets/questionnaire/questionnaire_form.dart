@@ -829,7 +829,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           _t("vegetarian"),
           _t("vegan"),
         ],
-        requiredField: false,
+        requiredField: true,
       ),
       _buildMultiChoiceField(
         label: _t("allergies"),
