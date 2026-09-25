@@ -18,6 +18,7 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import '../services/core/notification_service.dart';
 import '../services/core/daily_provider_push_service.dart';
+import '../services/core/university_service.dart';
 
 class EmailVerificationPage extends StatefulWidget {
   final String? email;
@@ -25,6 +26,9 @@ class EmailVerificationPage extends StatefulWidget {
   final bool initialDeliveryPending;
   final bool studentPlanVerification;
   final bool preventBackNavigation;
+  final String? initialStudentEmail;
+  final String? studentUniversityName;
+  final bool lockInitialStudentEmail;
 
   const EmailVerificationPage({
     super.key,
@@ -33,6 +37,9 @@ class EmailVerificationPage extends StatefulWidget {
     this.initialDeliveryPending = false,
     this.studentPlanVerification = false,
     this.preventBackNavigation = false,
+    this.initialStudentEmail,
+    this.studentUniversityName,
+    this.lockInitialStudentEmail = true,
   }) : assert(email != null || studentPlanVerification);
 
   @override
@@ -46,6 +53,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   bool loading = false;
   bool _studentCodeSent = false;
   String? _studentEmail;
+  String? _studentUniversityName;
 
   bool resendCooldown = false;
   int cooldownSeconds = 30;
@@ -54,6 +62,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   @override
   void initState() {
     super.initState();
+    studentEmailController.text = widget.initialStudentEmail ?? '';
+    _studentUniversityName = widget.studentUniversityName;
     if (widget.initialDeliveryPending) {
       _startResendCooldown();
     }
@@ -206,13 +216,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     if (resend && resendCooldown) return;
     final email = studentEmailController.text.trim().toLowerCase();
     if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
-      _show('Enter your institution email address.');
+      _show(AppLocalizations.of(context).translate('university_email_invalid'));
       return;
     }
 
     final authHeaders = await AccountStorage.getAuthHeaders();
+    if (!mounted) return;
     if (!authHeaders.containsKey('Authorization')) {
-      _show('Please sign in again before verifying your student status.');
+      _show(AppLocalizations.of(context).translate('student_sign_in_required'));
       return;
     }
 
@@ -229,21 +240,45 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       );
       if (!mounted) return;
       if (response.statusCode == 200) {
+        final responseData = _decodeResponseMap(response);
         setState(() {
           _studentEmail = email;
+          _studentUniversityName =
+              responseData['university_name']?.toString() ??
+              _studentUniversityName;
           _studentCodeSent = true;
           loading = false;
         });
         _startResendCooldown();
         _show(
           resend
-              ? 'A new verification code was sent.'
-              : 'Verification code sent.',
+              ? AppLocalizations.of(context).translate('student_code_resent')
+              : AppLocalizations.of(context).translate('student_code_sent'),
         );
         return;
       }
       setState(() => loading = false);
-      _show(_responseMessage(response, 'Could not send a verification code.'));
+      if (response.statusCode == 404) {
+        _show(
+          AppLocalizations.of(context).translate('university_not_recognized'),
+        );
+        return;
+      }
+      if (response.statusCode == 409) {
+        _show(
+          AppLocalizations.of(
+            context,
+          ).translate('university_email_already_used'),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      _show(
+        _responseMessage(
+          response,
+          AppLocalizations.of(context).translate('student_code_send_failed'),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -251,16 +286,61 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     }
   }
 
+  Future<void> _recognizeStudentUniversity() async {
+    final email = studentEmailController.text.trim().toLowerCase();
+    if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
+      _show(AppLocalizations.of(context).translate('university_email_invalid'));
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => loading = true);
+    try {
+      final university = await UniversityService.recognizeEmail(email);
+      if (!mounted) return;
+      setState(() {
+        _studentUniversityName = university.name;
+        loading = false;
+      });
+    } on UniversityServiceException catch (error) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      final message = switch (error.statusCode) {
+        404 => AppLocalizations.of(
+          context,
+        ).translate('university_not_recognized'),
+        409 => AppLocalizations.of(
+          context,
+        ).translate('university_email_already_used'),
+        _ => error.message,
+      };
+      _show(message, type: AppToastType.error);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => loading = false);
+      _show(
+        safeRequestErrorMessage(
+          error,
+          fallback: AppLocalizations.of(
+            context,
+          ).translate('university_recognition_failed'),
+        ),
+        type: AppToastType.error,
+      );
+    }
+  }
+
   Future<void> _verifyStudentCode() async {
     final code = codeController.text.trim();
     if (code.length != 6) {
-      _show('Enter the 6-digit verification code.');
+      _show(AppLocalizations.of(context).translate('student_code_invalid'));
       return;
     }
 
     final authHeaders = await AccountStorage.getAuthHeaders();
+    if (!mounted) return;
     if (!authHeaders.containsKey('Authorization')) {
-      _show('Please sign in again before verifying your student status.');
+      _show(AppLocalizations.of(context).translate('student_sign_in_required'));
       return;
     }
 
@@ -281,8 +361,20 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         Navigator.of(context).pop(true);
         return;
       }
+      if (response.statusCode == 409) {
+        _show(
+          AppLocalizations.of(
+            context,
+          ).translate('university_email_already_used'),
+          type: AppToastType.error,
+        );
+        return;
+      }
       _show(
-        _responseMessage(response, 'Could not verify your student status.'),
+        _responseMessage(
+          response,
+          AppLocalizations.of(context).translate('student_verify_failed'),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -299,6 +391,15 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       }
     } catch (_) {}
     return fallback;
+  }
+
+  Map<String, dynamic> _decodeResponseMap(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+    return const <String, dynamic>{};
   }
 
   void _startResendCooldown() {
@@ -349,7 +450,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     final canSubmit =
         !loading &&
         (isStudentFlow && !_studentCodeSent
-            ? studentEmailController.text.trim().contains('@')
+            ? _studentUniversityName != null ||
+                  studentEmailController.text.trim().contains('@')
             : codeController.text.trim().length == 6);
 
     final bodyStyle = TextStyle(
@@ -363,7 +465,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
         title: isStudentFlow
-            ? 'Verify student status'
+            ? t.translate('verify_student_status')
             : t.translate("verification_title"),
         showBackButton: !widget.preventBackNavigation,
       ),
@@ -377,21 +479,85 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                 children: [
                   if (isStudentFlow && !_studentCodeSent) ...[
                     Text(
-                      'Enter the email provided by your selected university. We will send a code before you can purchase the student plan.',
+                      _studentUniversityName == null
+                          ? t.translate('student_find_university_intro')
+                          : t.translate('student_verification_intro'),
                       style: bodyStyle,
                     ),
                     SizedBox(height: TaqaUiScale.h(24)),
                     TaqaUnderlineTextField(
                       controller: studentEmailController,
-                      label: 'Institution email',
-                      hint: 'you@university.edu',
+                      label: t.translate('university_email_label'),
+                      hint: t.translate('university_email_hint'),
                       keyboardType: TextInputType.emailAddress,
-                      onChanged: (_) => setState(() {}),
+                      readOnly:
+                          widget.initialStudentEmail != null &&
+                          widget.lockInitialStudentEmail,
+                      onChanged: (_) => setState(() {
+                        _studentUniversityName = null;
+                      }),
                     ),
+                    if (_studentUniversityName != null) ...[
+                      SizedBox(height: TaqaUiScale.h(16)),
+                      Container(
+                        width: double.infinity,
+                        padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
+                        decoration: BoxDecoration(
+                          color: TaqaUiColors.white,
+                          border: Border.all(
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.14,
+                            ),
+                          ),
+                          borderRadius: TaqaUiScale.radius(5),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.school_outlined),
+                            SizedBox(width: TaqaUiScale.w(10)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.translate('university_recognized'),
+                                    style: bodyStyle.copyWith(
+                                      fontSize: TaqaUiScale.sp(11),
+                                    ),
+                                  ),
+                                  Text(
+                                    _studentUniversityName!,
+                                    style: TextStyle(
+                                      fontFamily: TaqaUiFontFamilies.interTight,
+                                      fontSize: TaqaUiScale.sp(14),
+                                      fontWeight: FontWeight.w700,
+                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ] else ...[
+                    if (isStudentFlow &&
+                        (_studentUniversityName ?? '').isNotEmpty) ...[
+                      Text(
+                        _studentUniversityName!,
+                        style: TextStyle(
+                          fontFamily: TaqaUiFontFamilies.interTight,
+                          fontSize: TaqaUiScale.sp(16),
+                          fontWeight: FontWeight.w700,
+                          color: TaqaUiColors.unnamedColor1c1d17,
+                        ),
+                      ),
+                      SizedBox(height: TaqaUiScale.h(8)),
+                    ],
                     Text(
                       isStudentFlow
-                          ? 'Enter the code sent to your institution email.'
+                          ? t.translate('student_verification_code_intro')
                           : t.translate("verification_sent"),
                       style: bodyStyle,
                     ),
@@ -461,12 +627,18 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
             padding: TaqaUiScale.insetsLTRB(16, 0, 16, 20),
             child: TaqaFilledButton(
               label: isStudentFlow && !_studentCodeSent
-                  ? 'Send verification code'
+                  ? _studentUniversityName == null
+                        ? t.translate('find_university')
+                        : t.translate('send_verification_code')
                   : t.translate("verify_btn"),
               onTap: canSubmit
                   ? () {
                       if (isStudentFlow && !_studentCodeSent) {
-                        _startStudentVerification();
+                        if (_studentUniversityName == null) {
+                          _recognizeStudentUniversity();
+                        } else {
+                          _startStudentVerification();
+                        }
                       } else {
                         verifyCode();
                       }

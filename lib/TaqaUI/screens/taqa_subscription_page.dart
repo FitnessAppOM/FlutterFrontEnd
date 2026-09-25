@@ -21,6 +21,7 @@ import '../../localization/app_localizations.dart';
 import '../../screens/welcome.dart';
 import '../../services/core/notification_service.dart';
 import '../../services/core/remote_push_service.dart';
+import '../../services/core/university_service.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/purchases/apple_billing_service.dart';
 import '../../services/purchases/apple_promotional_offer.dart';
@@ -37,6 +38,7 @@ import '../components/taqa_refresh_indicator.dart';
 import '../components/taqa_subscription_plan_card.dart';
 import '../components/taqa_subscription_offer_banner.dart';
 import '../components/taqa_steps_ui.dart' show TaqaRangeTab;
+import '../components/taqa_student_eligibility_banner.dart';
 import '../components/taqa_toast.dart';
 import '../components/taqa_value_dialog.dart';
 import '../styles/taqa_ui_scale.dart';
@@ -76,6 +78,8 @@ class TaqaSubscriptionPage extends StatefulWidget {
     this.referralProductId,
     this.appleOfferAuthorization,
     this.mandatorySuccessDestination,
+    this.showLockedStudentPlans = false,
+    this.studentPlansOnly = false,
   });
 
   /// When opened after onboarding, the user must subscribe or restore a
@@ -108,6 +112,13 @@ class TaqaSubscriptionPage extends StatefulWidget {
   /// shell showing a second launch loader.
   final Widget? mandatorySuccessDestination;
 
+  /// Settings can expose student plans as locked choices so an existing user
+  /// can start university verification. Onboarding keeps them fully hidden.
+  final bool showLockedStudentPlans;
+
+  /// Presents a focused student-membership page from Settings.
+  final bool studentPlansOnly;
+
   @override
   State<TaqaSubscriptionPage> createState() => _TaqaSubscriptionPageState();
 }
@@ -132,6 +143,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   String? _message;
   late bool _coachMembership;
   bool _coachPlanAvailable = false;
+  bool _studentPlanAvailable = false;
   Future<String?>? _activeProductLookup;
   DateTime? _activePlanEndsAt;
   AppleBillingEntitlement? _billingState;
@@ -267,6 +279,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _message = null;
     });
     try {
+      await _loadStudentPlanEligibility();
       var productIds = _knownProductIds;
       if (Platform.isAndroid) {
         final offerings = await AppleBillingService.fetchGoogleOfferings();
@@ -332,6 +345,49 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       _setStoreUnavailable(error: error);
     } finally {
       _productLoadInFlight = false;
+    }
+  }
+
+  Future<bool> _loadStudentPlanEligibility() async {
+    try {
+      final status = await UniversityService.fetchVerificationStatus();
+      if (!mounted) return false;
+      setState(() => _studentPlanAvailable = status.verified);
+      return status.verified;
+    } catch (_) {
+      if (!mounted) return false;
+      setState(() => _studentPlanAvailable = false);
+      return false;
+    }
+  }
+
+  Future<void> _verifyAndUnlockStudentPlan(TaqaSubscriptionPlan plan) async {
+    final verified = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const EmailVerificationPage(studentPlanVerification: true),
+      ),
+    );
+    if (!mounted || verified != true) return;
+
+    try {
+      final status = await UniversityService.activateVerifiedStudentStatus();
+      if (!mounted || !status.verified) return;
+      setState(() {
+        _studentPlanAvailable = true;
+        _selectedProductId = _storeProductIdForPlan(plan);
+        _message = null;
+      });
+      _showToast(
+        _tr('subscription_student_unlocked'),
+        type: AppToastType.success,
+      );
+    } on UniversityServiceException catch (error) {
+      if (!mounted) return;
+      _setMessage(error.message);
+    } catch (_) {
+      if (!mounted) return;
+      _setMessage(_tr('subscription_student_activation_failed'));
     }
   }
 
@@ -1108,14 +1164,17 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       }
     }
 
-    if (_isStudentProduct(product.id)) {
-      final verified = await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (_) =>
-              const EmailVerificationPage(studentPlanVerification: true),
-        ),
-      );
-      if (!mounted || verified != true) return;
+    if (_isStudentProduct(product.id) && !await _loadStudentPlanEligibility()) {
+      if (!mounted) return;
+      final plan = _catalogPlans
+          .where((item) => _storeProductIdForPlan(item) == product.id)
+          .firstOrNull;
+      if (widget.showLockedStudentPlans && plan != null) {
+        await _verifyAndUnlockStudentPlan(plan);
+      } else {
+        _setMessage(_tr('university_verification_required'));
+      }
+      return;
     }
 
     GoogleSubscriptionChange? change;
@@ -1758,14 +1817,29 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   }
 
   List<TaqaSubscriptionPlan> get _catalogPlans {
+    final normalPlans = _studentPlanAvailable
+        ? TaqaSubscriptionCatalog.studentFirstPlans
+        : widget.showLockedStudentPlans
+        ? TaqaSubscriptionCatalog.plans
+        : TaqaSubscriptionCatalog.standardPlans;
     final plans = !widget.allowPlanTypeSwitch && widget.plans != null
         ? widget.plans!
         : _coachMembership
         ? TaqaSubscriptionCatalog.coachPlans
-        : TaqaSubscriptionCatalog.plans;
+        : normalPlans;
+    final canShowStudentPlans =
+        _studentPlanAvailable || widget.showLockedStudentPlans;
+    final eligiblePlans = plans
+        .where(
+          (plan) =>
+              canShowStudentPlans ||
+              (plan != TaqaSubscriptionCatalog.studentMonthly &&
+                  plan != TaqaSubscriptionCatalog.studentAnnual),
+        )
+        .toList(growable: false);
     final referralProductId = widget.referralProductId;
-    if (referralProductId == null) return plans;
-    return plans
+    if (referralProductId == null) return eligiblePlans;
+    return eligiblePlans
         .where((plan) => _storeProductIdForPlan(plan) == referralProductId)
         .toList(growable: false);
   }
@@ -1829,7 +1903,12 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   Set<String> get _knownProductIds => _storeProductIds.isNotEmpty
       ? _storeProductIds
       : {
-          ...TaqaSubscriptionCatalog.plans.map((plan) => plan.productId),
+          ...(_studentPlanAvailable
+                  ? TaqaSubscriptionCatalog.studentFirstPlans
+                  : widget.showLockedStudentPlans
+                  ? TaqaSubscriptionCatalog.plans
+                  : TaqaSubscriptionCatalog.standardPlans)
+              .map((plan) => plan.productId),
           ...TaqaSubscriptionCatalog.coachPlans.map((plan) => plan.productId),
         };
 
@@ -2126,7 +2205,11 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       child: Scaffold(
         backgroundColor: TaqaUiColors.lightGray,
         appBar: TaqaPageAppBar(
-          title: t.translate('subscription_page_title'),
+          title: t.translate(
+            widget.studentPlansOnly
+                ? 'subscription_student_plans_title'
+                : 'subscription_page_title',
+          ),
           showBackButton: !widget.mandatory || widget.allowBackNavigation,
           trailing: IconButton(
             tooltip: widget.mandatory
@@ -2155,6 +2238,8 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     Text(
                       _coachMembership
                           ? t.translate('subscription_coach_membership_title')
+                          : widget.studentPlansOnly
+                          ? t.translate('subscription_student_membership_title')
                           : t.translate('subscription_membership_title'),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
@@ -2168,11 +2253,24 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                     Text(
                       _coachMembership
                           ? t.translate('subscription_coach_membership_body')
+                          : widget.studentPlansOnly
+                          ? t.translate('subscription_student_membership_body')
                           : widget.mandatory
                           ? t.translate('subscription_ready_body')
                           : t.translate('subscription_membership_body'),
                       style: _bodyStyle,
                     ),
+                    if (_studentPlanAvailable && !_coachMembership) ...[
+                      SizedBox(height: TaqaUiScale.h(14)),
+                      TaqaStudentEligibilityBanner(
+                        title: t.translate(
+                          'subscription_student_eligible_title',
+                        ),
+                        details: t.translate(
+                          'subscription_student_eligible_details',
+                        ),
+                      ),
+                    ],
                     if (widget.allowPlanTypeSwitch && _coachPlanAvailable) ...[
                       SizedBox(height: TaqaUiScale.h(16)),
                       Row(
@@ -2292,18 +2390,27 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     final productId = _storeProductIdForPlan(plan);
     final product = _products[productId];
     final presentation = product == null ? null : _pricePresentation(product);
+    final student =
+        plan == TaqaSubscriptionCatalog.studentMonthly ||
+        plan == TaqaSubscriptionCatalog.studentAnnual;
+    final lockedStudent = student && !_studentPlanAvailable;
     return TaqaSubscriptionPlanCard(
       title: _planTitle(plan),
       period: _planPeriod(plan),
       price: presentation?.recurringPrice ?? '',
       promotionText: presentation?.promotionText,
       description: _planDescription(plan),
-      student:
-          plan == TaqaSubscriptionCatalog.studentMonthly ||
-          plan == TaqaSubscriptionCatalog.studentAnnual,
+      student: student,
+      studentLabel: _tr('subscription_student_tag'),
+      locked: lockedStudent,
+      lockedLabel: lockedStudent
+          ? _tr('subscription_verify_student_to_unlock')
+          : null,
       selected: productId == _selectedProductId,
       onTap: product == null
           ? null
+          : lockedStudent
+          ? () => _verifyAndUnlockStudentPlan(plan)
           : () => setState(() {
               _selectedProductId = productId;
               _message = null;
@@ -2380,11 +2487,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         plans: plans,
         cardBuilder: _buildPlanCard,
         onSelected: (plan) {
+          final lockedStudent =
+              !_studentPlanAvailable &&
+              (plan == TaqaSubscriptionCatalog.studentMonthly ||
+                  plan == TaqaSubscriptionCatalog.studentAnnual);
+          Navigator.of(dialogContext).pop();
+          if (lockedStudent) {
+            unawaited(_verifyAndUnlockStudentPlan(plan));
+            return;
+          }
           setState(() {
             _selectedProductId = _storeProductIdForPlan(plan);
             _message = null;
           });
-          Navigator.of(dialogContext).pop();
         },
       ),
     );

@@ -136,6 +136,7 @@ class _CoachApplicationStatusPageState
           mandatory: true,
           coachMembership: true,
           plans: TaqaSubscriptionCatalog.coachPlans,
+          allowPlanTypeSwitch: false,
         ),
       ),
     );

@@ -90,6 +90,20 @@ class TaqaSubscriptionCatalog {
     studentAnnual,
   ];
 
+  static const standardPlans = <TaqaSubscriptionPlan>[monthly, annual];
+
+  static const studentPlans = <TaqaSubscriptionPlan>[
+    studentMonthly,
+    studentAnnual,
+  ];
+
+  static const studentFirstPlans = <TaqaSubscriptionPlan>[
+    studentMonthly,
+    studentAnnual,
+    monthly,
+    annual,
+  ];
+
   static const coachPlans = <TaqaSubscriptionPlan>[coachMonthly, coachAnnual];
 
   static const roleChangePlans = <TaqaSubscriptionPlan>[

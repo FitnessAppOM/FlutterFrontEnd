@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../auth/email_verification_page.dart';
 import '../../localization/app_localizations.dart';
 import 'cupertino_picker_field.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -30,6 +31,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _affiliationOtherCtrl = TextEditingController();
   final TextEditingController _chronicCtrl = TextEditingController();
+  final TextEditingController _universityEmailCtrl = TextEditingController();
 
   static const _totalSections = 7;
   List<String> _affiliationCategories = [];
@@ -40,9 +42,11 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   bool? _isPhysicalRehab;
   String? get _affiliationChoice => _values["affiliation_choice"];
   bool? _isUniversityStudent;
-  List<Map<String, dynamic>> _universities = [];
-  bool _universitiesLoading = false;
   String? _selectedUniversityId;
+  String? _recognizedUniversityName;
+  String? _universityEmailError;
+  bool _recognizingUniversity = false;
+  bool _studentEmailVerified = false;
   bool _submitting = false;
 
   @override
@@ -58,6 +62,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       c.dispose();
     }
     _chronicCtrl.dispose();
+    _universityEmailCtrl.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -90,14 +95,14 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
         if (_isUniversityStudent == false) {
           _selectedUniversityId = null;
+          _recognizedUniversityName = null;
+          _universityEmailError = null;
+          _studentEmailVerified = false;
+          _universityEmailCtrl.clear();
           _values["university_id"] =
               "0"; // backend requires this field even when not a student
         }
       });
-
-      if (_isUniversityStudent == true) {
-        _loadUniversities();
-      }
     }
     if (key == "event_deadline" && value == _t("no")) {
       _values.remove("deadline_date");
@@ -244,6 +249,18 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       }
     }
 
+    if (_currentSection == 5 &&
+        _isUniversityStudent == true &&
+        !_studentEmailVerified) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        _t("university_verification_required"),
+        type: AppToastType.error,
+      );
+      return;
+    }
+
     if (_currentSection < _totalSections - 1) {
       setState(() {
         _currentSection++;
@@ -275,30 +292,80 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     _scrollController.jumpTo(0);
   }
 
-  Future<void> _loadUniversities() async {
-    setState(() {
-      _universitiesLoading = true;
-    });
+  void _clearStudentUniversityMatch() {
+    _selectedUniversityId = null;
+    _recognizedUniversityName = null;
+    _universityEmailError = null;
+    _studentEmailVerified = false;
+    _values.remove("university_id");
+  }
 
-    try {
-      final data = await UniversityService.fetchUniversities();
-      if (!mounted) return;
-
+  Future<void> _recognizeUniversityEmail() async {
+    if (_recognizingUniversity || _studentEmailVerified) return;
+    final email = _universityEmailCtrl.text.trim().toLowerCase();
+    if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
       setState(() {
-        _universities = data;
+        _universityEmailError = _t("university_email_invalid");
+      });
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _recognizingUniversity = true;
+      _universityEmailError = null;
+      _selectedUniversityId = null;
+      _recognizedUniversityName = null;
+      _values.remove("university_id");
+    });
+    try {
+      final university = await UniversityService.recognizeEmail(email);
+      if (!mounted) return;
+      setState(() {
+        _selectedUniversityId = university.id.toString();
+        _recognizedUniversityName = university.name;
+        _values["university_id"] = university.id.toString();
+      });
+    } on UniversityServiceException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _universityEmailError = switch (error.statusCode) {
+          404 => _t("university_not_recognized"),
+          409 => _t("university_email_already_used"),
+          _ => error.message,
+        };
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _universities = [];
+        _universityEmailError = _t("university_recognition_failed");
       });
     } finally {
-      if (mounted) {
-        setState(() {
-          _universitiesLoading = false;
-        });
-      }
+      if (mounted) setState(() => _recognizingUniversity = false);
     }
+  }
+
+  Future<void> _verifyUniversityEmail() async {
+    final universityName = _recognizedUniversityName;
+    final universityId = _selectedUniversityId;
+    final email = _universityEmailCtrl.text.trim().toLowerCase();
+    if (universityName == null || universityId == null || email.isEmpty) return;
+
+    final verified = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EmailVerificationPage(
+          studentPlanVerification: true,
+          initialStudentEmail: email,
+          studentUniversityName: universityName,
+        ),
+      ),
+    );
+    if (!mounted || verified != true) return;
+    setState(() {
+      _studentEmailVerified = true;
+      _universityEmailError = null;
+      _values["university_id"] = universityId;
+    });
   }
 
   Future<void> _submit() async {
@@ -956,9 +1023,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       _affiliationOtherCtrl.text = _values["affiliation_other_text"]!;
     }
 
-    final universityIdToName = {
-      for (final u in _universities) u["id"].toString(): u["name"].toString(),
-    };
     final affiliationIdToName = {
       for (final item in _affiliations)
         item["id"].toString(): item["name"]?.toString() ?? "",
@@ -975,29 +1039,116 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
         ),
         if (_isUniversityStudent == true) ...[
           SizedBox(height: TaqaUiScale.h(12)),
-          TaqaSearchablePickerField(
-            label: _t("select_university"),
-            value: _selectedUniversityId,
-            options: universityIdToName.keys.toList(),
-            itemLabelBuilder: (id) => universityIdToName[id] ?? id,
-            searchHint: _t("search_university"),
-            noResultsText: _t("search_no_results"),
-            closeLabel: _t("common_close"),
-            enabled: !_universitiesLoading,
+          TaqaUnderlineTextField(
+            controller: _universityEmailCtrl,
+            label: _t("university_email_label"),
+            hint: _t("university_email_hint"),
+            keyboardType: TextInputType.emailAddress,
+            readOnly: _studentEmailVerified,
             validator: (val) {
-              if (_isUniversityStudent == true &&
-                  (val == null || val.isEmpty)) {
-                return _t("select_option");
+              if (_isUniversityStudent != true) return null;
+              final email = val?.trim() ?? '';
+              if (!email.contains('@') ||
+                  email.startsWith('@') ||
+                  email.endsWith('@')) {
+                return _t("university_email_invalid");
               }
               return null;
             },
-            onChanged: (val) {
+            onChanged: (_) {
               setState(() {
-                _selectedUniversityId = val;
-                _values["university_id"] = val!;
+                _clearStudentUniversityMatch();
               });
             },
           ),
+          SizedBox(height: TaqaUiScale.h(10)),
+          if (_recognizedUniversityName == null)
+            TaqaFilledButton(
+              label: _t("find_university"),
+              onTap: _recognizingUniversity ? null : _recognizeUniversityEmail,
+              loading: _recognizingUniversity,
+            )
+          else ...[
+            Container(
+              width: double.infinity,
+              padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
+              decoration: BoxDecoration(
+                color: TaqaUiColors.white,
+                border: Border.all(
+                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                    alpha: 0.14,
+                  ),
+                ),
+                borderRadius: TaqaUiScale.radius(5),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _studentEmailVerified
+                        ? Icons.verified_rounded
+                        : Icons.school_outlined,
+                    color: _studentEmailVerified
+                        ? Colors.green.shade700
+                        : TaqaUiColors.unnamedColor1c1d17,
+                  ),
+                  SizedBox(width: TaqaUiScale.w(10)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _t("university_recognized"),
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(11),
+                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                              alpha: 0.55,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _recognizedUniversityName!,
+                          style: TextStyle(
+                            fontFamily: TaqaUiFontFamilies.interTight,
+                            fontSize: TaqaUiScale.sp(14),
+                            fontWeight: FontWeight.w700,
+                            color: TaqaUiColors.unnamedColor1c1d17,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: TaqaUiScale.h(10)),
+            if (!_studentEmailVerified)
+              TaqaFilledButton(
+                label: _t("verify_university_email"),
+                onTap: _verifyUniversityEmail,
+              )
+            else
+              Text(
+                _t("university_email_verified"),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(12),
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green.shade700,
+                ),
+              ),
+          ],
+          if (_universityEmailError != null) ...[
+            SizedBox(height: TaqaUiScale.h(8)),
+            Text(
+              _universityEmailError!,
+              style: TextStyle(
+                fontFamily: TaqaUiFontFamilies.interTight,
+                fontSize: TaqaUiScale.sp(11),
+                color: TaqaUiColors.unnamedColorE93b3b,
+              ),
+            ),
+          ],
         ],
         SizedBox(height: TaqaUiScale.h(16)),
         TaqaSectionDivider(),

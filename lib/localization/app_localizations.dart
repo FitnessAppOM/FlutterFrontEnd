@@ -1412,7 +1412,10 @@ class AppLocalizations {
       "settings_plan_coach_monthly": "Taqa Coach · Monthly",
       "settings_plan_coach_annual": "Taqa Coach · Annual",
       "settings_normal_plans": "Normal plans",
-      "settings_normal_plans_sub": "View monthly, annual, and student options",
+      "settings_normal_plans_sub": "View monthly and annual plans",
+      "settings_student_plans": "Student plans",
+      "settings_student_plans_sub":
+          "Verify your university email and access student pricing",
       "settings_coach_plans": "Coach plans",
       "settings_coach_plans_sub": "View monthly and annual coach options",
       "settings_coach_plan_requires_approval_title": "Coach approval required",
@@ -1703,7 +1706,20 @@ class AppLocalizations {
       "expert_dash_sec_workflow_body":
           "Manage feedback queue, training plans, and nutrition schedule updates.",
       "subscription_page_title": "Subscriptions",
+      "subscription_student_plans_title": "Student plans",
+      "subscription_student_membership_title": "Taqa Student Membership",
+      "subscription_student_membership_body":
+          "Choose a student plan using your verified university eligibility.",
       "subscription_membership_title": "Taqa Subscription",
+      "subscription_student_eligible_title": "Student plan eligible",
+      "subscription_student_eligible_details":
+          "Your verified university status gives you access to student pricing.",
+      "subscription_student_tag": "Student",
+      "subscription_verify_student_to_unlock":
+          "Verify your university email to unlock",
+      "subscription_student_unlocked": "Student plans unlocked.",
+      "subscription_student_activation_failed":
+          "Could not unlock student plans. Please try again.",
       "subscription_coach_membership_title": "Taqa Coach Membership",
       "subscription_membership_body":
           "One membership for your full Taqa Subscription experience.",
@@ -2358,6 +2374,36 @@ class AppLocalizations {
       "invalid_number": "Enter a valid number",
       "university_student_question": "Are you currently a university student?",
       "select_university": "Select your university",
+      "university_email_label": "University email",
+      "university_email_hint": "you@university.edu",
+      "university_email_invalid": "Enter a valid university email address.",
+      "university_email_already_used":
+          "This university email is already associated with another Taqa account.",
+      "find_university": "Find university",
+      "university_recognized": "Recognized university",
+      "verify_university_email": "Verify university email",
+      "university_email_verified": "University email verified",
+      "university_verification_required":
+          "Verify your university email before continuing.",
+      "university_not_recognized":
+          "University not recognized. If your university exists and is officially accredited, email tech@taqafitness.com so we can add its university email domain.",
+      "university_recognition_failed":
+          "We could not check your university right now. Please try again.",
+      "verify_student_status": "Verify student status",
+      "student_verification_intro":
+          "We will send a verification code to this university email.",
+      "student_find_university_intro":
+          "Enter your university email to find and confirm your university before verification.",
+      "student_verification_code_intro":
+          "Enter the code sent to your university email.",
+      "send_verification_code": "Send verification code",
+      "student_sign_in_required":
+          "Please sign in again before verifying your student status.",
+      "student_code_resent": "A new verification code was sent.",
+      "student_code_sent": "Verification code sent.",
+      "student_code_send_failed": "Could not send a verification code.",
+      "student_code_invalid": "Enter the 6-digit verification code.",
+      "student_verify_failed": "Could not verify your student status.",
 
       "screening_title": "Quality of Life Screening",
       "screening_subtitle":
@@ -3931,8 +3977,10 @@ class AppLocalizations {
       "settings_plan_coach_monthly": "Taqa Fitness للمدربين · شهرية",
       "settings_plan_coach_annual": "Taqa Fitness للمدربين · سنوية",
       "settings_normal_plans": "الخطط العادية",
-      "settings_normal_plans_sub":
-          "عرض الخيارات الشهرية والسنوية وخيارات الطلاب",
+      "settings_normal_plans_sub": "عرض الخطط الشهرية والسنوية",
+      "settings_student_plans": "خطط الطلاب",
+      "settings_student_plans_sub":
+          "أكد بريدك الإلكتروني الجامعي للوصول إلى أسعار الطلاب",
       "settings_coach_plans": "خطط المدربين",
       "settings_coach_plans_sub": "عرض خطط المدربين الشهرية والسنوية",
       "settings_coach_plan_requires_approval_title": "مطلوب اعتماد المدرب",
@@ -4214,7 +4262,19 @@ class AppLocalizations {
       "expert_dash_sec_workflow_body":
           "أدر قائمة الملاحظات وخطط التدريب وتحديثات البرامج الغذائية.",
       "subscription_page_title": "الاشتراكات",
+      "subscription_student_plans_title": "خطط الطلاب",
+      "subscription_student_membership_title": "اشتراك Taqa للطلاب",
+      "subscription_student_membership_body":
+          "اختر خطة طلاب باستخدام أهليتك الجامعية المؤكدة.",
       "subscription_membership_title": "اشتراك Taqa",
+      "subscription_student_eligible_title": "مؤهل لخطة الطلاب",
+      "subscription_student_eligible_details":
+          "يمنحك توثيقك الجامعي إمكانية الوصول إلى أسعار الطلاب.",
+      "subscription_student_tag": "طالب",
+      "subscription_verify_student_to_unlock": "أكّد بريدك الجامعي لفتح الخطة",
+      "subscription_student_unlocked": "تم فتح خطط الطلاب.",
+      "subscription_student_activation_failed":
+          "تعذر فتح خطط الطلاب. يرجى المحاولة مجدداً.",
       "subscription_coach_membership_title": "عضوية مدرب Taqa",
       "subscription_membership_body": "عضوية واحدة تمنحك تجربة Taqa الكاملة.",
       "subscription_coach_membership_body":
@@ -4850,6 +4910,36 @@ class AppLocalizations {
       "invalid_number": "أدخل رقماً صحيحاً",
       "university_student_question": "هل أنت طالب جامعي حالياً؟",
       "select_university": "اختر الجامعة",
+      "university_email_label": "البريد الإلكتروني الجامعي",
+      "university_email_hint": "you@university.edu",
+      "university_email_invalid": "أدخل عنوان بريد إلكتروني جامعي صالحاً.",
+      "university_email_already_used":
+          "هذا البريد الإلكتروني الجامعي مرتبط بالفعل بحساب Taqa آخر.",
+      "find_university": "البحث عن الجامعة",
+      "university_recognized": "الجامعة المعترف بها",
+      "verify_university_email": "تأكيد البريد الإلكتروني الجامعي",
+      "university_email_verified": "تم تأكيد البريد الإلكتروني الجامعي",
+      "university_verification_required":
+          "أكّد بريدك الإلكتروني الجامعي قبل المتابعة.",
+      "university_not_recognized":
+          "لم نتمكن من التعرف على الجامعة. إذا كانت جامعتك موجودة ومعتمدة رسمياً، راسلنا على tech@taqafitness.com لإضافة نطاق بريدها الإلكتروني.",
+      "university_recognition_failed":
+          "تعذر التحقق من جامعتك الآن. يرجى المحاولة مجدداً.",
+      "verify_student_status": "تأكيد صفة الطالب",
+      "student_verification_intro":
+          "سنرسل رمز تحقق إلى هذا البريد الإلكتروني الجامعي.",
+      "student_find_university_intro":
+          "أدخل بريدك الإلكتروني الجامعي للعثور على جامعتك وتأكيدها قبل التحقق.",
+      "student_verification_code_intro":
+          "أدخل الرمز المرسل إلى بريدك الإلكتروني الجامعي.",
+      "send_verification_code": "إرسال رمز التحقق",
+      "student_sign_in_required":
+          "يرجى تسجيل الدخول مجدداً قبل تأكيد صفة الطالب.",
+      "student_code_resent": "تم إرسال رمز تحقق جديد.",
+      "student_code_sent": "تم إرسال رمز التحقق.",
+      "student_code_send_failed": "تعذر إرسال رمز التحقق.",
+      "student_code_invalid": "أدخل رمز التحقق المكون من 6 أرقام.",
+      "student_verify_failed": "تعذر تأكيد صفة الطالب.",
 
       "screening_title": "استبيان جودة الحياة",
       "screening_subtitle":

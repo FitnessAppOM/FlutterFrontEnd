@@ -14,6 +14,9 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
     this.description,
     this.promotionText,
     this.student = false,
+    this.studentLabel = 'Student',
+    this.locked = false,
+    this.lockedLabel,
     this.selected = false,
     this.onTap,
   });
@@ -24,6 +27,9 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
   final String? description;
   final String? promotionText;
   final bool student;
+  final String studentLabel;
+  final bool locked;
+  final String? lockedLabel;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -62,7 +68,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                           borderRadius: TaqaUiScale.radius(5),
                         ),
                         child: Text(
-                          'STUDENT',
+                          studentLabel.toUpperCase(),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                             fontSize: TaqaUiScale.sp(8),
@@ -92,6 +98,30 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                         color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
                       ),
                     ),
+                    if (locked && lockedLabel != null) ...[
+                      SizedBox(height: TaqaUiScale.h(7)),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: TaqaUiScale.w(13),
+                            color: TaqaUiColors.charcoal,
+                          ),
+                          SizedBox(width: TaqaUiScale.w(5)),
+                          Expanded(
+                            child: Text(
+                              lockedLabel!,
+                              style: TextStyle(
+                                fontFamily: TaqaUiFontFamilies.interTight,
+                                fontSize: TaqaUiScale.sp(10),
+                                fontWeight: FontWeight.w700,
+                                color: TaqaUiColors.charcoal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     if (promotionText != null) ...[
                       SizedBox(height: TaqaUiScale.h(6)),
                       Text(

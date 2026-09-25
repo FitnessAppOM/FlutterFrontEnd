@@ -44,6 +44,8 @@ import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import 'referral_dashboard_page.dart';
 import '../services/purchases/apple_billing_service.dart';
 import '../services/purchases/taqa_subscription_catalog.dart';
+import '../services/core/university_service.dart';
+import '../auth/email_verification_page.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -85,6 +87,7 @@ class _SettingsPageState extends State<SettingsPage>
   bool _subscriptionManagementOpen = false;
   bool _settingsRouteOpen = false;
   bool _coachPlansResolving = false;
+  bool _studentPlansResolving = false;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -504,11 +507,74 @@ class _SettingsPageState extends State<SettingsPage>
     if (_settingsRouteOpen) return;
     await _pushSettingsRoute(
       MaterialPageRoute(
-        builder: (_) =>
-            const TaqaSubscriptionPage(plans: TaqaSubscriptionCatalog.plans),
+        builder: (_) => const TaqaSubscriptionPage(
+          plans: TaqaSubscriptionCatalog.standardPlans,
+          allowPlanTypeSwitch: false,
+        ),
       ),
     );
     await _loadCurrentPlan();
+  }
+
+  Future<void> _openStudentPlans() async {
+    if (_settingsRouteOpen || _studentPlansResolving) return;
+    _studentPlansResolving = true;
+    try {
+      var eligible = false;
+      StudentVerificationStatus? verificationStatus;
+      try {
+        verificationStatus = await UniversityService.fetchVerificationStatus();
+        eligible = verificationStatus.verified;
+      } catch (_) {
+        eligible = false;
+      }
+      if (!mounted) return;
+
+      if (!eligible) {
+        final verified = await _pushSettingsRoute<bool>(
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationPage(
+              studentPlanVerification: true,
+              initialStudentEmail: verificationStatus?.email,
+              lockInitialStudentEmail: false,
+            ),
+          ),
+        );
+        if (!mounted || verified != true) return;
+        try {
+          eligible = (await UniversityService.activateVerifiedStudentStatus())
+              .verified;
+        } on UniversityServiceException catch (error) {
+          if (!mounted) return;
+          AppToast.show(context, error.message, type: AppToastType.error);
+          return;
+        } catch (_) {
+          if (!mounted) return;
+          AppToast.show(
+            context,
+            AppLocalizations.of(
+              context,
+            ).translate('subscription_student_activation_failed'),
+            type: AppToastType.error,
+          );
+          return;
+        }
+      }
+      if (!mounted || !eligible) return;
+
+      await _pushSettingsRoute(
+        MaterialPageRoute(
+          builder: (_) => const TaqaSubscriptionPage(
+            plans: TaqaSubscriptionCatalog.studentPlans,
+            allowPlanTypeSwitch: false,
+            studentPlansOnly: true,
+          ),
+        ),
+      );
+      await _loadCurrentPlan();
+    } finally {
+      _studentPlansResolving = false;
+    }
   }
 
   Future<void> _openCoachPlans() async {
@@ -562,6 +628,7 @@ class _SettingsPageState extends State<SettingsPage>
         builder: (_) => const TaqaSubscriptionPage(
           plans: TaqaSubscriptionCatalog.coachPlans,
           coachMembership: true,
+          allowPlanTypeSwitch: false,
         ),
       ),
     );
@@ -1743,6 +1810,11 @@ class _SettingsPageState extends State<SettingsPage>
                     title: t.translate('settings_normal_plans'),
                     subtitle: t.translate('settings_normal_plans_sub'),
                     onTap: _isDeactivated ? null : _openNormalPlans,
+                  ),
+                  _SettingsTile(
+                    title: t.translate('settings_student_plans'),
+                    subtitle: t.translate('settings_student_plans_sub'),
+                    onTap: _isDeactivated ? null : _openStudentPlans,
                   ),
                   _SettingsTile(
                     title: t.translate('settings_coach_plans'),
