@@ -113,6 +113,15 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
     return AppLocalizations.of(context).translate(key);
   }
 
+  Future<void> _dismissKeyboard() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } catch (_) {
+      // Unfocus is sufficient when the platform text-input channel is absent.
+    }
+  }
+
   String get _sectionTitle {
     switch (_currentSection) {
       case 0:
@@ -302,6 +311,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
   Future<void> _recognizeUniversityEmail() async {
     if (_recognizingUniversity || _studentEmailVerified) return;
+    await _dismissKeyboard();
+    if (!mounted) return;
     final email = _universityEmailCtrl.text.trim().toLowerCase();
     if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
       setState(() {
@@ -310,7 +321,6 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
       return;
     }
 
-    FocusScope.of(context).unfocus();
     setState(() {
       _recognizingUniversity = true;
       _universityEmailError = null;
@@ -346,6 +356,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
   }
 
   Future<void> _verifyUniversityEmail() async {
+    await _dismissKeyboard();
+    if (!mounted) return;
     final universityName = _recognizedUniversityName;
     final universityId = _selectedUniversityId;
     final email = _universityEmailCtrl.text.trim().toLowerCase();
@@ -627,6 +639,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               absorbing: _submitting,
               child: SingleChildScrollView(
                 controller: _scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

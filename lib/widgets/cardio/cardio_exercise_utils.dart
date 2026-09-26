@@ -21,6 +21,9 @@ bool isIndoorCardioExerciseName(String? rawName) {
 
   const keywords = <String>[
     'assault bike',
+    'indoor cycling',
+    'stationary bike',
+    'spin bike',
     'boxing',
     'elliptical',
     'eliptical',

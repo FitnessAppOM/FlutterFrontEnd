@@ -713,6 +713,9 @@ class AppLocalizations {
       "training_no_plan_updates": "No training plan updates yet.",
       "training_completed_exercises": "Completed exercises",
       "training_no_completed_exercises": "No completed exercises.",
+      "training_set_details": "Set details",
+      "training_no_set_details":
+          "Set details are unavailable for this completed exercise.",
       "training_day_complete": "Day complete",
       "training_day_finished": "{day} finished. Great work!",
       "training_nice": "Nice!",
@@ -731,7 +734,7 @@ class AppLocalizations {
       "training_cardio_not_in_plan": "This cardio item is not in today's plan.",
       "training_location_required": "Location access required",
       "training_location_required_body":
-          "Allow 'Always' location before starting cardio sessions.",
+          "Allow 'Always' location for outdoor route tracking. Indoor cardio works without location.",
       "training_checking": "Checking...",
       "training_allow": "Allow",
       "training_settings": "Settings",
@@ -3297,6 +3300,9 @@ class AppLocalizations {
       "training_no_plan_updates": "لا توجد تحديثات على خطة التدريب بعد.",
       "training_completed_exercises": "التمارين المكتملة",
       "training_no_completed_exercises": "لا توجد تمارين مكتملة.",
+      "training_set_details": "تفاصيل المجموعات",
+      "training_no_set_details":
+          "تفاصيل المجموعات غير متاحة لهذا التمرين المكتمل.",
       "training_day_complete": "اكتمل اليوم",
       "training_day_finished": "اكتمل {day}. أحسنت!",
       "training_nice": "رائع!",
@@ -3315,7 +3321,7 @@ class AppLocalizations {
       "training_cardio_not_in_plan": "تمرين الكارديو هذا ليس ضمن خطة اليوم.",
       "training_location_required": "الوصول إلى الموقع مطلوب",
       "training_location_required_body":
-          "اسمح بالوصول الدائم إلى الموقع قبل بدء جلسات الكارديو.",
+          "اسمح بالوصول الدائم إلى الموقع لتتبع المسارات الخارجية. تمارين الكارديو الداخلية تعمل دون الموقع.",
       "training_checking": "جارٍ التحقق...",
       "training_allow": "سماح",
       "training_settings": "الإعدادات",

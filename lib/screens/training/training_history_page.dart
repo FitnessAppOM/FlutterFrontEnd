@@ -414,7 +414,6 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
           MaterialPageRoute(
             builder: (_) => TrainingHistoryDayDetailPage(
               dayLabel: entry.label,
-              statusText: displayStatus,
               weekLabel: weekLabel,
               completedExercises: entry.completedExercises,
             ),

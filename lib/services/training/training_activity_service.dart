@@ -44,6 +44,7 @@ class TrainingActivityService {
     required int seconds,
     required int sets,
     required int reps,
+    required bool isCardio,
     double? distanceKm,
     double? paceMinKm,
   }) {
@@ -51,7 +52,7 @@ class TrainingActivityService {
     final mm = (seconds ~/ 60).toString().padLeft(2, '0');
     final ss = (seconds % 60).toString().padLeft(2, '0');
     final time = '$mm:$ss';
-    if (distanceKm != null || paceMinKm != null) {
+    if (isCardio) {
       final d = (distanceKm ?? 0).toStringAsFixed(2);
       final avgPace = _avgPaceMinKm(distanceKm, seconds) ?? paceMinKm;
       final pace = _paceLabel(avgPace, languageCode);
@@ -95,6 +96,7 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    bool isCardio = false,
     double? distanceKm,
     double? paceMinKm,
     int? steps,
@@ -113,6 +115,7 @@ class TrainingActivityService {
         exerciseName: exerciseName,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
         steps: steps,
@@ -126,6 +129,7 @@ class TrainingActivityService {
           exerciseName: exerciseName,
           sets: sets,
           reps: reps,
+          isCardio: isCardio,
           seconds: seconds,
           distanceKm: distanceKm,
           paceMinKm: paceMinKm,
@@ -139,6 +143,7 @@ class TrainingActivityService {
           seconds: seconds,
           sets: sets,
           reps: reps,
+          isCardio: isCardio,
           distanceKm: distanceKm,
           paceMinKm: paceMinKm,
         ),
@@ -150,6 +155,7 @@ class TrainingActivityService {
       sets: sets,
       reps: reps,
       seconds: seconds,
+      isCardio: isCardio,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
       steps: steps,
@@ -163,6 +169,7 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    bool isCardio = false,
     double? distanceKm,
     double? paceMinKm,
     int? steps,
@@ -188,6 +195,7 @@ class TrainingActivityService {
       exerciseName: exerciseName,
       sets: sets,
       reps: reps,
+      isCardio: isCardio,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
       steps: steps,
@@ -200,6 +208,7 @@ class TrainingActivityService {
         seconds: seconds,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
       );
@@ -226,6 +235,7 @@ class TrainingActivityService {
         exerciseName: exerciseName,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         seconds: seconds,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
@@ -263,6 +273,7 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    bool isCardio = false,
     double? distanceKm,
     double? paceMinKm,
     int? steps,
@@ -277,6 +288,7 @@ class TrainingActivityService {
       exerciseName: exerciseName,
       sets: sets,
       reps: reps,
+      isCardio: isCardio,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
       steps: steps,
@@ -290,6 +302,7 @@ class TrainingActivityService {
         seconds: seconds,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
       );
@@ -316,6 +329,7 @@ class TrainingActivityService {
         exerciseName: exerciseName,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         seconds: seconds,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
@@ -330,6 +344,7 @@ class TrainingActivityService {
     required int sets,
     required int reps,
     required int seconds,
+    bool isCardio = false,
     double? distanceKm,
     double? paceMinKm,
     int? steps,
@@ -345,6 +360,7 @@ class TrainingActivityService {
       exerciseName: exerciseName,
       sets: sets,
       reps: reps,
+      isCardio: isCardio,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
       steps: steps,
@@ -356,6 +372,7 @@ class TrainingActivityService {
       sets: sets,
       reps: reps,
       seconds: seconds,
+      isCardio: isCardio,
       distanceKm: distanceKm,
       paceMinKm: paceMinKm,
       steps: steps,
@@ -412,6 +429,12 @@ class TrainingActivityService {
     final reps = (session['reps'] as num?)?.toInt() ?? 0;
     final distanceKm = (session['distanceKm'] as num?)?.toDouble();
     final paceMinKm = (session['paceMinKm'] as num?)?.toDouble();
+    final isCardio =
+        session['kind'] == 'cardio' ||
+        distanceKm != null ||
+        paceMinKm != null ||
+        session['steps'] != null ||
+        session['routePoints'] != null;
     final paused = session['paused'] == true;
     final pausedSeconds = (session['pausedSeconds'] as num?)?.toInt() ?? 0;
     final startMs = (session['startMs'] as num?)?.toInt();
@@ -429,6 +452,7 @@ class TrainingActivityService {
         seconds: seconds,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
       );
@@ -448,6 +472,7 @@ class TrainingActivityService {
         exerciseName: exerciseName,
         sets: sets,
         reps: reps,
+        isCardio: isCardio,
         seconds: seconds,
         distanceKm: distanceKm,
         paceMinKm: paceMinKm,
@@ -494,6 +519,7 @@ class TrainingActivityService {
     required String exerciseName,
     required int sets,
     required int reps,
+    required bool isCardio,
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
@@ -507,6 +533,7 @@ class TrainingActivityService {
         'exerciseName': exerciseName,
         'sets': sets,
         'reps': reps,
+        'isCardio': isCardio,
         'seconds': seconds,
         'distanceKm': distanceKm,
         'speedKmh': avgPace,
@@ -523,6 +550,7 @@ class TrainingActivityService {
     required String exerciseName,
     required int sets,
     required int reps,
+    required bool isCardio,
     required int seconds,
     double? distanceKm,
     double? paceMinKm,
@@ -536,6 +564,7 @@ class TrainingActivityService {
         'exerciseName': exerciseName,
         'sets': sets,
         'reps': reps,
+        'isCardio': isCardio,
         'seconds': seconds,
         'distanceKm': distanceKm,
         'speedKmh': avgPace,
@@ -584,6 +613,7 @@ class TrainingActivityService {
     required String exerciseName,
     required int sets,
     required int reps,
+    required bool isCardio,
     double? distanceKm,
     double? paceMinKm,
     int? steps,
@@ -593,11 +623,6 @@ class TrainingActivityService {
     final sp = await SharedPreferences.getInstance();
     await sp.setBool(_kSessionActive, true);
     await sp.setString(_kSessionLanguageCode, _languageCode);
-    final isCardio =
-        distanceKm != null ||
-        paceMinKm != null ||
-        steps != null ||
-        routePoints != null;
     await sp.setString(_kSessionKind, isCardio ? 'cardio' : 'strength');
     if (startMs != null) {
       await sp.setInt(_kSessionStartMs, startMs);

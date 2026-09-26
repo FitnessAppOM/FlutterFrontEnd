@@ -77,8 +77,19 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     super.dispose();
   }
 
+  Future<void> _dismissKeyboard() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    } catch (_) {
+      // Unfocus is sufficient when the platform text-input channel is absent.
+    }
+  }
+
   // ---------------- VERIFY CODE ----------------
   Future<void> verifyCode() async {
+    await _dismissKeyboard();
+    if (!mounted) return;
     if (widget.studentPlanVerification) {
       await _verifyStudentCode();
       return;
@@ -214,6 +225,8 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
 
   Future<void> _startStudentVerification({bool resend = false}) async {
     if (resend && resendCooldown) return;
+    await _dismissKeyboard();
+    if (!mounted) return;
     final email = studentEmailController.text.trim().toLowerCase();
     if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
       _show(AppLocalizations.of(context).translate('university_email_invalid'));
@@ -287,13 +300,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   Future<void> _recognizeStudentUniversity() async {
+    await _dismissKeyboard();
+    if (!mounted) return;
     final email = studentEmailController.text.trim().toLowerCase();
     if (!email.contains('@') || email.startsWith('@') || email.endsWith('@')) {
       _show(AppLocalizations.of(context).translate('university_email_invalid'));
       return;
     }
 
-    FocusScope.of(context).unfocus();
     setState(() => loading = true);
     try {
       final university = await UniversityService.recognizeEmail(email);
@@ -474,6 +488,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           Expanded(
             child: SingleChildScrollView(
               padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

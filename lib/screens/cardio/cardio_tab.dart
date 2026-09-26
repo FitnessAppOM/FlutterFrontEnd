@@ -469,14 +469,20 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final bool hasProgramCardio = widget.exercises.isNotEmpty;
-    final bool locationGateActive =
-        _locationPermissionLoaded && !_hasAlwaysLocationPermission;
-    final bool interactionLocked = locationGateActive || widget.readOnlyLocked;
     final List<Map<String, dynamic>> list = hasProgramCardio
         ? widget.exercises
         : (_cardioLibrary.isNotEmpty
               ? _cardioLibrary
               : List<Map<String, dynamic>>.from(_fallbackCardioLibrary));
+    final hasOutdoorRouteCardio = list.any(
+      (exercise) =>
+          !isIndoorCardioExerciseName(exercise['exercise_name']?.toString()),
+    );
+    final bool locationGateActive =
+        hasOutdoorRouteCardio &&
+        _locationPermissionLoaded &&
+        !_hasAlwaysLocationPermission;
+    final bool interactionLocked = widget.readOnlyLocked;
 
     return Stack(
       children: [
@@ -586,7 +592,11 @@ class _CardioTabState extends State<CardioTab> with WidgetsBindingObserver {
                             inProgress: _isSessionExercise(ex),
                             onTap: () async {
                               if (widget.readOnlyLocked) return;
+                              final isIndoor = isIndoorCardioExerciseName(
+                                ex['exercise_name']?.toString(),
+                              );
                               final canStart =
+                                  isIndoor ||
                                   await _ensureAlwaysLocationBeforeStart();
                               if (!canStart || _hasCardioSession) return;
                               widget.onStart(ex);

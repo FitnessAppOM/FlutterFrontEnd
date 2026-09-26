@@ -8,6 +8,7 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var exerciseName: String
         var sets: Int
         var reps: Int
+        var isCardio: Bool?
         var seconds: Int
         var distanceKm: Double?
         var speedKmh: Double?
@@ -59,6 +60,7 @@ final class TrainingLiveActivityChannel {
         let exerciseName = (args["exerciseName"] as? String) ?? "Training"
         let sets = (args["sets"] as? Int) ?? 0
         let reps = (args["reps"] as? Int) ?? 0
+        let isCardio = (args["isCardio"] as? Bool) ?? false
         let seconds = (args["seconds"] as? Int) ?? 0
         let distanceKm = (args["distanceKm"] as? NSNumber)?.doubleValue ?? (args["distanceKm"] as? Double)
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
@@ -76,6 +78,7 @@ final class TrainingLiveActivityChannel {
             exerciseName: exerciseName,
             sets: sets,
             reps: reps,
+            isCardio: isCardio,
             seconds: seconds,
             distanceKm: distanceKm,
             speedKmh: speedKmh,
@@ -118,6 +121,7 @@ final class TrainingLiveActivityChannel {
         let exerciseName = (args["exerciseName"] as? String) ?? "Training"
         let sets = (args["sets"] as? Int) ?? 0
         let reps = (args["reps"] as? Int) ?? 0
+        let isCardio = (args["isCardio"] as? Bool) ?? false
         let seconds = (args["seconds"] as? Int) ?? 0
         let distanceKm = (args["distanceKm"] as? NSNumber)?.doubleValue ?? (args["distanceKm"] as? Double)
         let speedKmh = (args["speedKmh"] as? NSNumber)?.doubleValue ?? (args["speedKmh"] as? Double)
@@ -133,6 +137,7 @@ final class TrainingLiveActivityChannel {
             exerciseName: exerciseName,
             sets: sets,
             reps: reps,
+            isCardio: isCardio,
             seconds: seconds,
             distanceKm: distanceKm,
             speedKmh: speedKmh,

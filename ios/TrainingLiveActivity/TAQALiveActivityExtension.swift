@@ -14,6 +14,7 @@ struct TrainingActivityAttributes: ActivityAttributes {
         var exerciseName: String
         var sets: Int
         var reps: Int
+        var isCardio: Bool?
         var seconds: Int
         var distanceKm: Double?
         var speedKmh: Double?
@@ -72,7 +73,9 @@ struct TrainingLiveActivityWidget: Widget {
                             timerText
                         }
                         HStack(spacing: 8) {
-                            if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
+                            if context.state.isCardio == true {
+                                let dist = context.state.distanceKm ?? 0
+                                let speed = context.state.speedKmh ?? 0
                                 badge(String(format: "%.2f", dist) + " " + (context.state.distanceUnit ?? "km"))
                                 badge(paceLabel(speed, unit: context.state.paceUnit ?? "/km"))
                             } else {
@@ -121,7 +124,9 @@ struct TrainingLiveActivityWidget: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
-                        if let dist = context.state.distanceKm, let speed = context.state.speedKmh {
+                        if context.state.isCardio == true {
+                            let dist = context.state.distanceKm ?? 0
+                            let speed = context.state.speedKmh ?? 0
                             Text(String(format: "%.2f", dist) + " " + (context.state.distanceUnit ?? "km"))
                             Text("•")
                             Text(paceLabel(speed, unit: context.state.paceUnit ?? "/km"))

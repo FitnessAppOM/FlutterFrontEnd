@@ -528,9 +528,7 @@ class ExerciseCard extends StatelessWidget {
                                 child: Container(
                                   width: previewWidth,
                                   height: previewHeight,
-                                  color: previewUrl.isEmpty
-                                      ? Colors.white
-                                      : const Color(0xFF1C1D17),
+                                  color: Colors.white,
                                   child: previewUrl.isEmpty
                                       ? const Icon(
                                           Icons.fitness_center,
@@ -816,6 +814,9 @@ class _ExerciseGifThumb extends StatefulWidget {
 }
 
 class _ExerciseGifThumbState extends State<_ExerciseGifThumb> {
+  // Covers Android's occasional one-pixel texture seam at the clipped edge.
+  static const double _edgeSafeScale = 1.02;
+
   bool _hasFrame = false;
   ImageStream? _stream;
   ImageStreamListener? _listener;
@@ -896,16 +897,27 @@ class _ExerciseGifThumbState extends State<_ExerciseGifThumb> {
 
     return Stack(
       fit: StackFit.expand,
+      clipBehavior: Clip.none,
       children: [
         if (cached != null)
-          RawImage(image: cached.image, scale: cached.scale, fit: BoxFit.cover)
+          Transform.scale(
+            scale: _edgeSafeScale,
+            child: RawImage(
+              image: cached.image,
+              scale: cached.scale,
+              fit: BoxFit.cover,
+            ),
+          )
         else
           const Icon(Icons.fitness_center, size: 20, color: Colors.white24),
-        Image(
-          image: _provider,
-          fit: BoxFit.cover,
-          gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        Transform.scale(
+          scale: _edgeSafeScale,
+          child: Image(
+            image: _provider,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          ),
         ),
       ],
     );

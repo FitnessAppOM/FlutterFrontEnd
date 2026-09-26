@@ -32,12 +32,16 @@ class TrainingForegroundTaskHandler extends TaskHandler {
     final reps = sp.getInt('training_session_reps') ?? 0;
     final distance = sp.getDouble('training_session_distance');
     final paceMinKm = sp.getDouble('training_session_speed');
+    final storedKind = sp.getString('training_session_kind');
+    final isCardio =
+        storedKind == 'cardio' ||
+        (storedKind == null && (distance != null || paceMinKm != null));
     final avgPaceMinKm = _avgPaceMinKm(distance, elapsedSec) ?? paceMinKm;
 
     final mm = (elapsedSec ~/ 60).toString().padLeft(2, '0');
     final ss = (elapsedSec % 60).toString().padLeft(2, '0');
     final time = '$mm:$ss';
-    final body = (distance != null || paceMinKm != null)
+    final body = isCardio
         ? TrainingNotificationCopy.cardioBody(
             languageCode,
             time: time,

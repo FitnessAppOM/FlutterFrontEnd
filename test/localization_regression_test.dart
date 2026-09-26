@@ -32,6 +32,8 @@ void main() {
       'training_days_plan',
       'training_ig_sticker',
       'training_cardio_achievement',
+      'training_set_details',
+      'training_no_set_details',
       'community_auto_created',
       'community_report',
       'community_choose_group',
