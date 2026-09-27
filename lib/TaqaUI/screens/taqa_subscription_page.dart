@@ -1169,7 +1169,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       final plan = _catalogPlans
           .where((item) => _storeProductIdForPlan(item) == product.id)
           .firstOrNull;
-      if (widget.showLockedStudentPlans && plan != null) {
+      if (_showLockedStudentPlans && plan != null) {
         await _verifyAndUnlockStudentPlan(plan);
       } else {
         _setMessage(_tr('university_verification_required'));
@@ -1804,6 +1804,9 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     return productId.toLowerCase().contains('student');
   }
 
+  bool get _showLockedStudentPlans =>
+      widget.showLockedStudentPlans || widget.mandatory;
+
   bool _isCoachProduct(String productId) {
     return productId == TaqaSubscriptionCatalog.coachMonthly.appleProductId ||
         productId == TaqaSubscriptionCatalog.coachAnnual.appleProductId;
@@ -1819,7 +1822,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   List<TaqaSubscriptionPlan> get _catalogPlans {
     final normalPlans = _studentPlanAvailable
         ? TaqaSubscriptionCatalog.studentFirstPlans
-        : widget.showLockedStudentPlans
+        : _showLockedStudentPlans
         ? TaqaSubscriptionCatalog.plans
         : TaqaSubscriptionCatalog.standardPlans;
     final plans = !widget.allowPlanTypeSwitch && widget.plans != null
@@ -1828,7 +1831,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
         ? TaqaSubscriptionCatalog.coachPlans
         : normalPlans;
     final canShowStudentPlans =
-        _studentPlanAvailable || widget.showLockedStudentPlans;
+        _studentPlanAvailable || _showLockedStudentPlans;
     final eligiblePlans = plans
         .where(
           (plan) =>
@@ -1905,7 +1908,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
       : {
           ...(_studentPlanAvailable
                   ? TaqaSubscriptionCatalog.studentFirstPlans
-                  : widget.showLockedStudentPlans
+                  : _showLockedStudentPlans
                   ? TaqaSubscriptionCatalog.plans
                   : TaqaSubscriptionCatalog.standardPlans)
               .map((plan) => plan.productId),

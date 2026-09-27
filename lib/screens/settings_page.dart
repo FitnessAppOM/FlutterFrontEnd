@@ -88,6 +88,7 @@ class _SettingsPageState extends State<SettingsPage>
   bool _settingsRouteOpen = false;
   bool _coachPlansResolving = false;
   bool _studentPlansResolving = false;
+  StudentVerificationStatus? _studentVerificationStatus;
 
   bool _isAuthCancelled(Object e) {
     if (e is PlatformException) {
@@ -119,6 +120,7 @@ class _SettingsPageState extends State<SettingsPage>
     _loadStravaStatus();
     _loadAppleWatchStatus();
     _loadCurrentPlan();
+    _loadStudentVerificationStatus();
     _refreshAccountStatus();
     AccountStorage.accountChange.addListener(_handleAccountChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _recoverAvatar());
@@ -277,7 +279,34 @@ class _SettingsPageState extends State<SettingsPage>
     _loadStravaStatus();
     _loadAppleWatchStatus();
     _loadCurrentPlan();
+    _loadStudentVerificationStatus();
     _refreshAccountStatus();
+  }
+
+  Future<void> _loadStudentVerificationStatus() async {
+    try {
+      final status = await UniversityService.fetchVerificationStatus();
+      if (!mounted) return;
+      setState(() => _studentVerificationStatus = status);
+    } catch (_) {
+      // Keep the normal student-plan prompt when status cannot be refreshed.
+    }
+  }
+
+  String _studentPlansSubtitle(AppLocalizations t) {
+    final status = _studentVerificationStatus;
+    final verifiedUntil = status?.verifiedUntil;
+    if (status?.verified == true && verifiedUntil != null) {
+      return t
+          .translate('settings_student_eligible_until')
+          .replaceAll('{date}', _formatPlanDate(verifiedUntil));
+    }
+    if (verifiedUntil != null && verifiedUntil.isBefore(DateTime.now())) {
+      return t
+          .translate('settings_student_eligibility_expired')
+          .replaceAll('{date}', _formatPlanDate(verifiedUntil));
+    }
+    return t.translate('settings_student_plans_sub');
   }
 
   Future<void> _loadCurrentPlan() async {
@@ -525,6 +554,9 @@ class _SettingsPageState extends State<SettingsPage>
       try {
         verificationStatus = await UniversityService.fetchVerificationStatus();
         eligible = verificationStatus.verified;
+        if (mounted) {
+          setState(() => _studentVerificationStatus = verificationStatus);
+        }
       } catch (_) {
         eligible = false;
       }
@@ -542,8 +574,12 @@ class _SettingsPageState extends State<SettingsPage>
         );
         if (!mounted || verified != true) return;
         try {
-          eligible = (await UniversityService.activateVerifiedStudentStatus())
-              .verified;
+          final activated =
+              await UniversityService.activateVerifiedStudentStatus();
+          eligible = activated.verified;
+          if (mounted) {
+            setState(() => _studentVerificationStatus = activated);
+          }
         } on UniversityServiceException catch (error) {
           if (!mounted) return;
           AppToast.show(context, error.message, type: AppToastType.error);
@@ -572,6 +608,7 @@ class _SettingsPageState extends State<SettingsPage>
         ),
       );
       await _loadCurrentPlan();
+      await _loadStudentVerificationStatus();
     } finally {
       _studentPlansResolving = false;
     }
@@ -1813,7 +1850,7 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                   _SettingsTile(
                     title: t.translate('settings_student_plans'),
-                    subtitle: t.translate('settings_student_plans_sub'),
+                    subtitle: _studentPlansSubtitle(t),
                     onTap: _isDeactivated ? null : _openStudentPlans,
                   ),
                   _SettingsTile(

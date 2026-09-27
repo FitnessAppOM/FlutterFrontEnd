@@ -1419,6 +1419,10 @@ class AppLocalizations {
       "settings_student_plans": "Student plans",
       "settings_student_plans_sub":
           "Verify your university email and access student pricing",
+      "settings_student_eligible_until":
+          "Student eligibility verified until {date}",
+      "settings_student_eligibility_expired":
+          "Student eligibility expired on {date}. Verify again to access student pricing.",
       "settings_coach_plans": "Coach plans",
       "settings_coach_plans_sub": "View monthly and annual coach options",
       "settings_coach_plan_requires_approval_title": "Coach approval required",
@@ -3987,6 +3991,9 @@ class AppLocalizations {
       "settings_student_plans": "خطط الطلاب",
       "settings_student_plans_sub":
           "أكد بريدك الإلكتروني الجامعي للوصول إلى أسعار الطلاب",
+      "settings_student_eligible_until": "أهلية الطالب مؤكدة حتى {date}",
+      "settings_student_eligibility_expired":
+          "انتهت أهلية الطالب في {date}. أكّد بريدك الجامعي مجددًا للوصول إلى أسعار الطلاب.",
       "settings_coach_plans": "خطط المدربين",
       "settings_coach_plans_sub": "عرض خطط المدربين الشهرية والسنوية",
       "settings_coach_plan_requires_approval_title": "مطلوب اعتماد المدرب",

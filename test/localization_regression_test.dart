@@ -47,6 +47,8 @@ void main() {
       'error_connection',
       'settings_delete_account_failed',
       'settings_deactivate_account_failed',
+      'settings_student_eligible_until',
+      'settings_student_eligibility_expired',
       'account_restore_expired',
       'account_request_failed',
       'subscription_legal_body',

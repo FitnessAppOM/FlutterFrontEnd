@@ -31,15 +31,32 @@ class StudentVerificationStatus {
     this.universityId,
     this.universityName,
     this.email,
+    this.verifiedUntil,
   });
 
   final bool verified;
   final int? universityId;
   final String? universityName;
   final String? email;
+  final DateTime? verifiedUntil;
 }
 
 class UniversityService {
+  static DateTime? _parseUtcDateTime(dynamic value) {
+    final parsed = DateTime.tryParse(value?.toString() ?? '');
+    if (parsed == null || parsed.isUtc) return parsed;
+    return DateTime.utc(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+      parsed.hour,
+      parsed.minute,
+      parsed.second,
+      parsed.millisecond,
+      parsed.microsecond,
+    );
+  }
+
   static Future<Map<String, String>> _authHeaders() async => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -106,6 +123,7 @@ class UniversityService {
           : int.tryParse(rawUniversityId.toString()),
       universityName: data['university_name']?.toString(),
       email: data['email']?.toString(),
+      verifiedUntil: _parseUtcDateTime(data['verified_until']),
     );
   }
 
@@ -121,6 +139,7 @@ class UniversityService {
       universityId: int.tryParse(data['university_id']?.toString() ?? ''),
       universityName: data['university_name']?.toString(),
       email: data['email']?.toString(),
+      verifiedUntil: _parseUtcDateTime(data['verified_until']),
     );
   }
 }
