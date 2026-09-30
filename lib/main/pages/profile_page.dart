@@ -341,12 +341,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final affiliationOther = _profile?["affiliation_other_text"]?.toString();
     final universityName = _profile?["university_name"]?.toString();
     final affiliationDisplay =
-        (affiliationName != null && affiliationName.trim().isNotEmpty)
+        (universityName != null && universityName.trim().isNotEmpty)
+        ? universityName
+        : (affiliationName != null && affiliationName.trim().isNotEmpty)
         ? affiliationName
         : (affiliationOther != null && affiliationOther.trim().isNotEmpty)
         ? affiliationOther
-        : (universityName != null && universityName.trim().isNotEmpty)
-        ? universityName
         : "";
     final age = _profile?["age"]?.toString();
     final sex = _translateOption("sex", _profile?["sex"], t);
