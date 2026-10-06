@@ -17,13 +17,14 @@ class TaqaValueBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return IntrinsicWidth(
       child: Container(
         constraints: BoxConstraints(minWidth: TaqaUiScale.w(109)),
         height: TaqaUiScale.h(85),
         padding: TaqaUiScale.insetsLTRB(13, 12, 13, 15),
         decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+          color: colors.surface,
           borderRadius: TaqaUiScale.radius(15),
         ),
         child: Column(
@@ -35,7 +36,7 @@ class TaqaValueBox extends StatelessWidget {
               softWrap: false,
               overflow: TextOverflow.visible,
               style: TextStyle(
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                 fontSize: TaqaUiScale.sp(8),
                 fontWeight: FontWeight.w400,
@@ -50,7 +51,7 @@ class TaqaValueBox extends StatelessWidget {
               softWrap: false,
               overflow: TextOverflow.visible,
               style: TextStyle(
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(25),
                 fontWeight: FontWeight.w700,

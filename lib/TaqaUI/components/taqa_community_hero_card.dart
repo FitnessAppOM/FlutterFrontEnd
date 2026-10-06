@@ -43,6 +43,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = math.min(
@@ -73,7 +74,7 @@ class TaqaCommunityHeroCard extends StatelessWidget {
           height: cardHeight,
           child: Container(
             decoration: BoxDecoration(
-              color: TaqaUiColors.white,
+              color: colors.surface,
               borderRadius: TaqaUiStyles.communityHeroCardRadius,
             ),
             child: Stack(
@@ -90,7 +91,9 @@ class TaqaCommunityHeroCard extends StatelessWidget {
                         title!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TaqaUiStyles.communityPageTitle,
+                        style: TaqaUiStyles.communityPageTitle.copyWith(
+                          color: colors.textPrimary,
+                        ),
                       ),
                     ),
                   ),
@@ -105,7 +108,9 @@ class TaqaCommunityHeroCard extends StatelessWidget {
                       welcomeText: welcomeText,
                       greetingText: greetingText,
                       userNameText: userNameText,
-                      style: TaqaUiStyles.userName,
+                      style: TaqaUiStyles.userName.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -171,6 +176,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -180,7 +186,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               width: boxWidth,
               height: boxHeight,
               layoutScale: layoutScale,
-              color: TaqaUiColors.lime,
+              color: colors.accent,
               label: t.translate('community_badges'),
               badgeCount: badgeCount,
               onTap: onBadgesTap,
@@ -190,7 +196,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               width: boxWidth,
               height: boxHeight,
               layoutScale: layoutScale,
-              color: TaqaUiColors.lightGray,
+              color: colors.surfaceElevated,
               label: t.translate('community_groups'),
               value: groupCount,
               onTap: onGroupsTap,
@@ -204,7 +210,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
               width: showReports ? boxWidth : (boxWidth * 2) + boxGap,
               height: boxHeight,
               layoutScale: layoutScale,
-              color: TaqaUiColors.lightGray,
+              color: colors.surfaceElevated,
               label: t.translate('community_challenges'),
               value: challengeCount,
               onTap: onChallengesTap,
@@ -215,7 +221,7 @@ class _TaqaCommunityStatGrid extends StatelessWidget {
                 width: boxWidth,
                 height: boxHeight,
                 layoutScale: layoutScale,
-                color: TaqaUiColors.lightGray,
+                color: colors.surfaceElevated,
                 label: t.translate('community_reports'),
                 value: reportCount,
                 onTap: onReportsTap,
@@ -251,6 +257,8 @@ class _TaqaCommunityStatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    final isAccent = color == colors.accent;
     final contentLeft = TaqaUiScale.w(16) * layoutScale;
     final labelTop = TaqaUiScale.h(12) * layoutScale;
     final contentTop = TaqaUiScale.h(40) * layoutScale;
@@ -277,7 +285,9 @@ class _TaqaCommunityStatBox extends StatelessWidget {
                   taqaUppercase(label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.dailyOutlookTag,
+                  style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                    color: isAccent ? colors.onAccent : colors.textSecondary,
+                  ),
                 ),
               ),
               Positioned(
@@ -288,7 +298,14 @@ class _TaqaCommunityStatBox extends StatelessWidget {
                         count: badgeCount!,
                         layoutScale: layoutScale,
                       )
-                    : Text('${value ?? 0}', style: TaqaUiStyles.scoreCardValue),
+                    : Text(
+                        '${value ?? 0}',
+                        style: TaqaUiStyles.scoreCardValue.copyWith(
+                          color: isAccent
+                              ? colors.onAccent
+                              : colors.textPrimary,
+                        ),
+                      ),
               ),
             ],
           ),

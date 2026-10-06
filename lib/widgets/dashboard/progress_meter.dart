@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class ProgressMeter extends StatefulWidget {
   const ProgressMeter({
@@ -41,8 +42,8 @@ class _ProgressMeterState extends State<ProgressMeter> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = context.taqaColors;
     final clamped = widget.progress.clamp(0.0, 1.0);
-    final edgeColor = const Color(0xFFD4AF37).withValues(alpha: 0.18);
 
     return AnimatedScale(
       scale: _pressed ? 0.97 : 1.0,
@@ -56,9 +57,9 @@ class _ProgressMeterState extends State<ProgressMeter> {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.cardDark,
+              color: colors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: edgeColor),
+              border: Border.all(color: colors.border),
             ),
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -70,8 +71,9 @@ class _ProgressMeterState extends State<ProgressMeter> {
                     Expanded(
                       child: Text(
                         widget.title,
-                        style: theme.textTheme.labelLarge
-                            ?.copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: colors.textPrimary,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -82,7 +84,7 @@ class _ProgressMeterState extends State<ProgressMeter> {
                         Text(
                           "${(clamped * 100).round()}%",
                           style: theme.textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
+                            color: colors.textPrimary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -90,7 +92,7 @@ class _ProgressMeterState extends State<ProgressMeter> {
                           Text(
                             widget.trailingLabel!,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white60,
+                              color: colors.textSecondary,
                             ),
                           ),
                       ],
@@ -103,8 +105,10 @@ class _ProgressMeterState extends State<ProgressMeter> {
                   child: LinearProgressIndicator(
                     minHeight: 10,
                     value: clamped,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    valueColor: AlwaysStoppedAnimation<Color>(widget.accentColor),
+                    backgroundColor: colors.surfaceElevated,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      widget.accentColor,
+                    ),
                   ),
                 ),
                 if (widget.targetLabel != null) ...[
@@ -112,7 +116,7 @@ class _ProgressMeterState extends State<ProgressMeter> {
                   Text(
                     widget.targetLabel!,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white60,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],

@@ -107,7 +107,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final canSubmit = !loading && emailCtrl.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(title: t.translate("forgot_password")),
       body: Column(
         children: [

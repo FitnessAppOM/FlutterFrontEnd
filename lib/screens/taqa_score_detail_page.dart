@@ -243,12 +243,12 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t("taqa_detail_title"),
-        backgroundColor: AppColors.appBackground,
-        titleColor: TaqaUiColors.charcoal,
-        leading: const BackButton(color: TaqaUiColors.charcoal),
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
+        leading: BackButton(color: context.taqaColors.textPrimary),
       ),
       body: SafeArea(
         child: _loading && _score == null && _scorePreviewCache.isEmpty

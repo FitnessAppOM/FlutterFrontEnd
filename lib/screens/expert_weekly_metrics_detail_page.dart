@@ -1343,10 +1343,10 @@ class _ExpertWeeklyMetricsDetailPageState
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          backgroundColor: context.taqaColors.background,
           appBar: TaqaPageAppBar(
             title: 'Training History',
-            backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+            backgroundColor: context.taqaColors.background,
             titleColor: TaqaUiColors.charcoal,
             leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
           ),
@@ -1377,10 +1377,10 @@ class _ExpertWeeklyMetricsDetailPageState
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          backgroundColor: context.taqaColors.background,
           appBar: TaqaPageAppBar(
             title: 'Cardio Sessions',
-            backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+            backgroundColor: context.taqaColors.background,
             titleColor: TaqaUiColors.charcoal,
             leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
           ),
@@ -2260,10 +2260,10 @@ class ClientWeeklyMetricDetailPage extends StatelessWidget {
     final top = max <= 0 ? 1.0 : max;
     final mid = top / 2;
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: title,
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         titleColor: TaqaUiColors.charcoal,
         leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
       ),

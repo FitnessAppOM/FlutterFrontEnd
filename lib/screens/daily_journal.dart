@@ -427,7 +427,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
               )
             : null,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: FutureBuilder<DailyJournalEntry?>(
         future: _future,
         builder: (context, snapshot) {

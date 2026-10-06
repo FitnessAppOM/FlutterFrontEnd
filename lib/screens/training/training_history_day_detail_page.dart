@@ -24,10 +24,10 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: dayLabel,
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         titleColor: TaqaUiColors.charcoal,
         leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
       ),
@@ -208,10 +208,10 @@ class TrainingHistoryExerciseSetPage extends StatelessWidget {
     final rows = _setRows();
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: title,
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         titleColor: TaqaUiColors.charcoal,
         leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
       ),

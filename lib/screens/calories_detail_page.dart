@@ -214,7 +214,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
     return Scaffold(
       appBar: TaqaPageAppBar(title: t("calories_title")),
       resizeToAvoidBottomInset: false,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: Padding(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(

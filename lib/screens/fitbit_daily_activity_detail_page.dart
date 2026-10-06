@@ -25,9 +25,9 @@ class FitbitDailyActivityDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("fitbit_daily_activity_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(

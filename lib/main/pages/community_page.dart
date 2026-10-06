@@ -958,10 +958,10 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final scaffold = Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate('community_discover_title'),
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
       ),
       body: SafeArea(
         top: false,
@@ -1478,9 +1478,9 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
     final t = AppLocalizations.of(context);
     final detail = _detail;
     final scaffold = Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: detail?.name ?? t.translate('community_title'),
         trailing: detail?.isAdmin == true
             ? IconButton(
@@ -1761,9 +1761,9 @@ class CommunityMyGroupsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: t.translate('community_your_groups'),
       ),
       body: SafeArea(
@@ -1828,10 +1828,10 @@ class CommunityGroupManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate('community_group_management_title'),
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
       ),
       body: SafeArea(
         top: false,
@@ -2122,9 +2122,9 @@ class _CommunityChallengesPageState extends State<CommunityChallengesPage> {
         ? t.translate('community_group_challenges')
         : t.translate('community_global_challenges');
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         title: widget.title,
       ),
       body: TaqaRefreshIndicator(
@@ -2274,10 +2274,10 @@ class _CommunityChallengeProgressPageState
         .clamp(0.0, 1.0)
         .toDouble();
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate('community_challenge_details'),
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
       ),
       body: TaqaRefreshIndicator(
         onRefresh: _load,
@@ -2508,9 +2508,9 @@ class _CommunityBadgesPageState extends State<CommunityBadgesPage> {
     final t = AppLocalizations.of(context);
     final items = _showEarnedOnly ? _earnedBadges : _allBadges;
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: t.translate('community_badges'),
       ),
       body: TaqaRefreshIndicator(
@@ -2800,9 +2800,9 @@ class _CommunityAdminReportsPageState extends State<CommunityAdminReportsPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: widget.title ?? t.translate('community_moderation_reports'),
       ),
       body: TaqaRefreshIndicator(
@@ -3959,9 +3959,9 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: t.translate('community_leaderboard'),
         trailing: widget.isAdmin
             ? TextButton(
@@ -4145,9 +4145,9 @@ class _CommunityPinnedItemsPageState extends State<CommunityPinnedItemsPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: t.translate('community_pinned_items'),
         trailing: widget.isAdmin
             ? IconButton(
@@ -4312,9 +4312,9 @@ class _CommunitySharedMetricsPageState
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: AppColors.appBackground,
+        backgroundColor: context.taqaColors.background,
         title: t.translate('community_shared_metrics'),
       ),
       body: SafeArea(

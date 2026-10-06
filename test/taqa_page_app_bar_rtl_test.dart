@@ -5,6 +5,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_back_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
+import 'package:taqaproject/theme/app_theme.dart';
 
 void main() {
   Future<void> pumpAppBar(
@@ -99,4 +100,31 @@ void main() {
       expect(icon.color, TaqaUiColors.charcoal);
     },
   );
+
+  testWidgets('semantic dark app bar replaces legacy charcoal navigation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
+            appBar: TaqaPageAppBar(
+              title: 'History',
+              backgroundColor: TaqaUiColors.charcoal,
+              titleColor: TaqaUiColors.charcoal,
+              leading: TaqaBackButton(color: TaqaUiColors.charcoal),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.arrow_back_ios_new));
+    final title = tester.widget<Text>(find.text('History'));
+    expect(icon.color, TaqaUiPalette.dark.textPrimary);
+    expect(title.style?.color, TaqaUiPalette.dark.textPrimary);
+  });
 }

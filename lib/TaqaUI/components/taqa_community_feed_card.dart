@@ -40,23 +40,26 @@ class TaqaCommunityFeedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final padding = TaqaUiScale.w(14);
     final gap = TaqaUiScale.w(6);
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final titleStyle = TaqaUiStyles.dailyOutlookTitle.copyWith(
       fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
       height: isArabic ? 1.45 : null,
+      color: colors.textPrimary,
     );
     final descriptionStyle = TaqaUiStyles.dailyOutlookDescription.copyWith(
       fontFamily: isArabic ? null : TaqaUiFontFamilies.interTight,
       height: isArabic ? 1.45 : null,
+      color: colors.textSecondary,
     );
 
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
@@ -151,12 +154,13 @@ class _TaqaFeedAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final size = TaqaUiScale.w(40);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: TaqaUiColors.lightGray,
+        color: colors.surfaceElevated,
         shape: BoxShape.circle,
         image: url != null
             ? DecorationImage(image: NetworkImage(url!), fit: BoxFit.cover)
@@ -166,7 +170,9 @@ class _TaqaFeedAvatar extends StatelessWidget {
       child: url == null
           ? Text(
               label.isNotEmpty ? label.substring(0, 1).toUpperCase() : '?',
-              style: TaqaUiStyles.dailyOutlookButton,
+              style: TaqaUiStyles.dailyOutlookButton.copyWith(
+                color: colors.textPrimary,
+              ),
             )
           : null,
     );
@@ -181,15 +187,17 @@ class _TaqaFeedPayloadChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final labelStyle = TaqaUiStyles.dailyOutlookTag.copyWith(
       fontFamily: isArabic ? null : TaqaUiFontFamilies.iaWriterMonoS,
       height: isArabic ? 1.45 : null,
+      color: colors.textSecondary,
     );
     return Container(
       padding: TaqaUiScale.insetsLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
-        color: TaqaUiColors.lightGray,
+        color: colors.surfaceElevated,
         borderRadius: TaqaUiScale.radius(10),
       ),
       child: RichText(
@@ -225,7 +233,8 @@ class _TaqaFeedActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const color = TaqaUiColors.charcoal;
+    final colors = context.taqaColors;
+    final color = accent ? colors.onAccent : colors.textPrimary;
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
 
     return Material(
@@ -236,7 +245,7 @@ class _TaqaFeedActionButton extends StatelessWidget {
         child: Container(
           padding: TaqaUiScale.insetsLTRB(12, 8, 12, 8),
           decoration: BoxDecoration(
-            color: accent ? TaqaUiColors.lime : TaqaUiColors.lightGray,
+            color: accent ? colors.accent : colors.surfaceElevated,
             borderRadius: TaqaUiScale.radius(999),
           ),
           child: Row(

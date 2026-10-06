@@ -187,7 +187,7 @@ class _VerifyResetCodePageState extends State<VerifyResetCodePage> {
     );
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(title: t.translate('verify_reset_code')),
       body: Column(
         children: [

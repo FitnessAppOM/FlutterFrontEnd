@@ -141,6 +141,7 @@ class _SlideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final indicatorCount = slideCount <= 0 ? 1 : slideCount;
     final safeActive = activeIndex % indicatorCount;
     final cardWidth = TaqaUiStyles.carouselCardWidth;
@@ -155,11 +156,16 @@ class _SlideCard extends StatelessWidget {
     final indicatorGap = TaqaUiScale.w(12);
     final titleBottomGap = TaqaUiScale.h(4);
     final descriptionBottomGap = TaqaUiScale.h(8);
-    final indicatorTop = TaqaUiStyles.carouselCardHeight - indicatorBottom - indicatorHeight;
+    final indicatorTop =
+        TaqaUiStyles.carouselCardHeight - indicatorBottom - indicatorHeight;
     final descriptionHeight = math.max(
       TaqaUiScale.h(36),
       indicatorTop - descriptionTop - descriptionBottomGap,
     );
+    final cardColor = colors.isDark
+        ? colors.surfaceElevated
+        : TaqaUiColors.charcoal;
+    final tintColor = Color.lerp(cardColor, slide.color, 0.14) ?? cardColor;
 
     return Material(
       color: Colors.transparent,
@@ -169,12 +175,13 @@ class _SlideCard extends StatelessWidget {
         onTap: slide.onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: TaqaUiColors.charcoal,
+            color: cardColor,
             borderRadius: TaqaUiStyles.carouselCardRadius,
-            gradient: const LinearGradient(
+            border: Border.all(color: colors.border),
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [TaqaUiColors.charcoal, TaqaUiColors.charcoal],
+              colors: [cardColor, tintColor],
             ),
           ),
           child: Stack(
@@ -208,7 +215,10 @@ class _SlideCard extends StatelessWidget {
               ),
               Positioned(
                 left: leftInset,
-                top: math.max(descriptionTop, titleTop + titleHeight + titleBottomGap),
+                top: math.max(
+                  descriptionTop,
+                  titleTop + titleHeight + titleBottomGap,
+                ),
                 width: math.min(
                   TaqaUiStyles.carouselContentWidth,
                   cardWidth - (leftInset * 2),
@@ -236,8 +246,8 @@ class _SlideCard extends StatelessWidget {
                         height: indicatorHeight,
                         decoration: BoxDecoration(
                           color: i == safeActive
-                              ? TaqaUiColors.lightGray
-                              : TaqaUiColors.graphite,
+                              ? colors.textPrimary
+                              : colors.textSecondary.withValues(alpha: 0.32),
                           borderRadius: BorderRadius.circular(999),
                         ),
                       ),

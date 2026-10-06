@@ -41,15 +41,14 @@ class TaqaCommunityReportCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +69,7 @@ class TaqaCommunityReportCard extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(9),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              color: colors.textSecondary,
             ),
           ),
           if (details != null && details!.trim().isNotEmpty) ...[
@@ -81,7 +80,7 @@ class TaqaCommunityReportCard extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(14),
                 height: 1.35,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.74),
+                color: colors.textSecondary,
               ),
             ),
           ],
@@ -111,12 +110,11 @@ class TaqaCommunityReportTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: emphasized
-            ? TaqaUiColors.accent
-            : TaqaUiColors.charcoal.withValues(alpha: 0.06),
+        color: emphasized ? colors.accent : colors.surfaceElevated,
         borderRadius: TaqaUiScale.radius(5),
       ),
       child: Text(
@@ -125,7 +123,7 @@ class TaqaCommunityReportTag extends StatelessWidget {
           fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
           fontSize: TaqaUiScale.sp(8),
           fontWeight: FontWeight.w700,
-          color: TaqaUiColors.charcoal,
+          color: emphasized ? colors.onAccent : colors.textPrimary,
         ),
       ),
     );
@@ -139,6 +137,7 @@ class _TaqaCommunityReportButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final radius = TaqaUiScale.radius(5);
     return Opacity(
       opacity: action.isEnabled ? 1 : 0.45,
@@ -152,11 +151,9 @@ class _TaqaCommunityReportButton extends StatelessWidget {
             padding: TaqaUiScale.symmetric(horizontal: 10),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: action.isPrimary
-                  ? TaqaUiColors.charcoal
-                  : TaqaUiColors.white,
+              color: action.isPrimary ? colors.surfaceInverse : colors.surface,
               borderRadius: radius,
-              border: Border.all(color: TaqaUiColors.charcoal, width: 0.5),
+              border: Border.all(color: colors.border, width: 0.5),
             ),
             child: Text(
               taqaUppercase(action.label),
@@ -165,8 +162,8 @@ class _TaqaCommunityReportButton extends StatelessWidget {
                 fontSize: TaqaUiScale.sp(8),
                 fontWeight: FontWeight.w700,
                 color: action.isPrimary
-                    ? TaqaUiColors.white
-                    : TaqaUiColors.charcoal,
+                    ? colors.textOnInverse
+                    : colors.textPrimary,
               ),
             ),
           ),

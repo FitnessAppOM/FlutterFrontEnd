@@ -25,6 +25,7 @@ class TaqaCommunityFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -33,10 +34,10 @@ class TaqaCommunityFilterChip extends StatelessWidget {
         child: Container(
           height: TaqaUiStyles.actionButtonHeight,
           decoration: BoxDecoration(
-            color: selected ? TaqaUiColors.accent : TaqaUiColors.white,
+            color: selected ? colors.accent : colors.surface,
             borderRadius: TaqaUiStyles.actionButtonRadius,
             border: selected
-                ? Border.all(color: TaqaUiColors.charcoal, width: 0.5)
+                ? Border.all(color: colors.onAccent, width: 0.5)
                 : null,
           ),
           child: Stack(
@@ -51,7 +52,9 @@ class TaqaCommunityFilterChip extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.communityFilterChipLabel,
+                  style: TaqaUiStyles.communityFilterChipLabel.copyWith(
+                    color: selected ? colors.onAccent : colors.textPrimary,
+                  ),
                 ),
               ),
               if (selected)
@@ -63,7 +66,7 @@ class TaqaCommunityFilterChip extends StatelessWidget {
                   child: Icon(
                     Icons.close,
                     size: TaqaUiScale.sp(8),
-                    color: TaqaUiColors.charcoal,
+                    color: colors.onAccent,
                   ),
                 ),
             ],

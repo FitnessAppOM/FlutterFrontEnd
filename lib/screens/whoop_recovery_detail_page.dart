@@ -129,12 +129,12 @@ class _WhoopRecoveryDetailPageState extends State<WhoopRecoveryDetailPage> {
     final hasData = metrics.recoveryScore != null;
 
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: AppLocalizations.of(context).translate("whoop_recovery_title"),
-        backgroundColor: AppColors.appBackground,
-        titleColor: TaqaUiColors.charcoal,
-        leading: const BackButton(color: TaqaUiColors.charcoal),
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
+        leading: BackButton(color: context.taqaColors.textPrimary),
       ),
       body: SafeArea(
         child: RefreshIndicator(

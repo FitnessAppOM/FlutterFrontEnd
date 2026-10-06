@@ -86,6 +86,7 @@ class _TaqaCommunityActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -96,7 +97,7 @@ class _TaqaCommunityActionButton extends StatelessWidget {
           height: height,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: TaqaUiColors.charcoal,
+            color: colors.surfaceInverse,
             borderRadius: TaqaUiStyles.actionButtonRadius,
           ),
           child: Text(
@@ -104,7 +105,9 @@ class _TaqaCommunityActionButton extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TaqaUiStyles.communityActionButtonLabel,
+            style: TaqaUiStyles.communityActionButtonLabel.copyWith(
+              color: colors.textOnInverse,
+            ),
           ),
         ),
       ),

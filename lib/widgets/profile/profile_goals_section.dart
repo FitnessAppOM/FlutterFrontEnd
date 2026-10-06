@@ -21,12 +21,13 @@ class ProfileGoalsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(

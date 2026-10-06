@@ -8,21 +8,20 @@ import '../taqa_ui_colors.dart';
 /// loading state across the app looks the same (same color/size), matching
 /// the spinner [TaqaRefreshIndicator] already uses for pull-to-refresh.
 class TaqaLoadingIndicator extends StatelessWidget {
-  const TaqaLoadingIndicator({
-    super.key,
-    this.size = 20,
-    this.color = TaqaUiColors.charcoal,
-  });
+  const TaqaLoadingIndicator({super.key, this.size = 20, this.color});
 
   final double size;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: TaqaUiScale.w(size),
       height: TaqaUiScale.h(size),
-      child: CircularProgressIndicator(strokeWidth: 2, color: color),
+      child: CircularProgressIndicator(
+        strokeWidth: 2,
+        color: color ?? context.taqaColors.textPrimary,
+      ),
     );
   }
 }

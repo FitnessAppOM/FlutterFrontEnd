@@ -198,9 +198,9 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
       resizeToAvoidBottomInset: false,
       appBar: TaqaPageAppBar(
         title: t("water_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: Padding(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Column(

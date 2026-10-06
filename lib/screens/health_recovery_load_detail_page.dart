@@ -28,10 +28,10 @@ class HealthRecoveryLoadDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("health_recovery_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(

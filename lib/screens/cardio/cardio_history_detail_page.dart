@@ -98,14 +98,14 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
     final snapshotUrl = _buildSnapshotUrl(route: route);
 
     return Scaffold(
-      backgroundColor: AppColors.appBackground,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: name,
-        backgroundColor: AppColors.appBackground,
-        titleColor: TaqaUiColors.charcoal,
-        leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
+        leading: TaqaBackButton(color: context.taqaColors.textPrimary),
         trailing: IconButton(
-          icon: const Icon(Icons.ios_share, color: TaqaUiColors.charcoal),
+          icon: Icon(Icons.ios_share, color: context.taqaColors.textPrimary),
           onPressed: () async {
             final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
             final sessionDate = _parseDate(entryDate);

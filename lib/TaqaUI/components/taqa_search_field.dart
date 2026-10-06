@@ -23,12 +23,13 @@ class TaqaSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       height: TaqaUiScale.h(39),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 0, 10, 0),
@@ -56,7 +57,7 @@ class TaqaSearchField extends StatelessWidget {
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(14),
           fontWeight: FontWeight.w500,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: colors.textPrimary,
         ),
         decoration: InputDecoration(
           isDense: true,
@@ -73,12 +74,12 @@ class TaqaSearchField extends StatelessWidget {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(14),
             fontWeight: FontWeight.w400,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+            color: colors.textSecondary,
           ),
           prefixIcon: Icon(
             Icons.search,
             size: TaqaUiScale.sp(18),
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+            color: colors.textSecondary,
           ),
           prefixIconConstraints: BoxConstraints(
             minWidth: TaqaUiScale.w(30),
@@ -98,9 +99,7 @@ class TaqaSearchField extends StatelessWidget {
                   icon: Icon(
                     Icons.close,
                     size: TaqaUiScale.sp(16),
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.5,
-                    ),
+                    color: colors.textSecondary,
                   ),
                   onPressed: () {
                     controller.clear();

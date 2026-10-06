@@ -23,6 +23,7 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final clampedProgress = progress.clamp(0.0, 1.0);
     final cardWidth = TaqaUiStyles.communityChallengeCardWidth;
     final cardHeight = TaqaUiStyles.communityChallengeCardHeight;
@@ -47,7 +48,7 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
           width: cardWidth,
           height: cardHeight,
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: TaqaUiStyles.communityHeroCardRadius,
           ),
           child: Stack(
@@ -60,7 +61,9 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
                   taqaUppercase(tag),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.dailyOutlookTag,
+                  style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
               Positioned(
@@ -71,7 +74,9 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.communityChallengeName,
+                  style: TaqaUiStyles.communityChallengeName.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
               Positioned(
@@ -83,7 +88,7 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
                   borderRadius: TaqaUiStyles.communityChallengeBarRadius,
                   child: Stack(
                     children: [
-                      Container(color: TaqaUiColors.lightGray),
+                      Container(color: colors.surfaceElevated),
                       FractionallySizedBox(
                         widthFactor: math.max(0.0, clampedProgress),
                         heightFactor: 1,
@@ -103,7 +108,9 @@ class TaqaCommunityChallengeCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.scoreCardValue,
+                  style: TaqaUiStyles.scoreCardValue.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
             ],

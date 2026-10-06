@@ -22,11 +22,12 @@ class TaqaEmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(minHeight: minHeight ?? TaqaUiScale.h(160)),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
@@ -38,23 +39,19 @@ class TaqaEmptyCard extends StatelessWidget {
           Container(
             width: TaqaUiScale.w(36),
             height: TaqaUiScale.h(36),
-            decoration: const BoxDecoration(
-              color: TaqaUiColors.unnamedColor1c1d17,
+            decoration: BoxDecoration(
+              color: colors.accent,
               shape: BoxShape.circle,
             ),
             child: loading
                 ? Padding(
                     padding: EdgeInsets.all(TaqaUiScale.w(10)),
-                    child: const CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: TaqaUiColors.unnamedColorE4e93b,
+                      color: colors.onAccent,
                     ),
                   )
-                : Icon(
-                    icon,
-                    color: TaqaUiColors.unnamedColorE4e93b,
-                    size: TaqaUiScale.w(18),
-                  ),
+                : Icon(icon, color: colors.onAccent, size: TaqaUiScale.w(18)),
           ),
           SizedBox(height: TaqaUiScale.h(14)),
           Padding(
@@ -66,7 +63,7 @@ class TaqaEmptyCard extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
                 letterSpacing: 0,
                 height: 1,
               ),
@@ -83,7 +80,7 @@ class TaqaEmptyCard extends StatelessWidget {
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                   fontSize: TaqaUiScale.sp(8),
                   fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                  color: colors.textSecondary,
                   letterSpacing: 0,
                   height: 10 / 8,
                 ),

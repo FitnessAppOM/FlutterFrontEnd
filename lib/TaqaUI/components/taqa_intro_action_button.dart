@@ -19,6 +19,7 @@ class TaqaIntroActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final resolvedWidth = width ?? TaqaUiStyles.actionButtonWidth;
     final resolvedHeight = height ?? TaqaUiStyles.actionButtonHeight;
     return ConstrainedBox(
@@ -33,10 +34,17 @@ class TaqaIntroActionButton extends StatelessWidget {
           borderRadius: TaqaUiStyles.actionButtonRadius,
           child: Ink(
             decoration: BoxDecoration(
-              color: TaqaUiColors.lime,
+              color: colors.accent,
               borderRadius: TaqaUiStyles.actionButtonRadius,
             ),
-            child: Center(child: Text(label, style: TaqaUiStyles.actionButton)),
+            child: Center(
+              child: Text(
+                label,
+                style: TaqaUiStyles.actionButton.copyWith(
+                  color: colors.onAccent,
+                ),
+              ),
+            ),
           ),
         ),
       ),

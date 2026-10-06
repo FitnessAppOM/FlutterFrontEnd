@@ -32,12 +32,16 @@ class TaqaOutlineTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    final resolvedTextStyle = (textStyle ?? TaqaUiStyles.streakTag).copyWith(
+      color: textStyle?.color ?? colors.textPrimary,
+    );
     final content = icon == null
         ? Text(
             taqaUppercase(label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: textStyle ?? TaqaUiStyles.streakTag,
+            style: resolvedTextStyle,
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
@@ -48,7 +52,7 @@ class TaqaOutlineTagButton extends StatelessWidget {
                 taqaUppercase(label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: textStyle ?? TaqaUiStyles.streakTag,
+                style: resolvedTextStyle,
               ),
             ],
           );
@@ -62,8 +66,13 @@ class TaqaOutlineTagButton extends StatelessWidget {
           height: height ?? TaqaUiStyles.streakTagHeight,
           alignment: Alignment.center,
           decoration: BoxDecoration(
+            color: colors.isDark ? colors.surfaceElevated : Colors.transparent,
             border: Border.all(
-              color: borderColor ?? TaqaUiColors.charcoal,
+              color:
+                  borderColor ??
+                  colors.textPrimary.withValues(
+                    alpha: colors.isDark ? 0.65 : 1,
+                  ),
               width: 0.5,
             ),
             borderRadius: TaqaUiStyles.streakTagRadius,

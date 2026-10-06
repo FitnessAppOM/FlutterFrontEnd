@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/dashboard/bar_trend.dart';
 import '../styles/taqa_ui_scale.dart';
+import '../taqa_ui_colors.dart';
 import 'taqa_pressable.dart';
 
 class TaqaDashboardTrendTile extends StatelessWidget {
@@ -35,9 +36,9 @@ class TaqaDashboardTrendTile extends StatelessWidget {
         : data.isEmpty
         ? Text(
             emptyLabel,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.white60),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.taqaColors.textSecondary,
+            ),
           )
         : BarTrend(title: title, data: data, accentColor: accentColor);
 

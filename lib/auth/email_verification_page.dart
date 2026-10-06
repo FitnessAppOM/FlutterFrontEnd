@@ -476,7 +476,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     );
 
     final page = Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: isStudentFlow
             ? t.translate('verify_student_status')

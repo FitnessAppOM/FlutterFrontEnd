@@ -53,7 +53,6 @@ import '../../screens/strava_detail_page.dart';
 import '../../screens/whoop_recovery_detail_page.dart';
 import '../../screens/whoop_cycle_detail_page.dart';
 import '../../screens/whoop_body_detail_page.dart';
-import '../../theme/app_theme.dart';
 import '../../core/account_storage.dart';
 import '../../services/auth/profile_service.dart';
 import '../../services/auth/profile_storage.dart';
@@ -4939,18 +4938,19 @@ class DashboardPageState extends State<DashboardPage>
     return showDialog<num>(
       context: context,
       builder: (ctx) {
+        final colors = ctx.taqaColors;
         return AlertDialog(
-          backgroundColor: AppColors.cardDark,
-          title: Text(title, style: const TextStyle(color: Colors.white)),
+          backgroundColor: colors.surface,
+          title: Text(title, style: TextStyle(color: colors.textPrimary)),
           content: TextField(
             controller: controller,
             keyboardType: allowDecimal
                 ? const TextInputType.numberWithOptions(decimal: true)
                 : TextInputType.number,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: colors.textPrimary),
             decoration: InputDecoration(
               labelText: label,
-              labelStyle: const TextStyle(color: Colors.white70),
+              labelStyle: TextStyle(color: colors.textSecondary),
             ),
           ),
           actions: [
@@ -5410,9 +5410,7 @@ class DashboardPageState extends State<DashboardPage>
         if (_loading)
           LinearProgressIndicator(
             color: TaqaUiColors.lime,
-            backgroundColor: TaqaUiColors.unnamedColor1c1d17.withValues(
-              alpha: 0.1,
-            ),
+            backgroundColor: context.taqaColors.border,
             minHeight: 2,
           ),
         if (noEntriesForSelectedDate)
@@ -6023,7 +6021,7 @@ class DashboardPageState extends State<DashboardPage>
                   Text(
                     t("dash_7day_trends"),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
+                      color: context.taqaColors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

@@ -21,6 +21,7 @@ import 'TaqaUI/styles/taqa_ui_text_scale_guard.dart';
 import 'TaqaUI/components/taqa_ios_update_banner.dart';
 import 'theme/app_theme.dart';
 import 'core/locale_controller.dart';
+import 'core/theme_controller.dart';
 import 'consents/consent_manager.dart';
 import 'services/core/notification_service.dart';
 import 'services/core/remote_push_service.dart';
@@ -99,6 +100,7 @@ Future<void> _bootstrap() async {
   await ExpertSelfieRecovery.recoverAtStartup();
   await AvatarPickerRecovery.recoverAtStartup();
   await localeController.loadSaved();
+  await themeController.loadSaved();
   await SystemChrome.setPreferredOrientations(const [
     DeviceOrientation.portraitUp,
   ]);
@@ -309,6 +311,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     localeController.addListener(_handleLocaleChange);
+    themeController.addListener(_handleThemeChange);
     _lifecycleListener.add(_handleLifecycle);
     AccountStorage.accountChange.addListener(_handleAccountChange);
     unawaited(_initializeOfflineServices());
@@ -319,6 +322,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _lifecycleListener.remove(_handleLifecycle);
     localeController.removeListener(_handleLocaleChange);
+    themeController.removeListener(_handleThemeChange);
     AccountStorage.accountChange.removeListener(_handleAccountChange);
     super.dispose();
   }
@@ -334,6 +338,10 @@ class _MyAppState extends State<MyApp> {
         languageCode: localeController.locale.languageCode,
       ),
     );
+  }
+
+  void _handleThemeChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _initializeOfflineServices() async {
@@ -466,12 +474,22 @@ class _MyAppState extends State<MyApp> {
           debugShowCheckedModeBanner: false,
           locale: localeController.locale,
           builder: (context, appChild) {
-            return TaqaUiTextScaleGuard(
-              child: Stack(
-                children: [
-                  appChild ?? const SizedBox.shrink(),
-                  const TaqaRequiredUpdateOverlay(),
-                ],
+            final dark = Theme.of(context).brightness == Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: dark
+                    ? Brightness.light
+                    : Brightness.dark,
+                statusBarBrightness: dark ? Brightness.dark : Brightness.light,
+              ),
+              child: TaqaUiTextScaleGuard(
+                child: Stack(
+                  children: [
+                    appChild ?? const SizedBox.shrink(),
+                    const TaqaRequiredUpdateOverlay(),
+                  ],
+                ),
               ),
             );
           },
@@ -482,7 +500,9 @@ class _MyAppState extends State<MyApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: const [Locale('en'), Locale('ar')],
-          theme: buildDarkTheme(),
+          theme: buildLightTheme(),
+          darkTheme: buildDarkTheme(),
+          themeMode: themeController.themeMode,
           navigatorKey: NavigationService.navigatorKey,
           initialRoute: initialRoute,
           routes: {

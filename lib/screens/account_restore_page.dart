@@ -399,10 +399,10 @@ class _AccountRestorePageState extends State<AccountRestorePage> {
     final isCodeStep = _step == _RestoreStep.code;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("account_restore_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         leading: isCodeStep
             ? TaqaBackButton(
                 onPressed: _requesting || _confirming

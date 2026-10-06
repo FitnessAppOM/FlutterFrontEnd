@@ -19,22 +19,21 @@ class ProfileActionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     return Column(
       children: [
         _ActionButton(
           label: t.translate("edit_profile"),
-          backgroundColor: editEnabled
-              ? TaqaUiColors.unnamedColorE4e93b
-              : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-          textColor: TaqaUiColors.unnamedColor1c1d17,
+          backgroundColor: editEnabled ? colors.accent : colors.surfaceElevated,
+          textColor: editEnabled ? colors.onAccent : colors.textSecondary,
           onTap: editEnabled ? onEditProfile : null,
         ),
         SizedBox(height: TaqaUiScale.h(15)),
         _ActionButton(
           label: t.translate("sign_out"),
-          backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-          textColor: TaqaUiColors.white,
+          backgroundColor: colors.surfaceInverse,
+          textColor: colors.textOnInverse,
           onTap: onLogout,
         ),
       ],

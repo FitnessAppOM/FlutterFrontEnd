@@ -366,10 +366,10 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("profile_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
       body: SafeArea(
         top: false,
@@ -384,9 +384,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             : t.translate("network_error"),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.6,
-                          ),
+                          color: context.taqaColors.textSecondary,
                         ),
                       ),
                     )
@@ -403,8 +401,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                               child: LinearProgressIndicator(
                                 color: TaqaUiColors.unnamedColorE4e93b,
-                                backgroundColor: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.1),
+                                backgroundColor: context.taqaColors.border,
                                 minHeight: 2,
                               ),
                             ),
@@ -471,7 +468,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: context.taqaColors.textPrimary,
                                 ),
                               ),
                             ),

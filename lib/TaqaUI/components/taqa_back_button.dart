@@ -27,12 +27,15 @@ class TaqaBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor =
-        color ??
-        IconTheme.of(context).color ??
-        (Theme.of(context).brightness == Brightness.dark
-            ? TaqaUiColors.white
-            : TaqaUiColors.charcoal);
+    final inheritedColor = IconTheme.of(context).color;
+    // Old call sites often passed charcoal/white explicitly. Those values were
+    // page-mode defaults rather than intentional accents, so let an enclosing
+    // app bar's contrast-aware IconTheme replace them.
+    final isLegacyModeColor =
+        color == TaqaUiColors.charcoal || color == TaqaUiColors.white;
+    final resolvedColor = isLegacyModeColor && inheritedColor != null
+        ? inheritedColor
+        : color ?? inheritedColor ?? context.taqaColors.textPrimary;
     final targetSize = TaqaUiScale.w(touchSize).clamp(48.0, 60.0);
     return SizedBox.square(
       dimension: targetSize,

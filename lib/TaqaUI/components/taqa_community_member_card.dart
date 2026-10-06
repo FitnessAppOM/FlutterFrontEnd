@@ -31,15 +31,14 @@ class TaqaCommunityMemberCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return Container(
       padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -47,7 +46,7 @@ class TaqaCommunityMemberCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: TaqaUiScale.r(18),
-                backgroundColor: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+                backgroundColor: colors.surfaceElevated,
                 backgroundImage: avatarUrl == null
                     ? null
                     : NetworkImage(avatarUrl!),
@@ -57,7 +56,7 @@ class TaqaCommunityMemberCard extends StatelessWidget {
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontWeight: FontWeight.w800,
-                          color: TaqaUiColors.charcoal,
+                          color: colors.textPrimary,
                         ),
                       )
                     : null,
@@ -73,7 +72,7 @@ class TaqaCommunityMemberCard extends StatelessWidget {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(16),
                         fontWeight: FontWeight.w800,
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(4)),
@@ -82,7 +81,7 @@ class TaqaCommunityMemberCard extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                         fontSize: TaqaUiScale.sp(8),
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
@@ -121,6 +120,7 @@ class _MemberActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -131,7 +131,7 @@ class _MemberActionButton extends StatelessWidget {
           padding: TaqaUiScale.symmetric(horizontal: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            border: Border.all(color: TaqaUiColors.charcoal, width: 0.5),
+            border: Border.all(color: colors.textPrimary, width: 0.5),
             borderRadius: TaqaUiScale.radius(5),
           ),
           child: Text(
@@ -140,7 +140,7 @@ class _MemberActionButton extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
             ),
           ),
         ),

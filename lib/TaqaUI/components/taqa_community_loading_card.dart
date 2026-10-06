@@ -15,17 +15,16 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final effectiveLabel =
         label ?? AppLocalizations.of(context).translate('community_loading');
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -35,7 +34,7 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
             height: TaqaUiScale.h(28),
             child: CircularProgressIndicator(
               strokeWidth: TaqaUiScale.w(2),
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(12)),
@@ -45,7 +44,7 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(9),
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.56),
+              color: colors.textSecondary,
             ),
           ),
         ],

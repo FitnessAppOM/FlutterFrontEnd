@@ -25,7 +25,7 @@ class TaqaTextField extends StatelessWidget {
     this.minLines,
     this.maxLines = 1,
     this.autofocus = false,
-    this.backgroundColor = TaqaUiColors.white,
+    this.backgroundColor,
   });
 
   final TextEditingController controller;
@@ -44,10 +44,11 @@ class TaqaTextField extends StatelessWidget {
   final int? minLines;
   final int? maxLines;
   final bool autofocus;
-  final Color backgroundColor;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -58,13 +59,13 @@ class TaqaTextField extends StatelessWidget {
             fontSize: TaqaUiScale.sp(8),
             fontWeight: FontWeight.w400,
             letterSpacing: 0.4,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            color: colors.textSecondary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(6)),
         Container(
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: backgroundColor ?? colors.surface,
             borderRadius: TaqaUiScale.radius(10),
           ),
           padding: TaqaUiScale.insetsLTRB(14, 2, 10, 2),
@@ -86,7 +87,7 @@ class TaqaTextField extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(14),
               fontWeight: FontWeight.w500,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
             decoration: InputDecoration(
               isDense: true,
@@ -108,7 +109,7 @@ class TaqaTextField extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(14),
                 fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+                color: colors.textSecondary,
               ),
             ),
           ),

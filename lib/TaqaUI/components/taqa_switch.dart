@@ -23,6 +23,7 @@ class TaqaSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final trackWidth = width ?? TaqaUiScale.w(38);
     final trackHeight = height ?? TaqaUiScale.h(20);
     final thumbInset = TaqaUiScale.w(2);
@@ -36,9 +37,7 @@ class TaqaSwitch extends StatelessWidget {
         height: trackHeight,
         padding: EdgeInsets.all(thumbInset),
         decoration: BoxDecoration(
-          color: value
-              ? TaqaUiColors.lime
-              : TaqaUiColors.charcoal.withValues(alpha: 0.18),
+          color: value ? colors.accent : colors.border,
           borderRadius: BorderRadius.circular(trackHeight),
         ),
         child: AnimatedAlign(
@@ -49,7 +48,7 @@ class TaqaSwitch extends StatelessWidget {
             aspectRatio: 1,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.textOnInverse,
                 shape: BoxShape.circle,
               ),
             ),

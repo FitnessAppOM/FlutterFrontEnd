@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../core/locale_controller.dart';
+import '../core/theme_controller.dart';
 import 'ForgetPassword/forgot_password_page.dart';
 import '../services/auth/profile_service.dart';
 import '../core/account_storage.dart';
@@ -1782,12 +1783,13 @@ class _SettingsPageState extends State<SettingsPage>
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("settings"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: colors.background,
       ),
       body: SafeArea(
         top: false,
@@ -1816,6 +1818,27 @@ class _SettingsPageState extends State<SettingsPage>
                           onTap: () => _changeLanguage(const Locale('ar')),
                         ),
                       ),
+                    ],
+                  ),
+                  SizedBox(height: TaqaUiScale.h(24)),
+                  _sectionTitle(t.translate('settings_appearance')),
+                  SizedBox(height: TaqaUiScale.h(12)),
+                  Row(
+                    children: [
+                      for (final preference in TaqaThemePreference.values) ...[
+                        Expanded(
+                          child: TaqaRangeTab(
+                            label: t.translate(
+                              'settings_theme_${preference.name}',
+                            ),
+                            selected: themeController.preference == preference,
+                            onTap: () =>
+                                themeController.setPreference(preference),
+                          ),
+                        ),
+                        if (preference != TaqaThemePreference.dark)
+                          SizedBox(width: TaqaUiScale.w(8)),
+                      ],
                     ],
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
@@ -2139,7 +2162,7 @@ class _SettingsPageState extends State<SettingsPage>
         fontWeight: FontWeight.w700,
         height: 25 / 15,
         letterSpacing: 0,
-        color: TaqaUiColors.unnamedColor1c1d17,
+        color: context.taqaColors.textPrimary,
       ),
     );
   }
@@ -2162,17 +2185,16 @@ class _SettingsTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
       child: TaqaPressable(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: TaqaUiScale.radius(15),
-            border: Border.all(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-            ),
+            border: Border.all(color: colors.border),
           ),
           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
           child: Stack(
@@ -2192,7 +2214,7 @@ class _SettingsTile extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                         height: 25 / 15,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),
@@ -2205,9 +2227,7 @@ class _SettingsTile extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       height: 18 / 13,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
+                      color: colors.textSecondary,
                     ),
                   ),
                   if (footer != null) ...[
@@ -2240,10 +2260,11 @@ class _RenewalControl extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.insetsLTRB(12, 9, 12, 9),
       decoration: BoxDecoration(
-        color: TaqaUiColors.unnamedColorE3e3e3.withValues(alpha: 0.55),
+        color: colors.surfaceElevated,
         borderRadius: TaqaUiScale.radius(12),
       ),
       child: Row(
@@ -2258,7 +2279,7 @@ class _RenewalControl extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(13),
                     fontWeight: FontWeight.w600,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(2)),
@@ -2268,9 +2289,7 @@ class _RenewalControl extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(11),
                     fontWeight: FontWeight.w400,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.6,
-                    ),
+                    color: colors.textSecondary,
                   ),
                 ),
               ],

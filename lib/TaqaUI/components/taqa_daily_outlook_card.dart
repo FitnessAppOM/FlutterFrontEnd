@@ -40,6 +40,7 @@ class DailyOutlookCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final outlook = status?.outlook;
     final generated = status?.generated == true && outlook != null;
     final tagText = generated && outlook.readinessState.trim().isNotEmpty
@@ -97,7 +98,7 @@ class DailyOutlookCard extends StatelessWidget {
             height: cardHeight,
             child: Container(
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiStyles.dailyOutlookCardRadius,
               ),
               child: Stack(
@@ -113,7 +114,9 @@ class DailyOutlookCard extends StatelessWidget {
                         taqaUppercase(tagText),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TaqaUiStyles.dailyOutlookTag,
+                        style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                          color: colors.textSecondary,
+                        ),
                       ),
                     ),
                   ),
@@ -123,9 +126,9 @@ class DailyOutlookCard extends StatelessWidget {
                       top: TaqaUiScale.h(6) * layoutScale,
                       width: TaqaUiScale.w(16) * layoutScale,
                       height: TaqaUiScale.h(16) * layoutScale,
-                      child: const CircularProgressIndicator(
+                      child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                   Positioned(
@@ -137,7 +140,9 @@ class DailyOutlookCard extends StatelessWidget {
                       headlineText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.dailyOutlookTitle,
+                      style: TaqaUiStyles.dailyOutlookTitle.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -152,7 +157,9 @@ class DailyOutlookCard extends StatelessWidget {
                       summaryText,
                       maxLines: 4,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.dailyOutlookDescription,
+                      style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                   Positioned(
@@ -202,6 +209,7 @@ class _DailyOutlookActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return SizedBox(
       width: double.infinity,
       height: height ?? TaqaUiStyles.actionButtonHeight,
@@ -213,14 +221,16 @@ class _DailyOutlookActionButton extends StatelessWidget {
           child: Ink(
             decoration: BoxDecoration(
               color: onTap == null
-                  ? TaqaUiColors.lime.withValues(alpha: 0.6)
-                  : TaqaUiColors.lime,
+                  ? colors.accent.withValues(alpha: 0.6)
+                  : colors.accent,
               borderRadius: TaqaUiStyles.actionButtonRadius,
             ),
             child: Center(
               child: Text(
                 taqaUppercase(label),
-                style: TaqaUiStyles.dailyOutlookButton,
+                style: TaqaUiStyles.dailyOutlookButton.copyWith(
+                  color: colors.onAccent,
+                ),
                 textAlign: TextAlign.center,
               ),
             ),

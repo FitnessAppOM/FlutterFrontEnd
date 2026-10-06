@@ -25,14 +25,15 @@ class TaqaSelectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Card(
-      color: TaqaUiColors.white,
+      color: colors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: TaqaUiScale.radius(15),
         // Keeps the card visible even on screens whose background is also
         // white (e.g. the expert questionnaire), matching the grey-page look.
-        side: BorderSide(color: TaqaUiColors.border),
+        side: BorderSide(color: colors.border),
       ),
       child: Padding(
         padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
@@ -46,7 +47,7 @@ class TaqaSelectionCard extends StatelessWidget {
                     label,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -55,7 +56,7 @@ class TaqaSelectionCard extends StatelessWidget {
                     value,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],
@@ -64,12 +65,12 @@ class TaqaSelectionCard extends StatelessWidget {
             OutlinedButton(
               onPressed: onTap,
               style: OutlinedButton.styleFrom(
-                foregroundColor: TaqaUiColors.charcoal,
+                foregroundColor: colors.textPrimary,
                 // Without this, a disabled onTap (e.g. "Set" while nothing
                 // is selectable yet) falls back to Material's default grey
                 // instead of staying on-brand.
-                disabledForegroundColor: TaqaUiColors.charcoal,
-                side: const BorderSide(color: TaqaUiColors.charcoal),
+                disabledForegroundColor: colors.textSecondary,
+                side: BorderSide(color: colors.textPrimary),
               ),
               child: Text(buttonLabel),
             ),

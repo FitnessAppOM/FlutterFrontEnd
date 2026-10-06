@@ -494,7 +494,7 @@ class _CoachPageState extends State<CoachPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(TaqaUiScale.r(24)),
@@ -799,7 +799,7 @@ class _CoachPageState extends State<CoachPage> {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => Scaffold(
-          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          backgroundColor: context.taqaColors.background,
           appBar: TaqaPageAppBar(title: chatTitle),
           body: SafeArea(
             child: CoachChatPanel(
@@ -816,7 +816,7 @@ class _CoachPageState extends State<CoachPage> {
     final t = AppLocalizations.of(context);
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate('coach_client_dashboard_title'),
         showBackButton: false,

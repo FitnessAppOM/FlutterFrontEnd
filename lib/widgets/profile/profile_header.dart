@@ -27,6 +27,7 @@ class ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final ImageProvider? avatarImage = _resolveAvatarImage();
 
     return Row(
@@ -61,7 +62,7 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   height: 25 / 25,
                   letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.textPrimary,
                 ),
               ),
               if (occupation != null && occupation!.trim().isNotEmpty) ...[
@@ -76,7 +77,7 @@ class ProfileHeader extends StatelessWidget {
                     fontWeight: FontWeight.w400,
                     height: 18 / 15,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
@@ -96,10 +97,7 @@ class ProfileHeader extends StatelessWidget {
             padding: TaqaUiScale.symmetric(horizontal: 10),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              border: Border.all(
-                color: TaqaUiColors.unnamedColor1c1d17,
-                width: 0.5,
-              ),
+              border: Border.all(color: colors.textPrimary, width: 0.5),
               borderRadius: TaqaUiScale.radius(5),
             ),
             child: Text(
@@ -110,7 +108,7 @@ class ProfileHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 height: 12 / 10,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
               ),
             ),
           ),

@@ -1179,10 +1179,10 @@ class _TrainingHistoryPageState extends State<TrainingHistoryPage> {
     final t = AppLocalizations.of(context);
     final groupedEntries = _groupEntriesByPlan(_entries);
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("training_history_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
       body: Column(
         children: [

@@ -20,23 +20,16 @@ class TaqaRangeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         height: TaqaUiScale.h(45),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected
-              ? TaqaUiColors.unnamedColorE4e93b
-              : TaqaUiColors.white,
+          color: selected ? colors.accent : colors.surface,
           borderRadius: TaqaUiScale.radius(5),
-          border: selected
-              ? null
-              : Border.all(
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.12,
-                  ),
-                ),
+          border: selected ? null : Border.all(color: colors.border),
         ),
         child: Text(
           taqaUppercase(label),
@@ -47,7 +40,7 @@ class TaqaRangeTab extends StatelessWidget {
             fontWeight: FontWeight.w600,
             height: 12 / 10,
             letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: selected ? colors.onAccent : colors.textPrimary,
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'taqa_progress_widget_card.dart';
 import '../styles/taqa_ui_scale.dart';
+import '../taqa_ui_colors.dart';
 
 enum TaqaDashboardMetricSource { fitbit, whoop, strava }
 
@@ -54,7 +55,7 @@ class TaqaDashboardMetricCard extends StatelessWidget {
               width: TaqaUiScale.w(14),
               height: TaqaUiScale.h(14),
               fit: BoxFit.contain,
-              color: Colors.black,
+              color: context.taqaColors.textPrimary,
               colorBlendMode: BlendMode.srcIn,
             )
           : (showArrow ? null : const SizedBox.shrink()),

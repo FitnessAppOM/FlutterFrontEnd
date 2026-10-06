@@ -208,7 +208,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         !loading && pwCtrl.text.isNotEmpty && retypeCtrl.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(title: t.translate('reset_password')),
       body: Column(
         children: [

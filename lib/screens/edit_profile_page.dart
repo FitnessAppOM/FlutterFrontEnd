@@ -700,10 +700,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return PopScope(
       canPop: !_saving,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         appBar: TaqaPageAppBar(
           title: t.translate("edit_profile"),
-          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          backgroundColor: context.taqaColors.background,
           titleColor: TaqaUiColors.charcoal,
           showBackButton: !_saving,
           leading: _saving ? null : const TaqaBackButton(),
@@ -1247,10 +1247,10 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("affiliation"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),

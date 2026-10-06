@@ -43,9 +43,9 @@ class FitbitSleepDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("fitbit_sleep_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(
@@ -68,7 +68,9 @@ class FitbitSleepDetailPage extends StatelessWidget {
                       Expanded(
                         child: TaqaProgressWidgetCard(
                           title: t("sleep_total_sleep_title"),
-                          valueText: asleep == null ? "--" : _fmtMinutes(asleep),
+                          valueText: asleep == null
+                              ? "--"
+                              : _fmtMinutes(asleep),
                           goalText: goal == null
                               ? "--"
                               : t(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/taqa_ui_colors.dart';
+
 class CardContainer extends StatelessWidget {
   final Widget child;
 
@@ -7,13 +9,14 @@ class CardContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: colors.surface,
         borderRadius: BorderRadius.circular(18),
         // Match the subtle gold edge treatment used across other widgets.
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(color: colors.border),
       ),
       child: child,
     );

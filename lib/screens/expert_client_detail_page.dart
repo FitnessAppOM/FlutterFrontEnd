@@ -2289,9 +2289,9 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
             animation: tabController,
             builder: (context, _) {
               return Scaffold(
-                backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+                backgroundColor: context.taqaColors.background,
                 appBar: TaqaPageAppBar(
-                  backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+                  backgroundColor: context.taqaColors.background,
                   titleColor: TaqaUiColors.unnamedColor1c1d17,
                   title: 'AI Updates',
                 ),

@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/train_page.dart';
 import 'pages/diet_page.dart';
@@ -338,7 +338,7 @@ class _MainLayoutState extends State<MainLayout> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: isDarkPage
           ? const Color(0xFF121212)
-          : AppColors.appBackground,
+          : context.taqaColors.background,
       body: IndexedStack(
         index: _index,
         children: List.generate(5, (i) => _pages[i] ?? const SizedBox.shrink()),

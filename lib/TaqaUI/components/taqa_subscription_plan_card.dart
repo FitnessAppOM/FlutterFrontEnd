@@ -35,12 +35,11 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = selected
-        ? TaqaUiColors.accent
-        : TaqaUiColors.charcoal.withValues(alpha: 0.12);
+    final colors = context.taqaColors;
+    final borderColor = selected ? colors.accent : colors.border;
 
     return Material(
-      color: TaqaUiColors.white,
+      color: colors.surface,
       borderRadius: TaqaUiScale.radius(15),
       child: InkWell(
         onTap: onTap,
@@ -64,7 +63,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                         margin: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
                         padding: TaqaUiScale.insetsLTRB(7, 3, 7, 3),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.accent,
+                          color: colors.accent,
                           borderRadius: TaqaUiScale.radius(5),
                         ),
                         child: Text(
@@ -73,7 +72,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                             fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                             fontSize: TaqaUiScale.sp(8),
                             fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.charcoal,
+                            color: colors.onAccent,
                           ),
                         ),
                       ),
@@ -84,7 +83,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                         fontSize: TaqaUiScale.sp(17),
                         fontWeight: FontWeight.w700,
                         height: 21 / 17,
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(5)),
@@ -95,7 +94,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                         fontSize: TaqaUiScale.sp(12),
                         fontWeight: FontWeight.w400,
                         height: 16 / 12,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                        color: colors.textSecondary,
                       ),
                     ),
                     if (locked && lockedLabel != null) ...[
@@ -105,7 +104,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                           Icon(
                             Icons.lock_outline_rounded,
                             size: TaqaUiScale.w(13),
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                           ),
                           SizedBox(width: TaqaUiScale.w(5)),
                           Expanded(
@@ -115,7 +114,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(10),
                                 fontWeight: FontWeight.w700,
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                               ),
                             ),
                           ),
@@ -130,7 +129,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(11),
                           fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.charcoal,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ],
@@ -147,7 +146,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                       child: Icon(
                         Icons.check_circle,
                         size: TaqaUiScale.w(18),
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                   Text(
@@ -157,7 +156,7 @@ class TaqaSubscriptionPlanCard extends StatelessWidget {
                       fontSize: TaqaUiScale.sp(28),
                       fontWeight: FontWeight.w700,
                       height: 1,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ],

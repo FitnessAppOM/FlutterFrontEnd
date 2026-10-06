@@ -49,11 +49,11 @@ class ExpertClientChatPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final canPop = Navigator.of(context).canPop();
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: 'Support Chat',
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        titleColor: TaqaUiColors.charcoal,
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
         leading: IconButton(
           onPressed: () => _handleBackPressed(context),
           icon: Icon(

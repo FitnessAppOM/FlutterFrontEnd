@@ -188,7 +188,7 @@ class _CoachApplicationStatusPageState
     return PopScope(
       canPop: widget.allowClose,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         appBar: TaqaPageAppBar(
           title: 'Coach application',
           showBackButton: false,
@@ -430,7 +430,7 @@ class _CoachModuleGateState extends State<CoachModuleGate> {
         : Icons.workspace_premium_rounded;
 
     return ColoredBox(
-      color: TaqaUiColors.unnamedColorE3e3e3,
+      color: context.taqaColors.background,
       child: SafeArea(
         child: Center(
           child: SingleChildScrollView(

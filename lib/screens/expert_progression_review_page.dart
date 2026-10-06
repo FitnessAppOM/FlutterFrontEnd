@@ -359,10 +359,10 @@ class _ExpertProgressionReviewPageState
         review.items.any((item) => item.isApprovedLike);
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
         title: 'AI Updates',
       ),
       body: _loading

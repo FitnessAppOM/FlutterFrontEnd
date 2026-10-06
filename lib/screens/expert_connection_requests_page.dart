@@ -240,10 +240,10 @@ class _ExpertConnectionRequestsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        backgroundColor: context.taqaColors.background,
+        titleColor: context.taqaColors.textPrimary,
         title: 'Inbox',
         trailing: Padding(
           padding: EdgeInsets.only(right: TaqaUiScale.w(9)),

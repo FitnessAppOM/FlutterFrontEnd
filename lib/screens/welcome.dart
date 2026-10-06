@@ -451,7 +451,7 @@ class _WelcomePageState extends State<WelcomePage> {
         : (lastEmail?.split('@').first.trim() ?? '');
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: SafeArea(
         child: Padding(
           padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),

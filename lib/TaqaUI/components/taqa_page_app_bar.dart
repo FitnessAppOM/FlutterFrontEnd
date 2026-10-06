@@ -9,20 +9,20 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
   const TaqaPageAppBar({
     super.key,
     required this.title,
-    this.backgroundColor = TaqaUiColors.unnamedColorE3e3e3,
+    this.backgroundColor,
     this.leading,
     this.trailing,
     this.showBackButton = true,
     this.bottom,
-    this.titleColor = TaqaUiColors.unnamedColor1c1d17,
+    this.titleColor,
   });
 
   final String title;
-  final Color backgroundColor;
+  final Color? backgroundColor;
   final Widget? leading;
   final Widget? trailing;
   final bool showBackButton;
-  final Color titleColor;
+  final Color? titleColor;
 
   /// Optional extra row (e.g. a [TabBar]) rendered below the title, inside
   /// the same app bar surface. Adds its preferred height on top of the
@@ -38,14 +38,25 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    // Treat the former default literal as the semantic page background so
+    // legacy callers become theme-aware without a flag-day migration.
+    final usesSemanticBackground =
+        backgroundColor == null ||
+        backgroundColor == TaqaUiColors.lightGray ||
+        backgroundColor == colors.background;
+    final resolvedBackground = usesSemanticBackground
+        ? colors.background
+        : backgroundColor!;
     final navigationColor =
-        ThemeData.estimateBrightnessForColor(backgroundColor) == Brightness.dark
+        ThemeData.estimateBrightnessForColor(resolvedBackground) ==
+            Brightness.dark
         ? TaqaUiColors.white
         : TaqaUiColors.charcoal;
     return AppBar(
       automaticallyImplyLeading: false,
       toolbarHeight: TaqaUiScale.h(_height),
-      backgroundColor: backgroundColor,
+      backgroundColor: resolvedBackground,
       surfaceTintColor: Colors.transparent,
       shadowColor: Colors.transparent,
       elevation: 0,
@@ -85,7 +96,13 @@ class TaqaPageAppBar extends StatelessWidget implements PreferredSizeWidget {
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: titleColor,
+                      color:
+                          titleColor == null ||
+                              (usesSemanticBackground &&
+                                  (titleColor == TaqaUiColors.charcoal ||
+                                      titleColor == TaqaUiColors.white))
+                          ? navigationColor
+                          : titleColor,
                     ),
                   ),
                 ),

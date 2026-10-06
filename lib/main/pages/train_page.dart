@@ -235,6 +235,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final live = widget.readLiveState();
     final isDisabled = widget.readDisabledState();
     final dayNote = widget.readDayNoteState();
@@ -255,9 +256,9 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
       child: Scaffold(
         appBar: TaqaPageAppBar(
           title: widget.dayLabel,
-          backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+          backgroundColor: context.taqaColors.background,
         ),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         body: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           // Include the bottom safe-area inset so the START WORKOUT button
@@ -277,15 +278,13 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
-                  ),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.timer, color: Color(0xFF1C1D17), size: 20),
+                    Icon(Icons.timer, color: colors.textPrimary, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -297,16 +296,16 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.textSecondary,
                             ),
                           ),
                           Text(
                             live.workoutTimeText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.textPrimary,
                             ),
                           ),
                         ],
@@ -335,11 +334,9 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
-                  ),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Row(
                   children: [
@@ -347,7 +344,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       live.restActive
                           ? Icons.hourglass_bottom
                           : Icons.timer_outlined,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                       size: 20,
                     ),
                     const SizedBox(width: 10),
@@ -361,16 +358,16 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.textSecondary,
                             ),
                           ),
                           Text(
                             live.restTimeText,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.textPrimary,
                             ),
                           ),
                         ],
@@ -380,8 +377,8 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       OutlinedButton(
                         onPressed: widget.onSkipRest,
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-                          side: const BorderSide(color: Color(0x4D1C1D17)),
+                          foregroundColor: colors.textPrimary,
+                          side: BorderSide(color: colors.border),
                         ),
                         child: Text(t.translate("training_skip")),
                       )
@@ -389,13 +386,13 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       IconButton(
                         onPressed: widget.onSetCustomRest,
                         tooltip: t.translate("training_custom_rest"),
-                        icon: const Icon(Icons.tune, color: Color(0xFF1C1D17)),
+                        icon: Icon(Icons.tune, color: colors.textPrimary),
                       ),
                       ElevatedButton(
                         onPressed: widget.onStartRest,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: TaqaUiColors.white,
-                          foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+                          backgroundColor: colors.surfaceElevated,
+                          foregroundColor: colors.textPrimary,
                         ),
                         child: Text(t.translate("training_start")),
                       ),
@@ -421,17 +418,19 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                         decoration: BoxDecoration(
                           color: active
                               ? const Color(0xFFE4E93B)
-                              : Colors.white,
+                              : colors.surface,
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0x4D1C1D17)),
+                          border: Border.all(color: colors.border),
                         ),
                         child: Text(
                           "${s}s",
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: active
+                                ? colors.onAccent
+                                : colors.textPrimary,
                           ),
                         ),
                       ),
@@ -447,7 +446,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                 child: Text(
                   dayNote,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TaqaUiColors.unnamedColor1c1d17.withOpacity(0.6),
+                    color: colors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -458,7 +457,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                 child: Text(
                   AppLocalizations.of(context).translate("rest_day"),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -577,7 +576,7 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                     fontWeight: FontWeight.w600,
                     height: 12 / 10,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.onAccent,
                   ),
                 ),
               ),
@@ -2293,25 +2292,40 @@ class _WorkoutLauncherExerciseCardState
   Widget _tableHeader() {
     final t = AppLocalizations.of(context);
     if (_isTimerBased) {
-      return Row(
-        children: [
-          Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
-          Expanded(flex: 5, child: _HeaderText(t.translate("training_time"))),
-          Expanded(flex: 2, child: _HeaderText(t.translate("training_done"))),
-          SizedBox(width: TaqaUiScale.w(26)),
-        ],
+      return Padding(
+        padding: TaqaUiScale.symmetric(horizontal: 6),
+        child: Row(
+          children: [
+            Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
+            Expanded(flex: 5, child: _HeaderText(t.translate("training_time"))),
+            Expanded(
+              flex: 2,
+              child: Center(child: _HeaderText(t.translate("training_done"))),
+            ),
+            SizedBox(width: TaqaUiScale.w(44)),
+          ],
+        ),
       );
     }
-    return Row(
-      children: [
-        Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
-        Expanded(flex: 3, child: _HeaderText(t.translate("training_previous"))),
-        Expanded(flex: 2, child: _HeaderText(t.translate("training_kg"))),
-        Expanded(flex: 2, child: _HeaderText(t.translate("training_reps"))),
-        const Expanded(flex: 2, child: _HeaderText("RIR")),
-        Expanded(flex: 2, child: _HeaderText(t.translate("training_done"))),
-        SizedBox(width: TaqaUiScale.w(26)),
-      ],
+    return Padding(
+      padding: TaqaUiScale.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: _HeaderText(t.translate("training_set"))),
+          Expanded(
+            flex: 3,
+            child: _HeaderText(t.translate("training_previous")),
+          ),
+          Expanded(flex: 2, child: _HeaderText(t.translate("training_kg"))),
+          Expanded(flex: 2, child: _HeaderText(t.translate("training_reps"))),
+          const Expanded(flex: 2, child: _HeaderText("RIR")),
+          Expanded(
+            flex: 2,
+            child: Center(child: _HeaderText(t.translate("training_done"))),
+          ),
+          SizedBox(width: TaqaUiScale.w(44)),
+        ],
+      ),
     );
   }
 
@@ -2495,15 +2509,14 @@ class _WorkoutFloatingTimerBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 170, maxWidth: 220),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
-          ),
+          border: Border.all(color: colors.border),
           boxShadow: const [
             BoxShadow(
               color: Color(0x33000000),
@@ -2517,7 +2530,7 @@ class _WorkoutFloatingTimerBar extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.timer, color: Color(0xFF1C1D17), size: 20),
+              Icon(Icons.timer, color: colors.textPrimary, size: 20),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -2530,17 +2543,17 @@ class _WorkoutFloatingTimerBar extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textSecondary,
                     ),
                   ),
                   Text(
                     timeText,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ],
@@ -4441,6 +4454,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
 
   Widget _buildResumeWorkoutBanner() {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final startedAt = _parseDateTime(_resumableSession?['started_at']);
     final elapsed = startedAt == null
         ? null
@@ -4450,19 +4464,13 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF1C1D17).withValues(alpha: 0.14),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.play_circle_fill,
-            color: Color(0xFF1C1D17),
-            size: 22,
-          ),
+          Icon(Icons.play_circle_fill, color: colors.textPrimary, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -4474,7 +4482,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
                 Text(
@@ -4487,9 +4495,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.6,
-                    ),
+                    color: colors.textSecondary,
                   ),
                 ),
               ],
@@ -4499,9 +4505,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             onPressed: _discardingResumableSession
                 ? null
                 : () => unawaited(_discardResumableSession()),
-            style: TextButton.styleFrom(
-              foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-            ),
+            style: TextButton.styleFrom(foregroundColor: colors.textPrimary),
             child: _discardingResumableSession
                 ? const SizedBox(
                     width: 16,
@@ -5383,6 +5387,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     if (loading && program == null) {
       return _buildLoadingSkeleton(context);
@@ -5392,7 +5397,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       return Center(
         child: Text(
           t.translate("no_active_training_program"),
-          style: const TextStyle(color: TaqaUiColors.unnamedColor1c1d17),
+          style: TextStyle(color: colors.textPrimary),
         ),
       );
     }
@@ -5446,7 +5451,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
       return Center(
         child: Text(
           t.translate("no_active_training_program"),
-          style: const TextStyle(color: TaqaUiColors.unnamedColor1c1d17),
+          style: TextStyle(color: colors.textPrimary),
         ),
       );
     }
@@ -5456,7 +5461,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     return Container(
-      color: TaqaUiColors.unnamedColorE3e3e3,
+      color: context.taqaColors.background,
       child: SafeArea(
         child: Stack(
           children: [
@@ -5481,9 +5486,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                           ),
                           child: Text(
                             t.translate("training_account_deactivated"),
-                            style: const TextStyle(
-                              color: TaqaUiColors.unnamedColor1c1d17,
-                            ),
+                            style: TextStyle(color: colors.textPrimary),
                           ),
                         ),
                       if (_resumableSession != null)
@@ -5532,7 +5535,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                       fontWeight: FontWeight.w700,
                                       height: 1,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -5570,7 +5573,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                 fontWeight: FontWeight.w400,
                                 height: 18 / 15,
                                 letterSpacing: 0,
-                                color: TaqaUiColors.unnamedColor1c1d17,
+                                color: colors.textSecondary,
                               ),
                             ),
                             SizedBox(height: TaqaUiScale.h(30)),
@@ -5666,11 +5669,10 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                         10,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: colors.surface,
                                         borderRadius: TaqaUiScale.radius(15),
                                         border: Border.all(
-                                          color: TaqaUiColors.unnamedColor1c1d17
-                                              .withOpacity(0.1),
+                                          color: colors.border,
                                           width: 1.0,
                                         ),
                                       ),
@@ -5693,8 +5695,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                                     fontWeight: FontWeight.w700,
                                                     height: 25 / 15,
                                                     letterSpacing: 0,
-                                                    color: TaqaUiColors
-                                                        .unnamedColor1c1d17,
+                                                    color: colors.textPrimary,
                                                   ),
                                                 ),
                                                 SizedBox(
@@ -5715,8 +5716,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                                     fontWeight: FontWeight.w400,
                                                     height: 21 / 15,
                                                     letterSpacing: 0,
-                                                    color: TaqaUiColors
-                                                        .unnamedColor1c1d17,
+                                                    color: colors.textSecondary,
                                                   ),
                                                 ),
                                                 if (dayNote != null &&
@@ -5732,11 +5732,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                                           .textTheme
                                                           .bodySmall
                                                           ?.copyWith(
-                                                            color: TaqaUiColors
-                                                                .unnamedColor1c1d17
-                                                                .withOpacity(
-                                                                  0.6,
-                                                                ),
+                                                            color: colors
+                                                                .textSecondary,
                                                             fontWeight:
                                                                 FontWeight.w600,
                                                           ),
@@ -5759,9 +5756,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                           Icon(
                                             Icons.chevron_right,
                                             size: 18,
-                                            color: TaqaUiColors
-                                                .unnamedColor1c1d17
-                                                .withOpacity(0.6),
+                                            color: colors.textSecondary,
                                           ),
                                         ],
                                       ),
@@ -5790,13 +5785,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                       Expanded(
                                         child: Text(
                                           t.translate("training_cardio_list"),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontFamily:
                                                 TaqaUiFontFamilies.interTight,
                                             fontSize: 25,
                                             fontWeight: FontWeight.w700,
-                                            color:
-                                                TaqaUiColors.unnamedColor1c1d17,
+                                            color: colors.textPrimary,
                                           ),
                                         ),
                                       ),
@@ -5817,11 +5811,11 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                   const SizedBox(height: 12),
                                   Text(
                                     t.translate("training_follow_cardio_plan"),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w400,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -5862,8 +5856,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                                 .textTheme
                                                 .titleMedium
                                                 ?.copyWith(
-                                                  color: TaqaUiColors
-                                                      .unnamedColor1c1d17,
+                                                  color: colors.textPrimary,
                                                   fontWeight: FontWeight.w700,
                                                 ),
                                           ),
@@ -5994,7 +5987,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
 
     return Container(
-      color: TaqaUiColors.unnamedColorE3e3e3,
+      color: context.taqaColors.background,
       child: SafeArea(
         child: Stack(
           children: [

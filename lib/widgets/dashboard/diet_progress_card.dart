@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 import '../Main/card_container.dart';
 import '../../localization/app_localizations.dart';
 
@@ -20,6 +21,7 @@ class DietProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final total = targetCalories ?? 0;
     final consumed = consumedCalories ?? 0;
     final ratio = total > 0 ? (consumed / total).clamp(0.0, 1.0) : 0.0;
@@ -40,7 +42,7 @@ class DietProgressCard extends StatelessWidget {
                 Text(
                   t("diet_progress_title"),
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -57,9 +59,9 @@ class DietProgressCard extends StatelessWidget {
                 else
                   Text(
                     total > 0 ? "$percent%" : "—",
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelMedium?.copyWith(color: Colors.white70),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
               ],
             ),
@@ -68,7 +70,7 @@ class DietProgressCard extends StatelessWidget {
               children: [
                 Text(
                   subtitle,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
                 if (dayLabel != null) ...[
                   const SizedBox(width: 8),
@@ -78,13 +80,13 @@ class DietProgressCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
+                      color: colors.surfaceElevated,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       dayLabel,
-                      style: const TextStyle(
-                        color: Colors.white60,
+                      style: TextStyle(
+                        color: colors.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -99,7 +101,7 @@ class DietProgressCard extends StatelessWidget {
               child: LinearProgressIndicator(
                 minHeight: 10,
                 value: ratio,
-                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                backgroundColor: colors.surfaceElevated,
                 valueColor: const AlwaysStoppedAnimation(AppColors.accent),
               ),
             ),

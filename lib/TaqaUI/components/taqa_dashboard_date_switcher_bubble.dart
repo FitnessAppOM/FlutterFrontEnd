@@ -17,6 +17,7 @@ class TaqaDashboardDateSwitcherBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(24),
@@ -26,14 +27,12 @@ class TaqaDashboardDateSwitcherBubble extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: TaqaUiColors.graphite.withValues(alpha: 0.3),
-            ),
+            border: Border.all(color: colors.border),
             boxShadow: [
               BoxShadow(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
+                color: colors.scrim.withValues(alpha: 0.18),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -61,20 +60,20 @@ class TaqaDashboardDateSwitcherBubble extends StatelessWidget {
                 children: [
                   Text(
                     primaryLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                     ),
                   ),
                   Text(
                     secondaryLabel,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                       fontSize: 8,
                       fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.graphite,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],

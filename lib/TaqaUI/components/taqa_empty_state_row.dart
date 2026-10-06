@@ -12,13 +12,14 @@ class TaqaEmptyStateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       height: TaqaUiScale.h(42),
       padding: TaqaUiScale.insetsLTRB(14, 0, 14, 0),
       alignment: AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(5),
       ),
       child: Text(
@@ -29,7 +30,7 @@ class TaqaEmptyStateRow extends StatelessWidget {
           fontWeight: FontWeight.w400,
           height: 18 / 10,
           letterSpacing: 0,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: colors.textPrimary,
         ),
       ),
     );

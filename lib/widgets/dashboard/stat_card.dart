@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class StatCard extends StatefulWidget {
   const StatCard({
@@ -60,8 +61,8 @@ class _StatCardState extends State<StatCard> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final edgeColor = (widget.borderColor ?? const Color(0xFFD4AF37))
-        .withValues(alpha: widget.borderColor == null ? 0.18 : 1);
+    final colors = context.taqaColors;
+    final edgeColor = widget.borderColor ?? colors.border;
     return AnimatedScale(
       scale: _pressed ? 0.97 : 1.0,
       duration: const Duration(milliseconds: 90),
@@ -75,7 +76,7 @@ class _StatCardState extends State<StatCard> {
           onTapCancel: _handleTapCancel,
           child: Container(
             decoration: BoxDecoration(
-              color: AppColors.cardDark,
+              color: colors.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: edgeColor, width: widget.borderWidth),
             ),
@@ -104,14 +105,14 @@ class _StatCardState extends State<StatCard> {
                           Text(
                             widget.title,
                             style: theme.textTheme.labelMedium?.copyWith(
-                              color: Colors.white70,
+                              color: colors.textSecondary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             widget.value,
                             style: theme.textTheme.headlineSmall?.copyWith(
-                              color: Colors.white,
+                              color: colors.textPrimary,
                               fontWeight: FontWeight.w800,
                             ),
                             maxLines: 1,
@@ -122,7 +123,7 @@ class _StatCardState extends State<StatCard> {
                             Text(
                               widget.subtitle!,
                               style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white60,
+                                color: colors.textSecondary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

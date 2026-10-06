@@ -23,10 +23,11 @@ class TaqaWeekdayDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final Color dotColor = switch (status) {
-      TaqaWeekdayStatus.past => TaqaUiColors.weekdayPast,
-      TaqaWeekdayStatus.current => TaqaUiColors.lime,
-      TaqaWeekdayStatus.future => TaqaUiColors.weekdayFuture,
+      TaqaWeekdayStatus.past => colors.textSecondary,
+      TaqaWeekdayStatus.current => colors.accent,
+      TaqaWeekdayStatus.future => colors.surfaceElevated,
     };
 
     return TaqaPressable(
@@ -44,7 +45,12 @@ class TaqaWeekdayDot extends StatelessWidget {
             ),
           ),
           SizedBox(height: TaqaUiScale.h(8)),
-          Text(label, style: TaqaUiStyles.weekdayLabel),
+          Text(
+            label,
+            style: TaqaUiStyles.weekdayLabel.copyWith(
+              color: colors.textPrimary,
+            ),
+          ),
         ],
       ),
     );

@@ -19,11 +19,12 @@ class TaqaProfileInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
@@ -40,7 +41,7 @@ class TaqaProfileInfoSection extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
                   letterSpacing: 0,
-                  color: TaqaUiColors.charcoal,
+                  color: colors.textPrimary,
                 ),
               ),
             ),
@@ -65,13 +66,14 @@ class TaqaProfileInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final style = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(15),
       fontWeight: FontWeight.w400,
       height: 25 / 15,
       letterSpacing: 0,
-      color: TaqaUiColors.charcoal,
+      color: colors.textPrimary,
     );
 
     return Padding(

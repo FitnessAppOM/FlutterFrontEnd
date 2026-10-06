@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+
 import '../TaqaUI/styles/taqa_ui_styles.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class AppColors {
-  static const black = Color(0xFF000000);
-  static const white = Color(0xFFFFFFFF);
-  static const appBackground = Color(0xFFE3E3E3);
+  static const black = TaqaUiColors.charcoal;
+  static const white = TaqaUiColors.white;
+  static const appBackground = TaqaUiColors.lightGray;
 
-  static const accent = Colors.blue;
+  static const accent = TaqaUiColors.lime;
 
   // Greys
   static const greyDark = Color(0xFF2D2D2D);
@@ -52,48 +54,66 @@ class AppTextStyles {
   static const small = TextStyle(color: AppColors.textDim, fontSize: 13);
 }
 
-ThemeData buildDarkTheme() {
-  final base = ThemeData.dark();
+ThemeData _buildTaqaTheme(TaqaUiPalette palette) {
+  final base = ThemeData(
+    useMaterial3: true,
+    brightness: palette.brightness,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: palette.accent,
+      brightness: palette.brightness,
+    ),
+  );
   final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
-    color: base.colorScheme.onSurface,
+    color: palette.textPrimary,
   );
 
   return base.copyWith(
-    scaffoldBackgroundColor: AppColors.appBackground,
-
+    scaffoldBackgroundColor: palette.background,
     colorScheme: base.colorScheme.copyWith(
-      primary: AppColors.accent,
-      secondary: AppColors.accent,
-      surface: AppColors.appBackground,
+      primary: palette.accent,
+      onPrimary: palette.onAccent,
+      secondary: palette.accent,
+      onSecondary: palette.onAccent,
+      surface: palette.surface,
+      onSurface: palette.textPrimary,
+      error: palette.danger,
     ),
-
-    inputDecorationTheme: const InputDecorationTheme(
-      labelStyle: TextStyle(color: AppColors.textDim),
-      hintStyle: TextStyle(color: Colors.white38),
+    extensions: <ThemeExtension<dynamic>>[palette],
+    canvasColor: palette.background,
+    cardColor: palette.surface,
+    dialogTheme: DialogThemeData(backgroundColor: palette.surface),
+    dividerColor: palette.divider,
+    iconTheme: IconThemeData(color: palette.textPrimary),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: palette.surface,
+      labelStyle: TextStyle(color: palette.textSecondary),
+      hintStyle: TextStyle(color: palette.textSecondary),
       enabledBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: AppColors.dividerDark),
+        borderSide: BorderSide(color: palette.border),
       ),
       focusedBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: AppColors.accent, width: 1.4),
+        borderSide: BorderSide(color: palette.accent, width: 1.4),
       ),
     ),
-
-    dividerColor: AppColors.dividerDark,
     appBarTheme: AppBarTheme(
+      elevation: 0,
+      backgroundColor: palette.background,
+      foregroundColor: palette.textPrimary,
+      surfaceTintColor: Colors.transparent,
       centerTitle: true,
       titleTextStyle: pageTitleStyle,
       toolbarTextStyle: pageTitleStyle,
     ),
-
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return AppColors.greyMedium;
+            return palette.surfaceElevated;
           }
-          return AppColors.white;
+          return palette.accent;
         }),
-        foregroundColor: WidgetStateProperty.all(AppColors.black),
+        foregroundColor: WidgetStateProperty.all(palette.onAccent),
         padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
         ),
@@ -110,32 +130,16 @@ ThemeData buildDarkTheme() {
 
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: AppColors.accent,
+        foregroundColor: palette.accent,
         textStyle: const TextStyle(fontWeight: FontWeight.w600),
       ),
     ),
   );
 }
 
-ThemeData buildLightTheme() {
-  final base = ThemeData.light();
-  final pageTitleStyle = TaqaUiStyles.pageTitle.copyWith(
-    color: base.colorScheme.onSurface,
-  );
+ThemeData buildDarkTheme() => _buildTaqaTheme(TaqaUiPalette.dark);
 
-  return base.copyWith(
-    scaffoldBackgroundColor: AppColors.appBackground,
-    colorScheme: base.colorScheme.copyWith(
-      primary: AppColors.accent,
-      secondary: AppColors.accent,
-    ),
-    appBarTheme: AppBarTheme(
-      centerTitle: true,
-      titleTextStyle: pageTitleStyle,
-      toolbarTextStyle: pageTitleStyle,
-    ),
-  );
-}
+ThemeData buildLightTheme() => _buildTaqaTheme(TaqaUiPalette.light);
 
 class AppTheme {
   static ThemeData dark() => buildDarkTheme();

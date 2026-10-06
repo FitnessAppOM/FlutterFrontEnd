@@ -25,10 +25,13 @@ class TaqaCommunityGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final memberLabel = t
-        .translate(memberCount == 1
-            ? 'community_member_count_one'
-            : 'community_member_count_many')
+        .translate(
+          memberCount == 1
+              ? 'community_member_count_one'
+              : 'community_member_count_many',
+        )
         .replaceAll('{count}', '$memberCount');
     final cardWidth = TaqaUiStyles.communityGroupCardWidth;
     final cardHeight = TaqaUiStyles.communityGroupCardHeight;
@@ -48,7 +51,7 @@ class TaqaCommunityGroupCard extends StatelessWidget {
           width: cardWidth,
           height: cardHeight,
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: TaqaUiStyles.communityGroupCardRadius,
           ),
           child: Stack(
@@ -61,7 +64,9 @@ class TaqaCommunityGroupCard extends StatelessWidget {
                   taqaUppercase(tag),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.dailyOutlookTag,
+                  style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
               Positioned(
@@ -72,7 +77,9 @@ class TaqaCommunityGroupCard extends StatelessWidget {
                   name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.communityGroupCardName,
+                  style: TaqaUiStyles.communityGroupCardName.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
               Positioned(
@@ -83,7 +90,9 @@ class TaqaCommunityGroupCard extends StatelessWidget {
                   description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.communityGroupCardDescription,
+                  style: TaqaUiStyles.communityGroupCardDescription.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
               Positioned(
@@ -94,7 +103,9 @@ class TaqaCommunityGroupCard extends StatelessWidget {
                   memberLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TaqaUiStyles.communityGroupCardMembers,
+                  style: TaqaUiStyles.communityGroupCardMembers.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
             ],

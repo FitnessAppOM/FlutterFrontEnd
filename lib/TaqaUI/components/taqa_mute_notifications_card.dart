@@ -25,6 +25,7 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = math.min(
@@ -50,7 +51,7 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
           width: cardWidth,
           height: cardHeight,
           child: Material(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: TaqaUiStyles.communityGroupCardRadius,
             child: InkWell(
               onTap: onChanged == null ? null : () => onChanged!(!value),
@@ -65,7 +66,9 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.communityGroupCardName,
+                      style: TaqaUiStyles.communityGroupCardName.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
                   PositionedDirectional(
@@ -76,7 +79,8 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                       description,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.communityGroupCardDescription,
+                      style: TaqaUiStyles.communityGroupCardDescription
+                          .copyWith(color: colors.textSecondary),
                     ),
                   ),
                   PositionedDirectional(
@@ -90,9 +94,7 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                         height: trackHeight,
                         padding: EdgeInsets.all(thumbInset),
                         decoration: BoxDecoration(
-                          color: value
-                              ? TaqaUiColors.lime
-                              : TaqaUiColors.charcoal.withValues(alpha: 0.18),
+                          color: value ? colors.accent : colors.border,
                           borderRadius: BorderRadius.circular(trackHeight),
                         ),
                         child: AnimatedAlign(
@@ -105,7 +107,7 @@ class TaqaMuteNotificationsCard extends StatelessWidget {
                             aspectRatio: 1,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: TaqaUiColors.white,
+                                color: colors.textOnInverse,
                                 shape: BoxShape.circle,
                               ),
                             ),

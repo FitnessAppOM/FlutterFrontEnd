@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import '../../localization/app_localizations.dart';
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
@@ -37,6 +38,8 @@ class WidgetLibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    final t = AppLocalizations.of(context).translate;
     final width = min(
       MediaQuery.of(context).size.width * 0.84,
       TaqaUiScale.w(360),
@@ -58,14 +61,15 @@ class WidgetLibrarySheet extends StatelessWidget {
             TaqaUiScale.h(20) + bottomInset,
           ),
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.background,
             borderRadius: BorderRadius.only(
               topLeft: TaqaUiScale.radius(26).topLeft,
               bottomLeft: TaqaUiScale.radius(26).bottomLeft,
             ),
-            boxShadow: const [
+            border: Border.all(color: colors.border),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x29000000),
+                color: colors.scrim.withValues(alpha: 0.28),
                 blurRadius: 30,
                 offset: Offset(-2, 0),
               ),
@@ -77,30 +81,30 @@ class WidgetLibrarySheet extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    "Widgets",
+                    t("widget_library_title"),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.black54),
+                    icon: Icon(Icons.close, color: colors.textSecondary),
                     onPressed: onClose,
                   ),
                 ],
               ),
               Text(
-                "Available to add",
+                t("widget_library_available"),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(12),
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF636363),
+                  color: colors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(12)),
@@ -108,13 +112,13 @@ class WidgetLibrarySheet extends StatelessWidget {
                 Expanded(
                   child: Center(
                     child: Text(
-                      "All widgets are already on your dashboard.",
+                      t("widget_library_all_added"),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF636363),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ),
@@ -150,17 +154,15 @@ class _WidgetLibraryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7F7F7),
+          color: colors.surface,
           borderRadius: TaqaUiScale.radius(16),
-          border: Border.all(
-            color: Colors.black.withValues(alpha: 0.09),
-            width: 1,
-          ),
+          border: Border.all(color: colors.border, width: 1),
         ),
         child: Row(
           children: [
@@ -168,10 +170,10 @@ class _WidgetLibraryTile extends StatelessWidget {
               width: TaqaUiScale.w(42),
               height: TaqaUiScale.h(42),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: option.accentColor.withValues(alpha: 0.16),
                 borderRadius: TaqaUiScale.radius(12),
               ),
-              child: Icon(option.icon, color: TaqaUiColors.charcoal),
+              child: Icon(option.icon, color: option.accentColor),
             ),
             SizedBox(width: TaqaUiScale.w(12)),
             Expanded(
@@ -184,7 +186,7 @@ class _WidgetLibraryTile extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(14),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(4)),
@@ -194,7 +196,7 @@ class _WidgetLibraryTile extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(12),
                       fontWeight: FontWeight.w500,
-                      color: const Color(0xFF636363),
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],
@@ -203,7 +205,7 @@ class _WidgetLibraryTile extends StatelessWidget {
             SizedBox(width: TaqaUiScale.w(6)),
             Icon(
               Icons.add_circle_outline,
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
               size: TaqaUiScale.w(18),
             ),
           ],

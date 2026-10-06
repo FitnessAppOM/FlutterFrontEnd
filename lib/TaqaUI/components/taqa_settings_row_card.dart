@@ -23,6 +23,7 @@ class TaqaSettingsRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = math.min(
@@ -46,7 +47,7 @@ class TaqaSettingsRowCard extends StatelessWidget {
           width: cardWidth,
           height: cardHeight,
           child: Material(
-            color: TaqaUiColors.white,
+            color: colors.surface,
             borderRadius: TaqaUiStyles.communityGroupCardRadius,
             child: InkWell(
               onTap: onTap,
@@ -61,7 +62,9 @@ class TaqaSettingsRowCard extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.communityGroupCardName,
+                      style: TaqaUiStyles.communityGroupCardName.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
                   PositionedDirectional(
@@ -72,7 +75,8 @@ class TaqaSettingsRowCard extends StatelessWidget {
                       description,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.communityGroupCardDescription,
+                      style: TaqaUiStyles.communityGroupCardDescription
+                          .copyWith(color: colors.textSecondary),
                     ),
                   ),
                   PositionedDirectional(
@@ -84,7 +88,7 @@ class TaqaSettingsRowCard extends StatelessWidget {
                             ? Icons.chevron_left
                             : Icons.chevron_right,
                         size: chevronSize,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ),

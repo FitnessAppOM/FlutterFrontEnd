@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class BarTrend extends StatelessWidget {
   const BarTrend({
@@ -16,7 +17,7 @@ class BarTrend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final edgeColor = const Color(0xFFD4AF37).withValues(alpha: 0.18);
+    final colors = context.taqaColors;
     if (data.isEmpty) return const SizedBox.shrink();
 
     final maxVal = data.reduce((a, b) => a > b ? a : b);
@@ -24,9 +25,9 @@ class BarTrend extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: edgeColor),
+        border: Border.all(color: colors.border),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -34,8 +35,9 @@ class BarTrend extends StatelessWidget {
         children: [
           Text(
             title,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(color: Colors.white.withValues(alpha: 0.9)),
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: colors.textPrimary,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -73,7 +75,7 @@ class BarTrend extends StatelessWidget {
                         Text(
                           v.toStringAsFixed(0),
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white60,
+                            color: colors.textSecondary,
                           ),
                         ),
                       ],

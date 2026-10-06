@@ -561,7 +561,7 @@ class _ExpertClientDietReviewPageState
     final shouldSubmit = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
       ),
@@ -2261,7 +2261,7 @@ class _ExpertClientDietReviewPageState
     return Scaffold(
       backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
       appBar: TaqaPageAppBar(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         titleColor: TaqaUiColors.charcoal,
         title: 'Diet Review',
         trailing: Transform.translate(

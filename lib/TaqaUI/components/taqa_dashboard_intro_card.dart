@@ -42,6 +42,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final cleanName = userName.trim().isEmpty
         ? t('dash_athlete')
         : _capitalizeWords(userName.trim());
@@ -91,7 +92,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
             height: cardHeight,
             child: Container(
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiStyles.introCardRadius,
               ),
               child: Stack(
@@ -126,7 +127,9 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                                 child: TaqaAdaptiveNameText(
                                   welcomeText: cleanName,
                                   userNameText: cleanName,
-                                  style: TaqaUiStyles.userName,
+                                  style: TaqaUiStyles.userName.copyWith(
+                                    color: colors.textPrimary,
+                                  ),
                                 ),
                               ),
                             ),
@@ -152,6 +155,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TaqaUiStyles.subtitle.copyWith(
+                        color: colors.textSecondary,
                         fontSize:
                             (TaqaUiStyles.subtitle.fontSize ?? 15) *
                             layoutScale,

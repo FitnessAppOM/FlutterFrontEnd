@@ -30,9 +30,9 @@ class FitbitHeartDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("fitbit_heart_title"),
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
         child: Center(
@@ -96,7 +96,8 @@ class FitbitHeartDetailPage extends StatelessWidget {
                   SizedBox(height: TaqaUiScale.h(8)),
                   for (int i = 0; i < zones.length; i++) ...[
                     _ZoneTile(zone: zones[i], maxMinutes: _maxZoneMinutes()),
-                    if (i < zones.length - 1) SizedBox(height: TaqaUiScale.h(12)),
+                    if (i < zones.length - 1)
+                      SizedBox(height: TaqaUiScale.h(12)),
                   ],
                 ],
               ],

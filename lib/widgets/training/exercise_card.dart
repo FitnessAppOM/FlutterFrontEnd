@@ -173,6 +173,7 @@ class ExerciseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final previewWidth = TaqaUiScale.w(70);
     final previewHeight = TaqaUiScale.h(70);
     final cardPadding = TaqaUiScale.insetsLTRB(14, 14, 14, 14);
@@ -398,22 +399,20 @@ class ExerciseCard extends StatelessWidget {
     final bool showProgress = inProgress;
     final cs = Theme.of(context).colorScheme;
 
-    final borderColor = showProgress
-        ? const Color(0xFFFFD68A)
-        : const Color(0x1A1C1D17);
+    final borderColor = showProgress ? const Color(0xFFFFD68A) : colors.border;
     final showDoneIcon = completed && !showProgress;
     final progressChip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: const Color(0x4D1C1D17)),
+        border: Border.all(color: colors.border),
       ),
       child: Text(
         t.translate("training_in_progress").toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: Color(0xFF1C1D17),
+          color: colors.textPrimary,
           fontSize: 10,
           letterSpacing: 0.2,
         ),
@@ -499,12 +498,12 @@ class ExerciseCard extends StatelessWidget {
               children: [
                 Ink(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colors.surface,
                     borderRadius: TaqaUiScale.radius(15),
                     border: Border.all(color: borderColor),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: colors.scrim.withValues(alpha: 0.08),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -528,12 +527,12 @@ class ExerciseCard extends StatelessWidget {
                                 child: Container(
                                   width: previewWidth,
                                   height: previewHeight,
-                                  color: Colors.white,
+                                  color: colors.surfaceElevated,
                                   child: previewUrl.isEmpty
-                                      ? const Icon(
+                                      ? Icon(
                                           Icons.fitness_center,
                                           size: 20,
-                                          color: Color(0x661C1D17),
+                                          color: colors.textSecondary,
                                         )
                                       : _ExerciseGifThumb(
                                           key: ValueKey(previewUrl),
@@ -568,8 +567,7 @@ class ExerciseCard extends StatelessWidget {
                                                 fontFamily: TaqaUiFontFamilies
                                                     .interTight,
                                                 fontWeight: FontWeight.w700,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17,
+                                                color: colors.textPrimary,
                                                 fontSize: TaqaUiScale.sp(15),
                                                 height: 25 / 15,
                                                 letterSpacing: 0,
@@ -609,8 +607,7 @@ class ExerciseCard extends StatelessWidget {
                                                   fontWeight: FontWeight.w400,
                                                   height: 21 / 15,
                                                   letterSpacing: 0,
-                                                  color: TaqaUiColors
-                                                      .unnamedColor1c1d17,
+                                                  color: colors.textSecondary,
                                                 ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,

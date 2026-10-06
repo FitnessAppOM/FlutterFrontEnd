@@ -138,7 +138,7 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
         appBar: TaqaPageAppBar(
           title: t.translate('referral_onboarding_title'),
           showBackButton: false,

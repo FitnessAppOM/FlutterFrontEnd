@@ -51,10 +51,11 @@ class TaqaBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
-      decoration: const BoxDecoration(
-        color: TaqaUiColors.white,
-        boxShadow: [
+      decoration: BoxDecoration(
+        color: colors.surface,
+        boxShadow: const [
           BoxShadow(
             color: Color(0x29000000),
             blurRadius: 30,
@@ -91,11 +92,7 @@ class TaqaBottomNavBar extends StatelessWidget {
                         width: TaqaUiScale.w(spec.width),
                         height: TaqaUiScale.h(spec.height),
                         colorFilter: ColorFilter.mode(
-                          selected
-                              ? TaqaUiColors.unnamedColor1c1d17
-                              : TaqaUiColors.unnamedColor1c1d17.withValues(
-                                  alpha: 0.4,
-                                ),
+                          selected ? colors.textPrimary : colors.textSecondary,
                           BlendMode.srcIn,
                         ),
                       ),
