@@ -1160,6 +1160,7 @@ class _ScreeningDueBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final isFirst = pending.reason == 'first_screening';
     final days = pending.daysRemaining;
     return GestureDetector(
@@ -1168,17 +1169,15 @@ class _ScreeningDueBanner extends StatelessWidget {
         width: double.infinity,
         padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.18),
+          color: colors.accent.withValues(alpha: colors.isDark ? 0.14 : 0.18),
           borderRadius: TaqaUiScale.radius(15),
-          border: Border.all(
-            color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.5),
-          ),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.5)),
         ),
         child: Row(
           children: [
             Icon(
               Icons.assignment_outlined,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
               size: TaqaUiScale.w(22),
             ),
             SizedBox(width: TaqaUiScale.w(10)),
@@ -1194,7 +1193,7 @@ class _ScreeningDueBanner extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(13),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   if (days != null) ...[
@@ -1207,9 +1206,7 @@ class _ScreeningDueBanner extends StatelessWidget {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(11),
                         fontWeight: FontWeight.w400,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
-                        ),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
@@ -1217,8 +1214,9 @@ class _ScreeningDueBanner extends StatelessWidget {
               ),
             ),
             Icon(
+              // Material's directional chevron mirrors automatically in RTL.
               Icons.chevron_right,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+              color: colors.textPrimary,
               size: TaqaUiScale.w(20),
             ),
           ],

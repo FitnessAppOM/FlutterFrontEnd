@@ -64,7 +64,8 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isDarkCard =
+    final colors = context.taqaColors;
+    final usesElevatedSurface =
         widget.metricKey == 'training_load' ||
         widget.metricKey == 'nutrition' ||
         widget.metricKey == 'readiness' ||
@@ -78,17 +79,16 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
     final barValue = widget.score == null
         ? 0.0
         : (widget.score! / safeMaxScore).clamp(0.0, 1.0);
-    final cardBg = isDarkCard ? TaqaUiColors.charcoal : TaqaUiColors.white;
-    final textColor = isDarkCard ? TaqaUiColors.white : TaqaUiColors.charcoal;
-    final chipBorder = isDarkCard
-        ? TaqaUiColors.lightGray.withValues(alpha: 0.6)
-        : TaqaUiColors.graphite.withValues(alpha: 0.6);
-    final barTrack = isDarkCard
-        ? TaqaUiColors.graphite.withValues(alpha: 0.95)
-        : TaqaUiColors.lightGray.withValues(alpha: 0.9);
-    final barFill = isDarkCard
-        ? TaqaUiColors.lightGray.withValues(alpha: 0.85)
-        : TaqaUiColors.graphite.withValues(alpha: 0.55);
+    final cardBg = usesElevatedSurface
+        ? colors.surfaceElevated
+        : colors.surface;
+    final detailBg = usesElevatedSurface
+        ? colors.surface
+        : colors.surfaceElevated;
+    final textColor = colors.textPrimary;
+    final chipBorder = colors.textSecondary.withValues(alpha: 0.65);
+    final barTrack = colors.divider;
+    final barFill = colors.textSecondary.withValues(alpha: 0.62);
 
     return TaqaPressable(
       onTap: hasDetails ? () => setState(() => _expanded = !_expanded) : null,
@@ -98,6 +98,7 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: TaqaUiScale.radius(15),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           children: [
@@ -129,8 +130,9 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                       top: TaqaUiScale.h(5),
                       child: _PathChip(
                         path: widget.path!,
-                        isDark: isDarkCard,
                         borderColor: chipBorder,
+                        textColor: textColor,
+                        backgroundColor: Colors.transparent,
                       ),
                     ),
                   if (widget.unit != null && widget.unit!.isNotEmpty)
@@ -207,9 +209,7 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                         _expanded
                             ? Icons.keyboard_arrow_up_rounded
                             : Icons.keyboard_arrow_down_rounded,
-                        color: isDarkCard
-                            ? TaqaUiColors.white.withValues(alpha: 0.85)
-                            : TaqaUiColors.charcoal.withValues(alpha: 0.85),
+                        color: textColor.withValues(alpha: 0.85),
                         size: 18,
                       ),
                     ),
@@ -240,10 +240,9 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
                 width: double.infinity,
                 padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                 decoration: BoxDecoration(
-                  color: isDarkCard
-                      ? TaqaUiColors.charcoal
-                      : TaqaUiColors.white,
+                  color: detailBg,
                   borderRadius: TaqaUiScale.radius(15),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Column(
                   children: widget.detailLabels.entries.map((entry) {
@@ -434,12 +433,14 @@ class _TaqaPillarCardState extends State<TaqaPillarCard> {
 
 class _PathChip extends StatelessWidget {
   final String path;
-  final bool isDark;
   final Color borderColor;
+  final Color textColor;
+  final Color backgroundColor;
   const _PathChip({
     required this.path,
-    required this.isDark,
     required this.borderColor,
+    required this.textColor,
+    required this.backgroundColor,
   });
 
   @override
@@ -478,19 +479,13 @@ class _PathChip extends StatelessWidget {
         : path == 'no_wearable'
         ? t('taqa_source_no_smart_watch')
         : path.toUpperCase();
-    final chipTextColor = isDark
-        ? TaqaUiColors.white
-        : TaqaUiColors.unnamedColor1c1d17;
     return Container(
       alignment: Alignment.center,
       padding: TaqaUiScale.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: isDark ? TaqaUiColors.charcoal : Colors.transparent,
+        color: backgroundColor,
         borderRadius: TaqaUiScale.radius(5),
-        border: Border.all(
-          color: isDark ? borderColor : TaqaUiColors.unnamedColor1c1d17,
-          width: 0.5,
-        ),
+        border: Border.all(color: borderColor, width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -500,6 +495,8 @@ class _PathChip extends StatelessWidget {
               isWhoop ? 'assets/images/whoop.png' : 'assets/images/fitbit.png',
               width: 10,
               height: 10,
+              color: textColor,
+              colorBlendMode: BlendMode.srcIn,
             ),
             const SizedBox(width: 4),
           ],
@@ -507,7 +504,7 @@ class _PathChip extends StatelessWidget {
             taqaUppercase(label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              color: chipTextColor,
+              color: textColor,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               letterSpacing: 0,

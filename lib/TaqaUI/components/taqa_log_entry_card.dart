@@ -31,14 +31,13 @@ class TaqaLogEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final card = Container(
       padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +56,7 @@ class TaqaLogEntryCard extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     height: 25 / 15,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -72,7 +71,7 @@ class TaqaLogEntryCard extends StatelessWidget {
                     fontWeight: FontWeight.w400,
                     height: 10 / 8,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
             ],
@@ -86,7 +85,7 @@ class TaqaLogEntryCard extends StatelessWidget {
               fontWeight: FontWeight.w400,
               height: 21 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           if (detailWidgets.isNotEmpty) ...[

@@ -23,10 +23,11 @@ class TaqaNewsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final locale = AppLocalizations.of(context).locale.languageCode;
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final list = items;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Stack(
           children: [
@@ -48,7 +49,9 @@ class TaqaNewsPage extends StatelessWidget {
                       child: Center(
                         child: Text(
                           t("no_announcements"),
-                          style: TaqaUiStyles.subtitle,
+                          style: TaqaUiStyles.subtitle.copyWith(
+                            color: colors.textSecondary,
+                          ),
                         ),
                       ),
                     );
@@ -86,6 +89,7 @@ class _NewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final dateLabel = item.createdAt == null
         ? ''
         : DateFormat('EEE, MMMM d', locale).format(item.createdAt!.toLocal());
@@ -106,8 +110,11 @@ class _NewsCard extends StatelessWidget {
         onTap: () => NewsTagActions.handleTagTap(context, item.tag, item: item),
         child: Ink(
           decoration: BoxDecoration(
-            color: TaqaUiColors.charcoal,
+            color: colors.isDark
+                ? colors.surfaceElevated
+                : TaqaUiColors.charcoal,
             borderRadius: TaqaUiStyles.carouselCardRadius,
+            border: Border.all(color: colors.border),
           ),
           child: Stack(
             children: [

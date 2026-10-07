@@ -106,13 +106,14 @@ class _ScreeningFormSheetState extends State<ScreeningFormSheet> {
   @override
   Widget build(BuildContext context) {
     final days = widget.pending.daysRemaining;
+    final colors = context.taqaColors;
 
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("screening_title"),
-        leading: CloseButton(color: TaqaUiColors.unnamedColor1c1d17),
+        leading: const CloseButton(),
       ),
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -128,9 +129,7 @@ class _ScreeningFormSheetState extends State<ScreeningFormSheet> {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(12),
                       fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
+                      color: colors.textSecondary,
                     ),
                   ),
                   if (days != null) ...[
@@ -254,12 +253,13 @@ class _DaysRemainingChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     return Align(
       alignment: AlignmentDirectional.centerStart,
       child: Container(
         padding: TaqaUiScale.insetsLTRB(10, 4, 10, 4),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.25),
+          color: colors.accent.withValues(alpha: 0.25),
           borderRadius: TaqaUiScale.radius(10),
         ),
         child: Text(
@@ -268,7 +268,7 @@ class _DaysRemainingChip extends StatelessWidget {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(11),
             fontWeight: FontWeight.w600,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary,
           ),
         ),
       ),
@@ -282,6 +282,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Text(
       label,
       style: TextStyle(
@@ -289,7 +290,7 @@ class _SectionLabel extends StatelessWidget {
         fontSize: TaqaUiScale.sp(10),
         fontWeight: FontWeight.w400,
         letterSpacing: 0.8,
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+        color: colors.textSecondary,
       ),
     );
   }
@@ -365,11 +366,13 @@ class _QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,7 +383,7 @@ class _QuestionCard extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
@@ -404,6 +407,7 @@ class _RadioTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return InkWell(
       onTap: onTap,
       borderRadius: TaqaUiScale.radius(8),
@@ -417,8 +421,8 @@ class _RadioTile extends StatelessWidget {
                   : Icons.radio_button_unchecked,
               size: TaqaUiScale.w(20),
               color: selected
-                  ? TaqaUiColors.unnamedColor1c1d17
-                  : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+                  ? colors.accent
+                  : colors.textSecondary.withValues(alpha: 0.45),
             ),
             SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
@@ -428,9 +432,7 @@ class _RadioTile extends StatelessWidget {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(13),
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected
-                      ? TaqaUiColors.unnamedColor1c1d17
-                      : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
+                  color: selected ? colors.textPrimary : colors.textSecondary,
                 ),
               ),
             ),
@@ -455,10 +457,9 @@ class _SubmitButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
+    final colors = context.taqaColors;
     return Material(
-      color: disabled
-          ? TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.4)
-          : TaqaUiColors.unnamedColorE4e93b,
+      color: disabled ? colors.accent.withValues(alpha: 0.4) : colors.accent,
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
@@ -471,9 +472,9 @@ class _SubmitButton extends StatelessWidget {
                 ? SizedBox(
                     width: TaqaUiScale.w(18),
                     height: TaqaUiScale.h(18),
-                    child: const CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   )
                 : Text(
@@ -484,7 +485,7 @@ class _SubmitButton extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0,
                       height: 12 / 10,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   ),
           ),

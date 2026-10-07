@@ -33,8 +33,9 @@ class DietLoggingOptionsSheet extends StatelessWidget {
             constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
             padding: TaqaUiScale.insetsLTRB(13.5, 15, 13.5, 15),
             decoration: BoxDecoration(
-              color: TaqaUiColors.white,
+              color: context.taqaColors.surface,
               borderRadius: TaqaUiScale.radius(15),
+              border: Border.all(color: context.taqaColors.border),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -49,7 +50,7 @@ class DietLoggingOptionsSheet extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     height: 25 / 15,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: context.taqaColors.textPrimary,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(11)),
@@ -114,7 +115,7 @@ class _OptionButton extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 height: 12 / 10,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: context.taqaColors.onAccent,
               ),
             ),
           ),

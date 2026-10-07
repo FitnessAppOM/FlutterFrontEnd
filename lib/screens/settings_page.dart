@@ -2045,8 +2045,10 @@ class _SettingsPageState extends State<SettingsPage>
                         : _handleWhoopTap,
                     badge: Image.asset(
                       'assets/images/whoop.png',
-                      height: TaqaUiScale.h(18),
+                      height: TaqaUiScale.h(22),
                       fit: BoxFit.contain,
+                      color: colors.textPrimary,
+                      colorBlendMode: BlendMode.srcIn,
                     ),
                   ),
                   _SettingsTile(

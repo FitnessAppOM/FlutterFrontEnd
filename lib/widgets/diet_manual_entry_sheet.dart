@@ -128,7 +128,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: context.taqaColors.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(TaqaUiScale.r(15)),
@@ -272,8 +272,8 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                     width: 44,
                     margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.12,
+                      color: context.taqaColors.textSecondary.withValues(
+                        alpha: 0.45,
                       ),
                       borderRadius: BorderRadius.circular(999),
                     ),
@@ -289,7 +289,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                       ),
@@ -299,7 +299,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                             : () => Navigator.of(context).pop(),
                         icon: Icon(
                           Icons.close,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: context.taqaColors.textPrimary,
                         ),
                       ),
                     ],
@@ -309,8 +309,9 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                     width: double.infinity,
                     padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
+                      color: context.taqaColors.surface,
                       borderRadius: TaqaUiScale.radius(15),
+                      border: Border.all(color: context.taqaColors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +324,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(8)),
@@ -335,9 +336,10 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                             fontWeight: FontWeight.w400,
                             height: 21 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                           decoration: _borderlessFieldDecoration(
+                            context,
                             hintText: t.translate("diet_add_meal_name_hint"),
                           ),
                         ),
@@ -356,7 +358,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                       ),
@@ -365,7 +367,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                         onPressed: _loading ? null : _addManualIngredient,
                         icon: Icon(
                           Icons.add_circle_outline,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: context.taqaColors.textPrimary,
                         ),
                       ),
                     ],
@@ -378,20 +380,16 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                       height: TaqaUiScale.h(39),
                       padding: TaqaUiScale.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.white,
+                        color: context.taqaColors.surface,
                         borderRadius: TaqaUiScale.radius(15),
-                        border: Border.all(
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.10,
-                          ),
-                        ),
+                        border: Border.all(color: context.taqaColors.border),
                       ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.search,
                             size: TaqaUiScale.w(18),
-                            color: TaqaUiColors.unnamedColorE3e3e3,
+                            color: context.taqaColors.textSecondary,
                           ),
                           SizedBox(width: TaqaUiScale.w(8)),
                           Text(
@@ -400,7 +398,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(15),
                               letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColorE3e3e3,
+                              color: context.taqaColors.textSecondary,
                             ),
                           ),
                         ],
@@ -415,9 +413,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(12),
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.5,
-                          ),
+                          color: context.taqaColors.textSecondary,
                         ),
                       ),
                     ),
@@ -457,7 +453,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                                   width: TaqaUiScale.w(18),
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: context.taqaColors.onAccent,
                                   ),
                                 )
                               : Text(
@@ -468,7 +464,7 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
                                     fontWeight: FontWeight.w700,
                                     height: 12 / 10,
                                     letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: context.taqaColors.onAccent,
                                   ),
                                 ),
                         ),
@@ -485,21 +481,24 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
   }
 }
 
-TextStyle _hintTextStyle() => TextStyle(
+TextStyle _hintTextStyle(BuildContext context) => TextStyle(
   fontFamily: TaqaUiFontFamilies.interTight,
   fontSize: TaqaUiScale.sp(15),
   fontWeight: FontWeight.w400,
   height: 21 / 15,
   letterSpacing: 0,
-  color: TaqaUiColors.unnamedColorE3e3e3,
+  color: context.taqaColors.textSecondary,
 );
 
-InputDecoration _borderlessFieldDecoration({String? hintText}) {
+InputDecoration _borderlessFieldDecoration(
+  BuildContext context, {
+  String? hintText,
+}) {
   return InputDecoration(
     isDense: true,
     contentPadding: EdgeInsets.zero,
     hintText: hintText,
-    hintStyle: _hintTextStyle(),
+    hintStyle: _hintTextStyle(context),
     border: InputBorder.none,
     enabledBorder: InputBorder.none,
     focusedBorder: InputBorder.none,
@@ -509,21 +508,24 @@ InputDecoration _borderlessFieldDecoration({String? hintText}) {
   );
 }
 
-InputDecoration _underlineFieldDecoration({String? hintText}) {
-  final lineSide = BorderSide(color: TaqaUiColors.unnamedColorE3e3e3);
+InputDecoration _underlineFieldDecoration(
+  BuildContext context, {
+  String? hintText,
+}) {
+  final lineSide = BorderSide(color: context.taqaColors.divider);
   return InputDecoration(
     isDense: true,
     contentPadding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
     hintText: hintText,
-    hintStyle: _hintTextStyle(),
+    hintStyle: _hintTextStyle(context),
     border: UnderlineInputBorder(borderSide: lineSide),
     enabledBorder: UnderlineInputBorder(borderSide: lineSide),
     errorBorder: UnderlineInputBorder(borderSide: lineSide),
     focusedBorder: UnderlineInputBorder(
-      borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+      borderSide: BorderSide(color: context.taqaColors.textPrimary),
     ),
     focusedErrorBorder: UnderlineInputBorder(
-      borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+      borderSide: BorderSide(color: context.taqaColors.textPrimary),
     ),
   );
 }
@@ -549,16 +551,14 @@ class _IngredientTile extends StatelessWidget {
       fontWeight: FontWeight.w400,
       height: 21 / 15,
       letterSpacing: 0,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,6 +571,7 @@ class _IngredientTile extends StatelessWidget {
                   controller: row.nameCtrl,
                   style: fieldStyle,
                   decoration: _underlineFieldDecoration(
+                    context,
                     hintText: t.translate("diet_ingredient_name"),
                   ),
                   validator: (v) {
@@ -586,7 +587,7 @@ class _IngredientTile extends StatelessWidget {
                 onPressed: loading ? null : onRemove,
                 icon: Icon(
                   Icons.close,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                  color: context.taqaColors.textSecondary,
                 ),
               ),
             ],
@@ -597,6 +598,7 @@ class _IngredientTile extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: fieldStyle,
             decoration: _underlineFieldDecoration(
+              context,
               hintText: t.translate("diet_manual_grams"),
             ),
             validator: (v) {
@@ -618,7 +620,10 @@ class _IngredientTile extends StatelessWidget {
                     decimal: true,
                   ),
                   style: fieldStyle,
-                  decoration: _underlineFieldDecoration(hintText: "Cals"),
+                  decoration: _underlineFieldDecoration(
+                    context,
+                    hintText: "Cals",
+                  ),
                   validator: (v) {
                     if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
@@ -639,7 +644,10 @@ class _IngredientTile extends StatelessWidget {
                     decimal: true,
                   ),
                   style: fieldStyle,
-                  decoration: _underlineFieldDecoration(hintText: "Prtn"),
+                  decoration: _underlineFieldDecoration(
+                    context,
+                    hintText: "Prtn",
+                  ),
                   validator: (v) {
                     if (row.isCompletelyEmpty) return null;
                     final val = double.tryParse(
@@ -665,6 +673,7 @@ class _IngredientTile extends StatelessWidget {
                   ),
                   style: fieldStyle,
                   decoration: _underlineFieldDecoration(
+                    context,
                     hintText: t.translate("diet_carbs"),
                   ),
                   validator: (v) {
@@ -688,6 +697,7 @@ class _IngredientTile extends StatelessWidget {
                   ),
                   style: fieldStyle,
                   decoration: _underlineFieldDecoration(
+                    context,
                     hintText: t.translate("diet_fat"),
                   ),
                   validator: (v) {

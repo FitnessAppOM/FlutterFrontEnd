@@ -61,11 +61,12 @@ class TaqaSearchablePickerField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final textStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(14),
       fontWeight: FontWeight.w500,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: colors.textPrimary,
     );
     final selectedLabel = value == null ? null : itemLabelBuilder(value!);
 
@@ -84,7 +85,7 @@ class TaqaSearchablePickerField extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(11),
                 fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+                color: colors.textSecondary,
               ),
             ),
           ),
@@ -98,11 +99,7 @@ class TaqaSearchablePickerField extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: field.hasError
-                          ? TaqaUiColors.unnamedColorE93b3b
-                          : TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.15,
-                            ),
+                      color: field.hasError ? colors.danger : colors.border,
                     ),
                   ),
                 ),
@@ -115,10 +112,10 @@ class TaqaSearchablePickerField extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: textStyle.copyWith(
                           color: selectedLabel == null
-                              ? TaqaUiColors.unnamedColor1c1d17.withValues(
-                                  alpha: enabled ? 0.35 : 0.22,
+                              ? colors.textSecondary.withValues(
+                                  alpha: enabled ? 1 : 0.45,
                                 )
-                              : TaqaUiColors.unnamedColor1c1d17.withValues(
+                              : colors.textPrimary.withValues(
                                   alpha: enabled ? 1 : 0.45,
                                 ),
                         ),
@@ -126,7 +123,7 @@ class TaqaSearchablePickerField extends StatelessWidget {
                     ),
                     Icon(
                       Icons.keyboard_arrow_down,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
+                      color: colors.textSecondary.withValues(
                         alpha: enabled ? 0.5 : 0.22,
                       ),
                       size: TaqaUiScale.w(20),
@@ -144,7 +141,7 @@ class TaqaSearchablePickerField extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
-                  color: TaqaUiColors.unnamedColorE93b3b,
+                  color: colors.danger,
                 ),
               ),
             ),
@@ -174,8 +171,9 @@ Future<String?> showTaqaSearchablePickerSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (sheetContext) {
+      final colors = sheetContext.taqaColors;
       final viewInsets = MediaQuery.viewInsetsOf(sheetContext);
       final availableHeight =
           MediaQuery.sizeOf(sheetContext).height - viewInsets.bottom;
@@ -208,7 +206,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                 height: pickerHeight,
                 padding: TaqaUiScale.insetsLTRB(16, 10, 17, 12),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(TaqaUiScale.r(15)),
                   ),
@@ -219,7 +217,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                       width: TaqaUiScale.w(36),
                       height: TaqaUiScale.h(3),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.25),
+                        color: colors.textSecondary.withValues(alpha: 0.45),
                         borderRadius: TaqaUiScale.radius(2),
                       ),
                     ),
@@ -235,7 +233,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontWeight: FontWeight.w700,
                                 fontSize: TaqaUiScale.sp(15),
@@ -251,7 +249,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                               semanticLabel: closeLabel,
                               child: Icon(
                                 Icons.close,
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 size: TaqaUiScale.w(16),
                               ),
                             ),
@@ -265,10 +263,10 @@ Future<String?> showTaqaSearchablePickerSheet({
                       child: TextField(
                         controller: searchController,
                         autofocus: true,
-                        cursorColor: TaqaUiColors.charcoal,
+                        cursorColor: colors.accent,
                         textInputAction: TextInputAction.done,
                         style: TextStyle(
-                          color: TaqaUiColors.charcoal,
+                          color: colors.textPrimary,
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(15),
                           height: 21 / 15,
@@ -276,24 +274,24 @@ Future<String?> showTaqaSearchablePickerSheet({
                         decoration: InputDecoration(
                           hintText: searchHint,
                           hintStyle: TextStyle(
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                            color: colors.textSecondary,
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(15),
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textSecondary,
                             size: TaqaUiScale.w(18),
                           ),
-                          enabledBorder: const UnderlineInputBorder(
+                          enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.border,
                               width: 0.5,
                             ),
                           ),
-                          focusedBorder: const UnderlineInputBorder(
+                          focusedBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.accent,
                               width: 0.5,
                             ),
                           ),
@@ -324,9 +322,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                               child: Text(
                                 noResultsText,
                                 style: TextStyle(
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.62,
-                                  ),
+                                  color: colors.textSecondary,
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(15),
                                 ),
@@ -338,18 +334,14 @@ Future<String?> showTaqaSearchablePickerSheet({
                               itemCount: filtered.length,
                               separatorBuilder: (_, _) => Divider(
                                 height: TaqaUiScale.h(1),
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.08,
-                                ),
+                                color: colors.divider,
                               ),
                               itemBuilder: (context, index) {
                                 final option = filtered[index];
                                 final isSelected = selectedValue == option;
                                 return Material(
                                   color: isSelected
-                                      ? TaqaUiColors.lime.withValues(
-                                          alpha: 0.35,
-                                        )
+                                      ? colors.accent.withValues(alpha: 0.35)
                                       : Colors.transparent,
                                   borderRadius: TaqaUiScale.radius(5),
                                   child: ListTile(
@@ -362,7 +354,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: TaqaUiColors.charcoal,
+                                        color: colors.textPrimary,
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
                                         fontSize: TaqaUiScale.sp(15),
@@ -372,7 +364,7 @@ Future<String?> showTaqaSearchablePickerSheet({
                                     trailing: isSelected
                                         ? Icon(
                                             Icons.check,
-                                            color: TaqaUiColors.charcoal,
+                                            color: colors.textPrimary,
                                             size: TaqaUiScale.w(16),
                                           )
                                         : null,

@@ -35,6 +35,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
     return SafeArea(
       top: false,
@@ -42,7 +43,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
         constraints: BoxConstraints(maxHeight: TaqaUiScale.h(600)),
         padding: TaqaUiScale.insetsLTRB(16, 10, 16, 24),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: colors.background,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(24)),
           ),
@@ -56,7 +57,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                 width: TaqaUiScale.w(36),
                 height: TaqaUiScale.h(4),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+                  color: colors.textSecondary.withValues(alpha: 0.45),
                   borderRadius: TaqaUiScale.radius(99),
                 ),
               ),
@@ -68,7 +69,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                 fontSize: TaqaUiScale.sp(10),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                color: colors.textSecondary,
               ),
             ),
             SizedBox(height: TaqaUiScale.h(12)),
@@ -76,8 +77,7 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: options.length,
-                separatorBuilder: (_, __) =>
-                    SizedBox(height: TaqaUiScale.h(10)),
+                separatorBuilder: (_, _) => SizedBox(height: TaqaUiScale.h(10)),
                 itemBuilder: (context, index) {
                   final option = options[index];
                   final selected = option.id == selectedId;
@@ -92,14 +92,12 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                           vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? TaqaUiColors.accent
-                              : TaqaUiColors.white,
+                          color: selected ? colors.accent : colors.surface,
                           borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: selected ? 0.35 : 0.08,
-                            ),
+                            color: selected
+                                ? colors.onAccent.withValues(alpha: 0.35)
+                                : colors.border,
                           ),
                         ),
                         child: Row(
@@ -116,7 +114,9 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(16),
                                       fontWeight: FontWeight.w800,
-                                      color: TaqaUiColors.charcoal,
+                                      color: selected
+                                          ? colors.onAccent
+                                          : colors.textPrimary,
                                     ),
                                   ),
                                   SizedBox(height: TaqaUiScale.h(4)),
@@ -135,9 +135,11 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                                       fontFamily:
                                           TaqaUiFontFamilies.iaWriterMonoS,
                                       fontSize: TaqaUiScale.sp(8),
-                                      color: TaqaUiColors.charcoal.withValues(
-                                        alpha: 0.55,
-                                      ),
+                                      color: selected
+                                          ? colors.onAccent.withValues(
+                                              alpha: 0.72,
+                                            )
+                                          : colors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -151,7 +153,9 @@ class TaqaCommunityGroupPickerSheet extends StatelessWidget {
                                         ? Icons.chevron_left
                                         : Icons.chevron_right),
                               size: TaqaUiScale.w(20),
-                              color: TaqaUiColors.charcoal,
+                              color: selected
+                                  ? colors.onAccent
+                                  : colors.textPrimary,
                             ),
                           ],
                         ),

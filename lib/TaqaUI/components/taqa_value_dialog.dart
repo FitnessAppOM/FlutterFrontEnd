@@ -27,6 +27,7 @@ class TaqaPopupDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Align(
       alignment: Alignment.center,
       child: Padding(
@@ -49,8 +50,9 @@ class TaqaPopupDialog extends StatelessWidget {
                 ),
                 padding: padding ?? TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
+                  color: colors.surface,
                   borderRadius: TaqaUiScale.radius(15),
+                  border: Border.all(color: colors.border),
                 ),
                 child: SingleChildScrollView(child: child),
               ),
@@ -71,8 +73,9 @@ Future<bool> showTaqaConfirmDialog({
 }) async {
   final result = await TaqaPopupGuard.dialog<bool>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
+      final colors = ctx.taqaColors;
       return Align(
         alignment: Alignment.center,
         child: Padding(
@@ -84,8 +87,9 @@ Future<bool> showTaqaConfirmDialog({
               constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
               padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiScale.radius(15),
+                border: Border.all(color: colors.border),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -100,7 +104,7 @@ Future<bool> showTaqaConfirmDialog({
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(12)),
@@ -113,9 +117,7 @@ Future<bool> showTaqaConfirmDialog({
                       fontWeight: FontWeight.w400,
                       height: 18 / 13,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
+                      color: colors.textSecondary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
@@ -136,7 +138,7 @@ Future<bool> showTaqaConfirmDialog({
                                   fontWeight: FontWeight.w600,
                                   height: 12 / 10,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ),
@@ -160,7 +162,7 @@ Future<bool> showTaqaConfirmDialog({
                                     fontWeight: FontWeight.w700,
                                     height: 12 / 10,
                                     letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: colors.onAccent,
                                   ),
                                 ),
                               ),
@@ -189,8 +191,9 @@ Future<void> showTaqaInfoDialog({
 }) {
   return TaqaPopupGuard.dialogVoid(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
+      final colors = ctx.taqaColors;
       return Align(
         alignment: Alignment.center,
         child: Padding(
@@ -202,8 +205,9 @@ Future<void> showTaqaInfoDialog({
               constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
               padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiScale.radius(15),
+                border: Border.all(color: colors.border),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -218,7 +222,7 @@ Future<void> showTaqaInfoDialog({
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(12)),
@@ -231,14 +235,12 @@ Future<void> showTaqaInfoDialog({
                       fontWeight: FontWeight.w400,
                       height: 18 / 13,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.6,
-                      ),
+                      color: colors.textSecondary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
                   Material(
-                    color: TaqaUiColors.unnamedColorE4e93b,
+                    color: colors.accent,
                     borderRadius: TaqaUiScale.radius(5),
                     child: InkWell(
                       borderRadius: TaqaUiScale.radius(5),
@@ -255,7 +257,7 @@ Future<void> showTaqaInfoDialog({
                               fontWeight: FontWeight.w700,
                               height: 12 / 10,
                               letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.onAccent,
                             ),
                           ),
                         ),
@@ -292,8 +294,9 @@ Future<T?> showTaqaOptionDialog<T>({
 }) {
   return TaqaPopupGuard.dialog<T>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
+      final colors = ctx.taqaColors;
       return Align(
         alignment: Alignment.center,
         child: Padding(
@@ -305,8 +308,9 @@ Future<T?> showTaqaOptionDialog<T>({
               constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
               padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiScale.radius(15),
+                border: Border.all(color: colors.border),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -321,7 +325,7 @@ Future<T?> showTaqaOptionDialog<T>({
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(16)),
@@ -334,12 +338,9 @@ Future<T?> showTaqaOptionDialog<T>({
                         child: Container(
                           width: double.infinity,
                           decoration: BoxDecoration(
+                            color: colors.surfaceElevated,
                             borderRadius: TaqaUiScale.radius(15),
-                            border: Border.all(
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                                alpha: 0.10,
-                              ),
-                            ),
+                            border: Border.all(color: colors.border),
                           ),
                           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                           child: Column(
@@ -354,7 +355,7 @@ Future<T?> showTaqaOptionDialog<T>({
                                   fontWeight: FontWeight.w700,
                                   height: 25 / 15,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                               if (option.subtitle != null &&
@@ -369,8 +370,7 @@ Future<T?> showTaqaOptionDialog<T>({
                                     fontWeight: FontWeight.w400,
                                     height: 18 / 13,
                                     letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.6),
+                                    color: colors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -391,7 +391,7 @@ Future<T?> showTaqaOptionDialog<T>({
                           fontWeight: FontWeight.w600,
                           height: 12 / 10,
                           letterSpacing: 0,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ),
@@ -461,7 +461,7 @@ Future<String?> showTaqaMultilineTextDialog({
 }) {
   return TaqaPopupGuard.dialog<String>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (_) => _TaqaMultilineTextDialog(
       title: title,
       message: message,
@@ -519,6 +519,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     return MediaQuery.removeViewInsets(
       context: context,
@@ -540,7 +541,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
-                  color: TaqaUiColors.charcoal,
+                  color: colors.textPrimary,
                 ),
               ),
             ),
@@ -552,7 +553,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w400,
                 height: 18 / 15,
-                color: TaqaUiColors.charcoal,
+                color: colors.textSecondary,
               ),
             ),
             SizedBox(height: TaqaUiScale.h(12)),
@@ -562,12 +563,12 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
               minLines: 3,
               maxLines: 6,
               maxLength: widget.maxLength,
-              cursorColor: TaqaUiColors.charcoal,
+              cursorColor: colors.accent,
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 height: 18 / 15,
-                color: TaqaUiColors.charcoal,
+                color: colors.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: widget.hintText,
@@ -575,19 +576,13 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                 hintStyle: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.45),
+                  color: colors.textSecondary,
                 ),
-                enabledBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
-                    width: 0.5,
-                  ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: colors.border, width: 0.5),
                 ),
-                focusedBorder: const OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
-                    width: 0.5,
-                  ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: colors.accent, width: 0.5),
                 ),
                 errorBorder: const OutlineInputBorder(
                   borderSide: BorderSide(
@@ -618,7 +613,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(10),
                             fontWeight: FontWeight.w600,
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                           ),
                         ),
                       ),
@@ -626,7 +621,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                   ),
                   Expanded(
                     child: Material(
-                      color: TaqaUiColors.lime,
+                      color: colors.accent,
                       borderRadius: TaqaUiScale.radius(5),
                       child: InkWell(
                         borderRadius: TaqaUiScale.radius(5),
@@ -638,7 +633,7 @@ class _TaqaMultilineTextDialogState extends State<_TaqaMultilineTextDialog> {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(10),
                               fontWeight: FontWeight.w700,
-                              color: TaqaUiColors.charcoal,
+                              color: colors.onAccent,
                             ),
                           ),
                         ),
@@ -679,8 +674,9 @@ Future<String?> _showTaqaInputDialog({
   try {
     return await TaqaPopupGuard.dialog<String>(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: context.taqaColors.scrim,
       builder: (ctx) {
+        final colors = ctx.taqaColors;
         final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
         return StatefulBuilder(
           builder: (ctx, setLocalState) {
@@ -703,7 +699,7 @@ Future<String?> _showTaqaInputDialog({
                         fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(33)),
@@ -721,6 +717,7 @@ Future<String?> _showTaqaInputDialog({
                               maxLength: maxLength,
                               inputFormatters: inputFormatters,
                               autofocus: true,
+                              cursorColor: colors.accent,
                               textAlign: TextAlign.center,
                               onTap: () {
                                 controller.selection = TextSelection(
@@ -743,8 +740,8 @@ Future<String?> _showTaqaInputDialog({
                                 height: 1,
                                 letterSpacing: 0,
                                 color: hasEdited
-                                    ? TaqaUiColors.unnamedColor1c1d17
-                                    : TaqaUiColors.unnamedColorE3e3e3,
+                                    ? colors.textPrimary
+                                    : colors.textSecondary,
                               ),
                               decoration: InputDecoration(
                                 isDense: true,
@@ -764,7 +761,7 @@ Future<String?> _showTaqaInputDialog({
                                   fontWeight: FontWeight.w400,
                                   height: 1,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColorE3e3e3,
+                                  color: colors.textSecondary,
                                 ),
                               ),
                             ),
@@ -782,8 +779,7 @@ Future<String?> _showTaqaInputDialog({
                                   fontSize: TaqaUiScale.sp(15),
                                   fontWeight: FontWeight.w400,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.5),
+                                  color: colors.textSecondary,
                                 ),
                               ),
                             ),
@@ -809,14 +805,14 @@ Future<String?> _showTaqaInputDialog({
                                     fontWeight: FontWeight.w600,
                                     height: 12 / 10,
                                     letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: colors.textPrimary,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                           Material(
-                            color: TaqaUiColors.unnamedColorE4e93b,
+                            color: colors.accent,
                             borderRadius: TaqaUiScale.radius(5),
                             child: InkWell(
                               borderRadius: TaqaUiScale.radius(5),
@@ -834,7 +830,7 @@ Future<String?> _showTaqaInputDialog({
                                       fontWeight: FontWeight.w700,
                                       height: 12 / 10,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.onAccent,
                                     ),
                                   ),
                                 ),

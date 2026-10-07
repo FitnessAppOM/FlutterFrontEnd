@@ -121,7 +121,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
             widget.title,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(15),
               height: 25 / 15,
@@ -132,7 +132,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
             _message,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              color: context.taqaColors.textSecondary,
               fontSize: TaqaUiScale.sp(13),
               height: 18 / 13,
             ),
@@ -156,19 +156,22 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
         width: double.infinity,
         padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+          color: context.taqaColors.surfaceElevated,
           borderRadius: TaqaUiScale.radius(10),
         ),
         child: Row(
           children: [
-            const TaqaLoadingIndicator(size: 16, color: TaqaUiColors.charcoal),
+            TaqaLoadingIndicator(
+              size: 16,
+              color: context.taqaColors.textPrimary,
+            ),
             SizedBox(width: TaqaUiScale.w(10)),
             Expanded(
               child: Text(
                 t.translate('diet_suggestions_loading'),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                  color: context.taqaColors.textSecondary,
                   fontSize: TaqaUiScale.sp(12),
                 ),
               ),
@@ -183,7 +186,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
         width: double.infinity,
         padding: TaqaUiScale.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
-          color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+          color: context.taqaColors.surfaceElevated,
           borderRadius: TaqaUiScale.radius(10),
         ),
         child: Text(
@@ -193,7 +196,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+            color: context.taqaColors.textSecondary,
             fontSize: TaqaUiScale.sp(12),
           ),
         ),
@@ -222,11 +225,9 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.lightGray.withValues(alpha: 0.45),
+        color: context.taqaColors.surfaceElevated,
         borderRadius: TaqaUiScale.radius(10),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,7 +236,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
             title,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(14),
             ),
@@ -246,7 +247,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
               how,
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                color: context.taqaColors.textSecondary,
                 fontSize: TaqaUiScale.sp(12),
               ),
             ),
@@ -261,7 +262,7 @@ class _DietRecommendationDialogState extends State<_DietRecommendationDialog> {
                 .replaceAll('{fat}', '$f'),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              color: context.taqaColors.textSecondary,
               fontSize: TaqaUiScale.sp(9),
               height: 12 / 9,
             ),

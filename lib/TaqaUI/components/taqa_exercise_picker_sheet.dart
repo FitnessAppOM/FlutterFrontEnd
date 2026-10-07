@@ -26,8 +26,9 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (sheetContext) {
+      final colors = sheetContext.taqaColors;
       final viewInsets = MediaQuery.viewInsetsOf(sheetContext);
       final availableHeight =
           MediaQuery.sizeOf(sheetContext).height - viewInsets.bottom;
@@ -58,7 +59,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                 height: pickerHeight,
                 padding: TaqaUiScale.insetsLTRB(16, 10, 17, 12),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
+                  color: colors.surface,
                   borderRadius: BorderRadius.vertical(
                     top: Radius.circular(TaqaUiScale.r(15)),
                   ),
@@ -69,7 +70,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                       width: TaqaUiScale.w(36),
                       height: TaqaUiScale.h(3),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.25),
+                        color: colors.textSecondary.withValues(alpha: 0.45),
                         borderRadius: TaqaUiScale.radius(2),
                       ),
                     ),
@@ -85,7 +86,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontWeight: FontWeight.w700,
                                 fontSize: TaqaUiScale.sp(15),
@@ -101,7 +102,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                               semanticLabel: 'Close',
                               child: Icon(
                                 Icons.close,
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 size: TaqaUiScale.w(16),
                               ),
                             ),
@@ -116,10 +117,10 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                         // Let the field own its controller until the sheet's
                         // closing animation has finished and it is unmounted.
                         autofocus: true,
-                        cursorColor: TaqaUiColors.charcoal,
+                        cursorColor: colors.accent,
                         textInputAction: TextInputAction.done,
                         style: TextStyle(
-                          color: TaqaUiColors.charcoal,
+                          color: colors.textPrimary,
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(15),
                           height: 21 / 15,
@@ -127,24 +128,24 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                         decoration: InputDecoration(
                           hintText: 'Search exercise',
                           hintStyle: TextStyle(
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                            color: colors.textSecondary,
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(15),
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textSecondary,
                             size: TaqaUiScale.w(18),
                           ),
-                          enabledBorder: const UnderlineInputBorder(
+                          enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.border,
                               width: 0.5,
                             ),
                           ),
-                          focusedBorder: const UnderlineInputBorder(
+                          focusedBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.accent,
                               width: 0.5,
                             ),
                           ),
@@ -162,9 +163,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                               child: Text(
                                 'No exercises found.',
                                 style: TextStyle(
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.62,
-                                  ),
+                                  color: colors.textSecondary,
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(15),
                                 ),
@@ -176,18 +175,14 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                               itemCount: filtered.length,
                               separatorBuilder: (_, _) => Divider(
                                 height: TaqaUiScale.h(1),
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.08,
-                                ),
+                                color: colors.divider,
                               ),
                               itemBuilder: (context, index) {
                                 final option = filtered[index];
                                 final isSelected = selectedId == option.id;
                                 return Material(
                                   color: isSelected
-                                      ? TaqaUiColors.lime.withValues(
-                                          alpha: 0.35,
-                                        )
+                                      ? colors.accent.withValues(alpha: 0.35)
                                       : Colors.transparent,
                                   borderRadius: TaqaUiScale.radius(5),
                                   child: ListTile(
@@ -200,7 +195,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: TaqaUiColors.charcoal,
+                                        color: colors.textPrimary,
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
                                         fontSize: TaqaUiScale.sp(15),
@@ -210,7 +205,7 @@ Future<ExercisePickerItem?> showExercisePickerSheet({
                                     trailing: isSelected
                                         ? Icon(
                                             Icons.check,
-                                            color: TaqaUiColors.charcoal,
+                                            color: colors.textPrimary,
                                             size: TaqaUiScale.w(16),
                                           )
                                         : null,

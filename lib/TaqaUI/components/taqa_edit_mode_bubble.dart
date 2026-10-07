@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../taqa_ui_colors.dart';
 import 'taqa_pressable.dart';
 
 class TaqaEditModeBubble extends StatelessWidget {
@@ -10,6 +11,7 @@ class TaqaEditModeBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedOpacity(
@@ -25,18 +27,18 @@ class TaqaEditModeBubble extends StatelessWidget {
               constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: const Color(0x1F000000)),
-                boxShadow: const [
+                border: Border.all(color: colors.border),
+                boxShadow: [
                   BoxShadow(
-                    color: Color(0x29000000),
+                    color: colors.scrim.withValues(alpha: 0.26),
                     blurRadius: 30,
                     offset: Offset(0, 0),
                   ),
                 ],
               ),
-              child: const Icon(Icons.add, color: Colors.black, size: 22),
+              child: Icon(Icons.add, color: colors.textPrimary, size: 22),
             ),
           ),
         ),

@@ -107,7 +107,7 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(TaqaUiScale.r(15)),
@@ -146,8 +146,8 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                   width: 44,
                   margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.12,
+                    color: context.taqaColors.textSecondary.withValues(
+                      alpha: 0.45,
                     ),
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -164,7 +164,7 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                         fontWeight: FontWeight.w700,
                         height: 25 / 15,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: context.taqaColors.textPrimary,
                       ),
                     ),
                     Align(
@@ -175,7 +175,7 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                             : () => Navigator.of(context).pop(),
                         icon: Icon(
                           Icons.close,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: context.taqaColors.textPrimary,
                         ),
                       ),
                     ),
@@ -198,9 +198,7 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                             t.translate("diet_favorites_empty"),
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                                alpha: 0.6,
-                              ),
+                              color: context.taqaColors.textSecondary,
                             ),
                           ),
                         )
@@ -227,11 +225,10 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                               child: Container(
                                 padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                                 decoration: BoxDecoration(
-                                  color: TaqaUiColors.white,
+                                  color: context.taqaColors.surface,
                                   borderRadius: TaqaUiScale.radius(15),
                                   border: Border.all(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.10),
+                                    color: context.taqaColors.border,
                                   ),
                                 ),
                                 child: Row(
@@ -252,8 +249,9 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                                               fontWeight: FontWeight.w700,
                                               height: 21 / 15,
                                               letterSpacing: 0,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
+                                              color: context
+                                                  .taqaColors
+                                                  .textPrimary,
                                             ),
                                           ),
                                           SizedBox(height: TaqaUiScale.h(2)),
@@ -268,9 +266,9 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                                               fontWeight: FontWeight.w400,
                                               height: 18 / 13,
                                               letterSpacing: 0,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17
-                                                  .withValues(alpha: 0.5),
+                                              color: context
+                                                  .taqaColors
+                                                  .textSecondary,
                                             ),
                                           ),
                                         ],
@@ -279,8 +277,7 @@ class _DietFavoritesSheetState extends State<DietFavoritesSheet> {
                                     SizedBox(width: TaqaUiScale.w(8)),
                                     Icon(
                                       Icons.chevron_right,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.4),
+                                      color: context.taqaColors.textSecondary,
                                     ),
                                   ],
                                 ),
@@ -326,8 +323,8 @@ class _FavoriteDetailSheet extends StatelessWidget {
                 width: 44,
                 margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.12,
+                  color: context.taqaColors.textSecondary.withValues(
+                    alpha: 0.45,
                   ),
                   borderRadius: BorderRadius.circular(999),
                 ),
@@ -346,7 +343,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                   Align(
@@ -355,7 +352,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                       icon: Icon(
                         Icons.close,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: context.taqaColors.textPrimary,
                       ),
                     ),
                   ),
@@ -395,7 +392,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                           t.translate("diet_no_results"),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                       );
@@ -408,9 +405,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(13),
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                                alpha: 0.6,
-                              ),
+                              color: context.taqaColors.textSecondary,
                             ),
                           ),
                           SizedBox(height: TaqaUiScale.h(12)),
@@ -418,7 +413,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                         ...list.map(
                           (item) => Padding(
                             padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
-                            child: _buildFavoriteItem(t, item),
+                            child: _buildFavoriteItem(context, t, item),
                           ),
                         ),
                       ],
@@ -445,7 +440,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           height: 12 / 10,
                           letterSpacing: 0,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: context.taqaColors.onAccent,
                         ),
                       ),
                     ),
@@ -459,7 +454,11 @@ class _FavoriteDetailSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildFavoriteItem(AppLocalizations t, Map<String, dynamic> item) {
+  Widget _buildFavoriteItem(
+    BuildContext context,
+    AppLocalizations t,
+    Map<String, dynamic> item,
+  ) {
     final name = (item['item_name'] ?? '').toString();
     final kcal = item['calories'] ?? 0;
     final p = item['protein_g'] ?? 0;
@@ -483,11 +482,9 @@ class _FavoriteDetailSheet extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,7 +499,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
               fontWeight: FontWeight.w700,
               height: 21 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(8)),
@@ -514,7 +511,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
               fontWeight: FontWeight.w400,
               height: 21 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
           ),
           if (ingList.isNotEmpty) ...[
@@ -537,7 +534,7 @@ class _FavoriteDetailSheet extends StatelessWidget {
                 fontWeight: FontWeight.w400,
                 height: 18 / 13,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+                color: context.taqaColors.textSecondary,
               ),
             ),
           ],

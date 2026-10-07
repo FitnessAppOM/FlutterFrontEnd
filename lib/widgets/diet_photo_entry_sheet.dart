@@ -188,8 +188,8 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                   width: 44,
                   margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.12,
+                    color: context.taqaColors.textSecondary.withValues(
+                      alpha: 0.45,
                     ),
                     borderRadius: BorderRadius.circular(999),
                   ),
@@ -206,7 +206,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                         fontWeight: FontWeight.w700,
                         height: 25 / 15,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: context.taqaColors.textPrimary,
                       ),
                     ),
                     Align(
@@ -217,7 +217,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                             : () => Navigator.of(context).pop(),
                         icon: Icon(
                           Icons.close,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: context.taqaColors.textPrimary,
                         ),
                       ),
                     ),
@@ -270,12 +270,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                           width: double.infinity,
                           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                           decoration: BoxDecoration(
-                            color: TaqaUiColors.white,
+                            color: context.taqaColors.surface,
                             borderRadius: TaqaUiScale.radius(15),
                             border: Border.all(
-                              color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                                alpha: 0.10,
-                              ),
+                              color: context.taqaColors.border,
                             ),
                           ),
                           child: Column(
@@ -289,7 +287,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                                   fontWeight: FontWeight.w700,
                                   height: 25 / 15,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: context.taqaColors.textPrimary,
                                 ),
                               ),
                               SizedBox(height: TaqaUiScale.h(8)),
@@ -303,9 +301,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                                   fontWeight: FontWeight.w400,
                                   height: 21 / 15,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: context.taqaColors.textPrimary,
                                 ),
                                 decoration: _borderlessFieldDecoration(
+                                  context,
                                   hintText: t.translate(
                                     "diet_photo_description_hint",
                                   ),
@@ -322,9 +321,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                             fontSize: TaqaUiScale.sp(12),
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.5,
-                            ),
+                            color: context.taqaColors.textSecondary,
                           ),
                         ),
                       ],
@@ -334,7 +331,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                 SizedBox(height: TaqaUiScale.h(16)),
                 Material(
                   color: _photoBytes == null
-                      ? TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12)
+                      ? context.taqaColors.surfaceElevated
                       : TaqaUiColors.unnamedColorE4e93b,
                   borderRadius: TaqaUiScale.radius(5),
                   child: InkWell(
@@ -350,7 +347,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                                 width: TaqaUiScale.w(18),
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: context.taqaColors.onAccent,
                                 ),
                               )
                             : Text(
@@ -361,7 +358,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
                                   fontWeight: FontWeight.w700,
                                   height: 12 / 10,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: context.taqaColors.onAccent,
                                 ),
                               ),
                       ),
@@ -377,7 +374,10 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
   }
 }
 
-InputDecoration _borderlessFieldDecoration({String? hintText}) {
+InputDecoration _borderlessFieldDecoration(
+  BuildContext context, {
+  String? hintText,
+}) {
   return InputDecoration(
     isDense: true,
     contentPadding: EdgeInsets.zero,
@@ -388,7 +388,7 @@ InputDecoration _borderlessFieldDecoration({String? hintText}) {
       fontWeight: FontWeight.w400,
       height: 21 / 15,
       letterSpacing: 0,
-      color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+      color: context.taqaColors.textSecondary,
     ),
     border: InputBorder.none,
     enabledBorder: InputBorder.none,
@@ -418,11 +418,9 @@ class _PhotoSourceButton extends StatelessWidget {
       child: Container(
         height: TaqaUiScale.h(45),
         decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+          color: context.taqaColors.surface,
           borderRadius: TaqaUiScale.radius(15),
-          border: Border.all(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-          ),
+          border: Border.all(color: context.taqaColors.border),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -430,7 +428,7 @@ class _PhotoSourceButton extends StatelessWidget {
             Icon(
               icon,
               size: TaqaUiScale.w(18),
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
             SizedBox(width: TaqaUiScale.w(8)),
             Text(
@@ -442,7 +440,7 @@ class _PhotoSourceButton extends StatelessWidget {
                 fontSize: TaqaUiScale.sp(13),
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: context.taqaColors.textPrimary,
               ),
             ),
           ],

@@ -15,7 +15,6 @@ import '../../TaqaUI/components/taqa_underline_field.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
-import '../../consents/consent_manager.dart';
 import '../../core/user_friendly_error.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/coach/chat_attachment_file_service.dart';
@@ -184,7 +183,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.charcoal,
+                color: dialogContext.taqaColors.textPrimary,
               ),
             ),
             SizedBox(height: TaqaUiScale.h(12)),
@@ -469,7 +468,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               height: 25 / 25,
             ),
           ),
@@ -484,7 +483,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textSecondary,
               height: 18 / 15,
             ),
           ),
@@ -539,7 +538,7 @@ class _CoachFormCheckPanelState extends State<CoachFormCheckPanel> {
             _tr(context, 'coach_form_check_recent', 'Recent Form Checks'),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(16),
             ),
@@ -615,17 +614,15 @@ class _UsageChip extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.insetsLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(8),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+          color: context.taqaColors.textSecondary,
           fontSize: TaqaUiScale.sp(10),
           fontWeight: FontWeight.w600,
         ),
@@ -644,7 +641,8 @@ class _ConsentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal,
+        color: context.taqaColors.surfaceElevated,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
@@ -655,7 +653,7 @@ class _ConsentCard extends StatelessWidget {
             title,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.white,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(15),
               height: 25 / 15,
@@ -666,7 +664,7 @@ class _ConsentCard extends StatelessWidget {
             body,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.white,
+              color: context.taqaColors.textSecondary,
               fontWeight: FontWeight.w400,
               fontSize: TaqaUiScale.sp(15),
               height: 21 / 15,
@@ -701,7 +699,8 @@ class _UploadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
@@ -716,7 +715,7 @@ class _UploadCard extends StatelessWidget {
             ),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(15),
               height: 25 / 15,
@@ -769,7 +768,7 @@ class _UploadCard extends StatelessWidget {
                   ),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                    color: context.taqaColors.textSecondary,
                     fontSize: TaqaUiScale.sp(12),
                   ),
                 ),
@@ -792,18 +791,18 @@ class _UploadCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: consentAccepted
                           ? TaqaUiColors.accent
-                          : TaqaUiColors.white,
+                          : context.taqaColors.surfaceElevated,
                       border: Border.all(
                         color: consentAccepted
                             ? TaqaUiColors.accent
-                            : TaqaUiColors.charcoal.withValues(alpha: 0.8),
+                            : context.taqaColors.textSecondary,
                         width: 0.5,
                       ),
                     ),
                     child: consentAccepted
                         ? Icon(
                             Icons.check,
-                            color: TaqaUiColors.white,
+                            color: context.taqaColors.onAccent,
                             size: TaqaUiScale.w(9),
                           )
                         : null,
@@ -818,7 +817,7 @@ class _UploadCard extends StatelessWidget {
                       ),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
-                        color: TaqaUiColors.charcoal,
+                        color: context.taqaColors.textPrimary,
                         fontWeight: FontWeight.w400,
                         fontSize: TaqaUiScale.sp(10),
                         height: 12 / 10,
@@ -840,7 +839,7 @@ class _UploadCard extends StatelessWidget {
                 ),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.charcoal,
+                  color: context.taqaColors.textPrimary,
                   fontWeight: FontWeight.w700,
                   fontSize: TaqaUiScale.sp(13),
                 ),
@@ -867,7 +866,7 @@ class _FormCheckActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: TaqaUiColors.unnamedColorE3e3e3,
+      color: context.taqaColors.surfaceElevated,
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
@@ -880,7 +879,7 @@ class _FormCheckActionButton extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w600,
               fontSize: TaqaUiScale.sp(10),
               height: 12 / 10,
@@ -903,7 +902,8 @@ class _EmptyStateCard extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(top: TaqaUiScale.h(8)),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 16),
@@ -914,7 +914,7 @@ class _EmptyStateCard extends StatelessWidget {
             title,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(15),
               height: 25 / 15,
@@ -925,7 +925,7 @@ class _EmptyStateCard extends StatelessWidget {
             subtitle,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textSecondary,
               fontWeight: FontWeight.w400,
               fontSize: TaqaUiScale.sp(15),
               height: 21 / 15,
@@ -977,7 +977,8 @@ class _SubmissionCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
@@ -991,7 +992,7 @@ class _SubmissionCard extends StatelessWidget {
                   item.exerciseName,
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     fontWeight: FontWeight.w700,
                     fontSize: TaqaUiScale.sp(15),
                   ),
@@ -1057,7 +1058,7 @@ class _SubmissionCard extends StatelessWidget {
                     ),
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                      color: context.taqaColors.textSecondary,
                     ),
                   ),
                 ),
@@ -1082,7 +1083,7 @@ class _SubmissionCard extends StatelessWidget {
                 item.result.feedbackSummary!,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.charcoal,
+                  color: context.taqaColors.textPrimary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1109,7 +1110,7 @@ class _SubmissionCard extends StatelessWidget {
                           bullet,
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.8),
+                            color: context.taqaColors.textSecondary,
                             height: 1.35,
                           ),
                         ),
@@ -1208,14 +1209,15 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = TaqaUiColors.charcoal.withValues(alpha: 0.7);
+    final color = context.taqaColors.textPrimary;
     return InkWell(
       onTap: onTap,
       borderRadius: TaqaUiScale.radius(999),
       child: Container(
         padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: context.taqaColors.surfaceElevated,
+          border: Border.all(color: context.taqaColors.border),
           borderRadius: TaqaUiScale.radius(999),
         ),
         child: Row(

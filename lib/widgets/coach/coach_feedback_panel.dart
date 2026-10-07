@@ -594,7 +594,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
               fontWeight: FontWeight.w700,
               height: 25 / 25,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(5)),
@@ -606,7 +606,7 @@ class _CoachFeedbackPanelState extends State<CoachFeedbackPanel> {
               fontWeight: FontWeight.w400,
               height: 18 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(20)),
@@ -769,7 +769,8 @@ class _TaskSectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 14),
@@ -784,7 +785,7 @@ class _TaskSectionCard extends StatelessWidget {
               fontWeight: FontWeight.w700,
               height: 25 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
@@ -812,7 +813,7 @@ class _HabitRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.04),
+        color: context.taqaColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -837,9 +838,7 @@ class _HabitRow extends StatelessWidget {
                         : Icons.check_box_outline_blank,
                     color: habit.isCompleted
                         ? TaqaUiColors.lime
-                        : TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.35,
-                          ),
+                        : context.taqaColors.textSecondary,
                     size: 18,
                   ),
                 const SizedBox(width: 8),
@@ -848,9 +847,11 @@ class _HabitRow extends StatelessWidget {
                     habit.habit,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: habit.isCompleted ? 0.4 : 0.85,
-                      ),
+                      color: habit.isCompleted
+                          ? context.taqaColors.textSecondary.withValues(
+                              alpha: 0.55,
+                            )
+                          : context.taqaColors.textPrimary,
                       decoration: habit.isCompleted
                           ? TextDecoration.lineThrough
                           : TextDecoration.none,
@@ -888,7 +889,7 @@ class _InlineInfo extends StatelessWidget {
         label,
         style: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: context.taqaColors.textPrimary,
           fontSize: TaqaUiScale.sp(15),
           fontWeight: FontWeight.w400,
           height: 21 / 15,
@@ -974,10 +975,10 @@ class _FeedbackEntryCard extends StatelessWidget {
     final statusIcon = isPinned ? Icons.push_pin : Icons.mode_comment_outlined;
     final statusColor = isPinned
         ? Colors.orange.shade700
-        : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5);
+        : context.taqaColors.textSecondary;
     final statusLabel = isPinned ? 'Pinned reply' : 'Coach reply';
     final textButtonStyle = TextButton.styleFrom(
-      foregroundColor: TaqaUiColors.unnamedColor1c1d17,
+      foregroundColor: context.taqaColors.textPrimary,
       minimumSize: const Size(0, 26),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -986,11 +987,9 @@ class _FeedbackEntryCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.04),
+        color: context.taqaColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
@@ -1003,7 +1002,7 @@ class _FeedbackEntryCard extends StatelessWidget {
                   workoutLabel,
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: context.taqaColors.textPrimary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1016,7 +1015,7 @@ class _FeedbackEntryCard extends StatelessWidget {
                 dateLabel,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+                  color: context.taqaColors.textSecondary,
                   fontSize: TaqaUiScale.sp(12),
                 ),
               ),
@@ -1045,7 +1044,7 @@ class _FeedbackEntryCard extends StatelessWidget {
             message,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.75),
+              color: context.taqaColors.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -1062,15 +1061,12 @@ class _FeedbackEntryCard extends StatelessWidget {
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.6,
-                            ),
+                            color: context.taqaColors.textSecondary,
                           ),
                         )
                       : (isVoicePlaying
                             ? _AudioWaveBars(
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.6),
+                                color: context.taqaColors.textSecondary,
                                 barCount: 4,
                                 minHeight: 4,
                                 maxHeight: 12,

@@ -11,14 +11,12 @@ class NewsSlide {
   final String title;
   final String subtitle;
   final String dateLabel;
-  final Color color;
   final VoidCallback? onTap;
 
   const NewsSlide({
     required this.title,
     required this.subtitle,
     required this.dateLabel,
-    required this.color,
     this.onTap,
   });
 }
@@ -165,7 +163,6 @@ class _SlideCard extends StatelessWidget {
     final cardColor = colors.isDark
         ? colors.surfaceElevated
         : TaqaUiColors.charcoal;
-    final tintColor = Color.lerp(cardColor, slide.color, 0.14) ?? cardColor;
 
     return Material(
       color: Colors.transparent,
@@ -178,11 +175,6 @@ class _SlideCard extends StatelessWidget {
             color: cardColor,
             borderRadius: TaqaUiStyles.carouselCardRadius,
             border: Border.all(color: colors.border),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [cardColor, tintColor],
-            ),
           ),
           child: Stack(
             children: [

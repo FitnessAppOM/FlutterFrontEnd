@@ -62,15 +62,16 @@ class TaqaTagButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
         decoration: BoxDecoration(
-          color: Colors.transparent,
+          color: colors.isDark ? colors.surfaceElevated : Colors.transparent,
           borderRadius: TaqaUiScale.radius(5),
           border: Border.all(
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary.withValues(alpha: 0.72),
             width: 0.5,
           ),
         ),
@@ -78,11 +79,7 @@ class TaqaTagButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: TaqaUiScale.w(10),
-              color: TaqaUiColors.unnamedColor1c1d17,
-            ),
+            Icon(icon, size: TaqaUiScale.w(10), color: colors.textPrimary),
             SizedBox(width: TaqaUiScale.w(4)),
             Text(
               taqaUppercase(label),
@@ -92,7 +89,7 @@ class TaqaTagButton extends StatelessWidget {
                 fontWeight: FontWeight.w400,
                 letterSpacing: 0,
                 height: 10 / 8,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
               ),
             ),
           ],

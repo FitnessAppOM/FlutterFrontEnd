@@ -935,7 +935,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
       icon: Icon(
         Icons.notifications_rounded,
         size: TaqaUiScale.w(6),
-        color: hasPending ? accent : TaqaUiColors.charcoal,
+        color: hasPending ? accent : context.taqaColors.textPrimary,
       ),
     );
   }
@@ -1068,9 +1068,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(11),
                     fontWeight: FontWeight.w500,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.60,
-                    ),
+                    color: context.taqaColors.textSecondary,
                   ),
                 ),
               ),
@@ -1161,7 +1159,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
                   letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(10)),
@@ -1233,7 +1231,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                       style: TextStyle(
                                         fontFamily:
                                             TaqaUiFontFamilies.interTight,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: context.taqaColors.textPrimary,
                                         fontWeight: FontWeight.w700,
                                         fontSize: TaqaUiScale.sp(15),
                                         height: 18 / 15,
@@ -1329,8 +1327,8 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
-                                          color: TaqaUiColors.charcoal
-                                              .withValues(alpha: 0.70),
+                                          color:
+                                              context.taqaColors.textSecondary,
                                           fontSize: TaqaUiScale.sp(12),
                                           fontWeight: FontWeight.w600,
                                         ),
@@ -1340,9 +1338,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                     ),
                                     Icon(
                                       Icons.chevron_right,
-                                      color: TaqaUiColors.charcoal.withValues(
-                                        alpha: 0.54,
-                                      ),
+                                      color: context.taqaColors.textSecondary,
                                       size: TaqaUiScale.w(18),
                                     ),
                                   ],
@@ -1458,7 +1454,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
-                                color: TaqaUiColors.unnamedColor1c1d17,
+                                color: context.taqaColors.textPrimary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: TaqaUiScale.sp(15),
                                 height: 18 / 15,
@@ -1478,7 +1474,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                         clientLabel,
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.70),
+                          color: context.taqaColors.textSecondary,
                           fontWeight: FontWeight.w600,
                           fontSize: TaqaUiScale.sp(12),
                         ),
@@ -1488,7 +1484,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                         '${_formatBytes(document.fileSizeBytes)} • ${_formatDateTime(document.createdAt ?? document.updatedAt)}',
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                          color: context.taqaColors.textSecondary,
                           fontSize: TaqaUiScale.sp(12),
                         ),
                       ),
@@ -1500,9 +1496,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                           document.originalFilename!.trim(),
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.60,
-                            ),
+                            color: context.taqaColors.textSecondary,
                             fontSize: TaqaUiScale.sp(12),
                           ),
                         ),
@@ -1526,7 +1520,7 @@ class _ExpertDashboardPageState extends State<ExpertDashboardPage> {
                                 : Icons.push_pin_outlined,
                             color: document.isPinned
                                 ? const Color(0xFFE07A00)
-                                : TaqaUiColors.charcoal,
+                                : context.taqaColors.textPrimary,
                             loading: isPinLoading,
                             onTap: (isPinLoading || isDeleteLoading)
                                 ? null

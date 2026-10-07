@@ -33,17 +33,30 @@ class ProfileHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
+        Container(
           height: TaqaUiScale.w(62),
           width: TaqaUiScale.w(62),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: colors.textPrimary.withValues(
+                alpha: colors.isDark ? 0.42 : 0.12,
+              ),
+              width: 1,
+            ),
+          ),
           child: CircleAvatar(
-            backgroundColor: TaqaUiColors.unnamedColor1c1d17,
+            backgroundColor: colors.isDark
+                ? colors.surfaceElevated
+                : colors.surfaceInverse,
             backgroundImage: avatarImage,
             child: avatarImage == null
                 ? Icon(
                     Icons.person,
                     size: TaqaUiScale.w(32),
-                    color: TaqaUiColors.white,
+                    color: colors.isDark
+                        ? colors.textPrimary
+                        : colors.textOnInverse,
                   )
                 : null,
           ),

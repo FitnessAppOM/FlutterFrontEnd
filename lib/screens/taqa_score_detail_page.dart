@@ -257,7 +257,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
               )
             : RefreshIndicator(
                 color: AppColors.accent,
-                backgroundColor: AppColors.cardDark,
+                backgroundColor: context.taqaColors.surface,
                 onRefresh: () async {
                   final uid = _userId;
                   if (uid == null) return;
@@ -336,7 +336,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
                         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                         fontSize: TaqaUiScale.sp(8),
                         fontWeight: FontWeight.w400,
-                        color: TaqaUiColors.charcoal,
+                        color: context.taqaColors.textPrimary,
                         height: 10 / 8,
                       ),
                     ),
@@ -533,14 +533,17 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
           Icon(
             Icons.cloud_off_rounded,
             size: 48,
-            color: Colors.white.withValues(alpha: 0.25),
+            color: context.taqaColors.textSecondary.withValues(alpha: 0.45),
           ),
           const SizedBox(height: 12),
           Text(
             _isSelectedYesterday
                 ? t("taqa_no_data_yesterday_hint")
                 : t("taqa_no_data"),
-            style: const TextStyle(color: Colors.white54, fontSize: 15),
+            style: TextStyle(
+              color: context.taqaColors.textSecondary,
+              fontSize: 15,
+            ),
             textAlign: TextAlign.center,
           ),
         ],

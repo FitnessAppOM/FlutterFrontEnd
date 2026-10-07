@@ -5,6 +5,7 @@ import '../localization/app_localizations.dart';
 import '../services/diet/nutrition_search_service.dart';
 import '../theme/app_theme.dart';
 import '../TaqaUI/components/taqa_value_dialog.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class DietFoodsMasterPickerSheet extends StatefulWidget {
   const DietFoodsMasterPickerSheet({
@@ -17,10 +18,12 @@ class DietFoodsMasterPickerSheet extends StatefulWidget {
   final bool requireGrams;
 
   @override
-  State<DietFoodsMasterPickerSheet> createState() => _DietFoodsMasterPickerSheetState();
+  State<DietFoodsMasterPickerSheet> createState() =>
+      _DietFoodsMasterPickerSheetState();
 }
 
-class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet> {
+class _DietFoodsMasterPickerSheetState
+    extends State<DietFoodsMasterPickerSheet> {
   final _qCtrl = TextEditingController();
   Timer? _debounce;
   bool _loading = false;
@@ -51,7 +54,11 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
     });
 
     try {
-      final items = await NutritionSearchService.searchFoods(q: q, limit: 25, offset: 0);
+      final items = await NutritionSearchService.searchFoods(
+        q: q,
+        limit: 25,
+        offset: 0,
+      );
       if (!mounted) return;
       setState(() {
         _results = items;
@@ -107,9 +114,9 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
       initialValue: initial,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       unit: unit,
-      confirmLabel: AppLocalizations.of(context)
-          .translate("diet_log")
-          .toUpperCase(),
+      confirmLabel: AppLocalizations.of(
+        context,
+      ).translate("diet_log").toUpperCase(),
     );
     if (text == null) return null;
     return double.tryParse(text.trim());
@@ -137,6 +144,7 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
     final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.82;
     final sheetHeight = (maxSheetHeight - bottomInset).clamp(
@@ -152,7 +160,12 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
         child: SizedBox(
           height: sheetHeight,
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16),
+            padding: const EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: 16,
+            ),
             child: Column(
               children: [
                 Container(
@@ -160,7 +173,7 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
                   width: 44,
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: colors.textSecondary.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -170,14 +183,16 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
                       child: Text(
                         widget.title,
                         style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
+                          color: colors.textPrimary,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
                     IconButton(
-                      onPressed: _loading ? null : () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: _loading
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      icon: Icon(Icons.close, color: colors.textSecondary),
                     ),
                   ],
                 ),
@@ -186,40 +201,37 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
                     ? Container(
                         height: 56,
                         decoration: BoxDecoration(
-                          color: AppColors.cardDark,
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                          ),
+                          border: Border.all(color: colors.border),
                         ),
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
                           t.translate("diet_search_hint"),
-                          style: const TextStyle(color: Colors.white38),
+                          style: TextStyle(color: colors.textSecondary),
                         ),
                       )
                     : TextField(
                         controller: _qCtrl,
                         onChanged: (_) => _scheduleSearch(),
-                        style: const TextStyle(color: Colors.white),
+                        style: TextStyle(color: colors.textPrimary),
                         decoration: InputDecoration(
                           hintText: t.translate("diet_search_hint"),
-                          hintStyle: const TextStyle(color: Colors.white38),
-                          prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                          hintStyle: TextStyle(color: colors.textSecondary),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: colors.textSecondary,
+                          ),
                           filled: true,
-                          fillColor: AppColors.cardDark,
+                          fillColor: colors.surface,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                            ),
+                            borderSide: BorderSide(color: colors.border),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-                            ),
+                            borderSide: BorderSide(color: colors.border),
                           ),
                         ),
                       ),
@@ -254,7 +266,7 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
       return Center(
         child: Text(
           t.translate("diet_no_results"),
-          style: const TextStyle(color: Colors.white60),
+          style: TextStyle(color: context.taqaColors.textSecondary),
         ),
       );
     }
@@ -262,15 +274,24 @@ class _DietFoodsMasterPickerSheetState extends State<DietFoodsMasterPickerSheet>
     return ListView.separated(
       itemCount: _results.length,
       separatorBuilder: (context, index) =>
-          const Divider(color: AppColors.dividerDark, height: 1),
+          Divider(color: context.taqaColors.divider, height: 1),
       itemBuilder: (ctx, i) {
         final it = _results[i];
         final title = _foodTitle(it);
         final subtitle = _macroSubtitle(it);
         return ListTile(
-          title: Text(title, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(subtitle, style: const TextStyle(color: Colors.white60)),
-          trailing: const Icon(Icons.add_circle_outline, color: Colors.white70),
+          title: Text(
+            title,
+            style: TextStyle(color: context.taqaColors.textPrimary),
+          ),
+          subtitle: Text(
+            subtitle,
+            style: TextStyle(color: context.taqaColors.textSecondary),
+          ),
+          trailing: Icon(
+            Icons.add_circle_outline,
+            color: context.taqaColors.textSecondary,
+          ),
           onTap: () => _selectFood(it),
         );
       },

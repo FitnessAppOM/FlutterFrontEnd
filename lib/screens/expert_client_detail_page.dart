@@ -446,9 +446,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      _showSnack(
-        'Could not open video: ${userFriendlyErrorMessage(e)}',
-      );
+      _showSnack('Could not open video: ${userFriendlyErrorMessage(e)}');
     }
   }
 
@@ -1037,7 +1035,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     bool loading = false,
     Color? activeColor,
   }) {
-    final color = activeColor ?? TaqaUiColors.charcoal;
+    final color = activeColor ?? context.taqaColors.textPrimary;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1087,7 +1085,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -1190,9 +1188,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.video_collection_outlined,
-                            color: TaqaUiColors.charcoal,
+                            color: sheetContext.taqaColors.textPrimary,
                           ),
                           SizedBox(width: TaqaUiScale.w(8)),
                           Expanded(
@@ -1202,7 +1200,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
-                                color: TaqaUiColors.charcoal,
+                                color: sheetContext.taqaColors.textPrimary,
                                 fontWeight: FontWeight.w700,
                                 fontSize: TaqaUiScale.sp(16),
                               ),
@@ -1210,9 +1208,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                           ),
                           IconButton(
                             onPressed: () => Navigator.of(sheetContext).pop(),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.close,
-                              color: TaqaUiColors.charcoal,
+                              color: sheetContext.taqaColors.textPrimary,
                             ),
                           ),
                         ],
@@ -1221,7 +1219,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                         'Shared: ${_formatDateTime(current.sharedAt ?? current.createdAt)}',
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                          color: sheetContext.taqaColors.textSecondary,
                           fontSize: TaqaUiScale.sp(12),
                         ),
                       ),
@@ -1284,8 +1282,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                           child: Icon(
                                             Icons.circle,
                                             size: TaqaUiScale.w(6),
-                                            color: TaqaUiColors.charcoal
-                                                .withValues(alpha: 0.4),
+                                            color: sheetContext
+                                                .taqaColors
+                                                .textSecondary,
                                           ),
                                         ),
                                         SizedBox(width: TaqaUiScale.w(8)),
@@ -1305,9 +1304,8 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                   'Detected focus areas: ${aiIssues.join(', ')}',
                                   style: TextStyle(
                                     fontFamily: TaqaUiFontFamilies.interTight,
-                                    color: TaqaUiColors.charcoal.withValues(
-                                      alpha: 0.55,
-                                    ),
+                                    color:
+                                        sheetContext.taqaColors.textSecondary,
                                     fontSize: TaqaUiScale.sp(12),
                                   ),
                                 ),
@@ -1321,9 +1319,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                           'Taqa Agent analysis is still processing.',
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.55,
-                            ),
+                            color: sheetContext.taqaColors.textSecondary,
                             fontSize: TaqaUiScale.sp(12),
                           ),
                         ),
@@ -1368,9 +1364,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             children: [
                               Icon(
                                 Icons.mic,
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.7,
-                                ),
+                                color: sheetContext.taqaColors.textSecondary,
                               ),
                               SizedBox(width: TaqaUiScale.w(8)),
                               Expanded(
@@ -1384,8 +1378,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                   Text(
                                     reviewSeenAt == null ? 'Unseen' : 'Seen',
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
+                                      fontFamily: TaqaUiFontFamilies.interTight,
                                       color: reviewSeenAt == null
                                           ? TaqaUiColors.recordRed
                                           : const Color(0xFF2E8B57),
@@ -1414,7 +1407,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                                 isVoicePlaying
                                                     ? Icons.pause_circle_filled
                                                     : Icons.play_circle_fill,
-                                                color: TaqaUiColors.charcoal,
+                                                color: sheetContext
+                                                    .taqaColors
+                                                    .textPrimary,
                                               ),
                                         tooltip: isVoicePlaying
                                             ? 'Pause'
@@ -1425,9 +1420,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                         icon: isReviewPinned
                                             ? Icons.push_pin
                                             : Icons.push_pin_outlined,
-                                        label: isReviewPinned
-                                            ? 'Unpin'
-                                            : 'Pin',
+                                        label: isReviewPinned ? 'Unpin' : 'Pin',
                                         onTap: isPinningReview
                                             ? null
                                             : handleReviewPinToggle,
@@ -1487,9 +1480,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                             reply.replyId,
                           );
                           return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: TaqaUiScale.h(8),
-                            ),
+                            padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
                             child: TaqaClientDashboardCard(
                               padding: 10,
                               radius: 10,
@@ -1506,8 +1497,9 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                           style: TextStyle(
                                             fontFamily:
                                                 TaqaUiFontFamilies.interTight,
-                                            color: TaqaUiColors.charcoal
-                                                .withValues(alpha: 0.55),
+                                            color: sheetContext
+                                                .taqaColors
+                                                .textSecondary,
                                             fontSize: TaqaUiScale.sp(12),
                                           ),
                                         ),
@@ -1516,9 +1508,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                         icon: reply.isPinned
                                             ? Icons.push_pin
                                             : Icons.push_pin_outlined,
-                                        label: reply.isPinned
-                                            ? 'Unpin'
-                                            : 'Pin',
+                                        label: reply.isPinned ? 'Unpin' : 'Pin',
                                         onTap: isPinningReply
                                             ? null
                                             : () => handlePinToggle(reply),
@@ -1563,8 +1553,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
                                         ? 'Unseen by client'
                                         : 'Seen by client',
                                     style: TextStyle(
-                                      fontFamily:
-                                          TaqaUiFontFamilies.interTight,
+                                      fontFamily: TaqaUiFontFamilies.interTight,
                                       color: reply.clientSeenAt == null
                                           ? TaqaUiColors.recordRed
                                           : const Color(0xFF2E8B57),
@@ -1803,7 +1792,7 @@ class _ExpertClientDetailPageState extends State<ExpertClientDetailPage> {
     );
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: 'Client View',
         trailing: Row(
@@ -2144,7 +2133,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       fontWeight: FontWeight.w400,
       height: 12 / 10,
       letterSpacing: 0,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
     final noteText = _formChecksError != null
         ? 'Only videos explicitly shared by this client are shown. $_formChecksError'
@@ -2220,7 +2209,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
       fontWeight: FontWeight.w400,
       height: 12 / 10,
       letterSpacing: 0,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
 
     return ListView(
@@ -2292,7 +2281,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                 backgroundColor: context.taqaColors.background,
                 appBar: TaqaPageAppBar(
                   backgroundColor: context.taqaColors.background,
-                  titleColor: TaqaUiColors.unnamedColor1c1d17,
+                  titleColor: context.taqaColors.textPrimary,
                   title: 'AI Updates',
                 ),
                 body: _loading
@@ -2311,8 +2300,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                                       (widget.client.activityStatus ?? '')
                                           .trim()
                                           .isNotEmpty,
-                                  subtitle:
-                                      'User ID: ${widget.client.userId}',
+                                  subtitle: 'User ID: ${widget.client.userId}',
                                   details: const [
                                     'Expected response within 24-48h',
                                   ],
@@ -2330,8 +2318,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                                       child: TaqaPillTab(
                                         label: 'Form Check',
                                         active: tabController.index == 0,
-                                        onTap: () =>
-                                            tabController.animateTo(0),
+                                        onTap: () => tabController.animateTo(0),
                                       ),
                                     ),
                                     SizedBox(width: TaqaUiScale.w(15)),
@@ -2339,8 +2326,7 @@ class _ExpertClientAiUpdatesPageState extends State<ExpertClientAiUpdatesPage> {
                                       child: TaqaPillTab(
                                         label: 'Training Suggestion',
                                         active: tabController.index == 1,
-                                        onTap: () =>
-                                            tabController.animateTo(1),
+                                        onTap: () => tabController.animateTo(1),
                                       ),
                                     ),
                                   ],

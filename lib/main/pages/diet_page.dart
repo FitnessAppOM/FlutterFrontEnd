@@ -1005,8 +1005,8 @@ class DietPageState extends State<DietPage> {
             hasTarget
                 ? "$label $grams / $target$unit$completionLabel"
                 : "$label $grams$unit",
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1089,17 +1089,15 @@ class DietPageState extends State<DietPage> {
     final unitCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     InputDecoration fieldDecoration({String? hintText}) {
-      final borderSide = BorderSide(
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-      );
+      final borderSide = BorderSide(color: context.taqaColors.border);
       return InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+          color: context.taqaColors.textSecondary,
         ),
         filled: true,
-        fillColor: TaqaUiColors.unnamedColorE3e3e3,
+        fillColor: context.taqaColors.surfaceElevated,
         border: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
           borderSide: borderSide,
@@ -1110,7 +1108,7 @@ class DietPageState extends State<DietPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
-          borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+          borderSide: BorderSide(color: context.taqaColors.textPrimary),
         ),
       );
     }
@@ -1124,7 +1122,7 @@ class DietPageState extends State<DietPage> {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(12),
             fontWeight: FontWeight.w600,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            color: context.taqaColors.textSecondary,
           ),
         ),
       );
@@ -1132,13 +1130,13 @@ class DietPageState extends State<DietPage> {
 
     final fieldTextStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
 
     try {
       final res = await showDialog<bool>(
         context: context,
-        barrierColor: const Color(0x66000000),
+        barrierColor: context.taqaColors.scrim,
         builder: (ctx) {
           return Align(
             alignment: Alignment.center,
@@ -1151,8 +1149,9 @@ class DietPageState extends State<DietPage> {
                   constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
                   padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.white,
+                    color: ctx.taqaColors.surface,
                     borderRadius: TaqaUiScale.radius(15),
+                    border: Border.all(color: ctx.taqaColors.border),
                   ),
                   child: Form(
                     key: formKey,
@@ -1169,7 +1168,7 @@ class DietPageState extends State<DietPage> {
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: ctx.taqaColors.textPrimary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(4)),
@@ -1181,9 +1180,7 @@ class DietPageState extends State<DietPage> {
                             fontSize: TaqaUiScale.sp(13),
                             fontWeight: FontWeight.w400,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.6,
-                            ),
+                            color: ctx.taqaColors.textSecondary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(16)),
@@ -1275,7 +1272,7 @@ class DietPageState extends State<DietPage> {
                                         fontWeight: FontWeight.w600,
                                         height: 12 / 10,
                                         letterSpacing: 0,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: ctx.taqaColors.textPrimary,
                                       ),
                                     ),
                                   ),
@@ -1310,8 +1307,7 @@ class DietPageState extends State<DietPage> {
                                           fontWeight: FontWeight.w700,
                                           height: 12 / 10,
                                           letterSpacing: 0,
-                                          color:
-                                              TaqaUiColors.unnamedColor1c1d17,
+                                          color: ctx.taqaColors.onAccent,
                                         ),
                                       ),
                                     ),
@@ -1379,7 +1375,7 @@ class DietPageState extends State<DietPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(TaqaUiScale.r(15)),
@@ -1419,17 +1415,15 @@ class DietPageState extends State<DietPage> {
     final formKey = GlobalKey<FormState>();
 
     InputDecoration fieldDecoration({String? hintText}) {
-      final borderSide = BorderSide(
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-      );
+      final borderSide = BorderSide(color: context.taqaColors.border);
       return InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+          color: context.taqaColors.textSecondary,
         ),
         filled: true,
-        fillColor: TaqaUiColors.unnamedColorE3e3e3,
+        fillColor: context.taqaColors.surfaceElevated,
         border: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
           borderSide: borderSide,
@@ -1440,7 +1434,7 @@ class DietPageState extends State<DietPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
-          borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+          borderSide: BorderSide(color: context.taqaColors.textPrimary),
         ),
       );
     }
@@ -1454,7 +1448,7 @@ class DietPageState extends State<DietPage> {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(12),
             fontWeight: FontWeight.w600,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            color: context.taqaColors.textSecondary,
           ),
         ),
       );
@@ -1462,12 +1456,12 @@ class DietPageState extends State<DietPage> {
 
     final fieldTextStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
 
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: context.taqaColors.scrim,
       builder: (ctx) {
         return Align(
           alignment: Alignment.center,
@@ -1480,8 +1474,9 @@ class DietPageState extends State<DietPage> {
                 constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
                 padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.white,
+                  color: ctx.taqaColors.surface,
                   borderRadius: TaqaUiScale.radius(15),
+                  border: Border.all(color: ctx.taqaColors.border),
                 ),
                 child: Form(
                   key: formKey,
@@ -1498,7 +1493,7 @@ class DietPageState extends State<DietPage> {
                           fontWeight: FontWeight.w700,
                           height: 25 / 15,
                           letterSpacing: 0,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: ctx.taqaColors.textPrimary,
                         ),
                       ),
                       SizedBox(height: TaqaUiScale.h(16)),
@@ -1552,7 +1547,7 @@ class DietPageState extends State<DietPage> {
                                       fontWeight: FontWeight.w600,
                                       height: 12 / 10,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: ctx.taqaColors.textPrimary,
                                     ),
                                   ),
                                 ),
@@ -1587,7 +1582,7 @@ class DietPageState extends State<DietPage> {
                                         fontWeight: FontWeight.w700,
                                         height: 12 / 10,
                                         letterSpacing: 0,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: ctx.taqaColors.onAccent,
                                       ),
                                     ),
                                   ),
@@ -2224,7 +2219,7 @@ class DietPageState extends State<DietPage> {
       await showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: TaqaUiColors.white,
+        backgroundColor: context.taqaColors.background,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(15)),
@@ -2302,7 +2297,7 @@ class DietPageState extends State<DietPage> {
                                   fontSize: TaqaUiScale.sp(18),
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: ctx.taqaColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -2310,7 +2305,7 @@ class DietPageState extends State<DietPage> {
                               onPressed: () => Navigator.of(ctx).pop(),
                               icon: Icon(
                                 Icons.close,
-                                color: TaqaUiColors.unnamedColor1c1d17,
+                                color: ctx.taqaColors.textPrimary,
                               ),
                             ),
                           ],
@@ -2328,8 +2323,7 @@ class DietPageState extends State<DietPage> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.65),
+                                  color: ctx.taqaColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -2343,8 +2337,7 @@ class DietPageState extends State<DietPage> {
                                 ).translate('diet_no_plan_updates'),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.6),
+                                  color: ctx.taqaColors.textSecondary,
                                 ),
                               ),
                             ),
@@ -2363,8 +2356,7 @@ class DietPageState extends State<DietPage> {
                                       fontSize: TaqaUiScale.sp(12),
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.5),
+                                      color: ctx.taqaColors.textSecondary,
                                     ),
                                   ),
                                   SizedBox(height: TaqaUiScale.h(4)),
@@ -2377,8 +2369,7 @@ class DietPageState extends State<DietPage> {
                                       fontSize: TaqaUiScale.sp(11),
                                       fontWeight: FontWeight.w500,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.4),
+                                      color: ctx.taqaColors.textSecondary,
                                     ),
                                   ),
                                   SizedBox(height: TaqaUiScale.h(8)),
@@ -2394,13 +2385,12 @@ class DietPageState extends State<DietPage> {
                                         bottom: TaqaUiScale.h(8),
                                       ),
                                       decoration: BoxDecoration(
-                                        color: TaqaUiColors.white,
+                                        color: ctx.taqaColors.surface,
                                         borderRadius: TaqaUiScale.radius(15),
                                         border: Border.all(
                                           color: event.isNew
                                               ? TaqaUiColors.unnamedColorE4e93b
-                                              : TaqaUiColors.unnamedColor1c1d17
-                                                    .withValues(alpha: 0.10),
+                                              : ctx.taqaColors.border,
                                           width: event.isNew ? 1.5 : 1,
                                         ),
                                       ),
@@ -2417,8 +2407,7 @@ class DietPageState extends State<DietPage> {
                                               fontWeight: FontWeight.w700,
                                               height: 25 / 15,
                                               letterSpacing: 0,
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17,
+                                              color: ctx.taqaColors.textPrimary,
                                             ),
                                           ),
                                           if (event.createdAt != null) ...[
@@ -2432,9 +2421,9 @@ class DietPageState extends State<DietPage> {
                                                     .interTight,
                                                 fontSize: TaqaUiScale.sp(12),
                                                 letterSpacing: 0,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17
-                                                    .withValues(alpha: 0.5),
+                                                color: ctx
+                                                    .taqaColors
+                                                    .textSecondary,
                                               ),
                                             ),
                                           ],
@@ -2449,9 +2438,9 @@ class DietPageState extends State<DietPage> {
                                                       .interTight,
                                                   fontSize: TaqaUiScale.sp(12),
                                                   letterSpacing: 0,
-                                                  color: TaqaUiColors
-                                                      .unnamedColor1c1d17
-                                                      .withValues(alpha: 0.7),
+                                                  color: ctx
+                                                      .taqaColors
+                                                      .textSecondary,
                                                 ),
                                               ),
                                             ],
@@ -2470,9 +2459,9 @@ class DietPageState extends State<DietPage> {
                                                       .interTight,
                                                   fontSize: TaqaUiScale.sp(11),
                                                   letterSpacing: 0,
-                                                  color: TaqaUiColors
-                                                      .unnamedColor1c1d17
-                                                      .withValues(alpha: 0.4),
+                                                  color: ctx
+                                                      .taqaColors
+                                                      .textSecondary,
                                                 ),
                                               ),
                                           ],
@@ -2493,8 +2482,7 @@ class DietPageState extends State<DietPage> {
                                       fontSize: TaqaUiScale.sp(12),
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.5),
+                                      color: ctx.taqaColors.textSecondary,
                                     ),
                                   ),
                                   SizedBox(height: TaqaUiScale.h(8)),
@@ -2518,14 +2506,12 @@ class DietPageState extends State<DietPage> {
                                             bottom: TaqaUiScale.h(8),
                                           ),
                                           decoration: BoxDecoration(
-                                            color: TaqaUiColors.white,
+                                            color: ctx.taqaColors.surface,
                                             borderRadius: TaqaUiScale.radius(
                                               15,
                                             ),
                                             border: Border.all(
-                                              color: TaqaUiColors
-                                                  .unnamedColor1c1d17
-                                                  .withValues(alpha: 0.10),
+                                              color: ctx.taqaColors.border,
                                             ),
                                           ),
                                           child: Row(
@@ -2534,9 +2520,9 @@ class DietPageState extends State<DietPage> {
                                             children: [
                                               Icon(
                                                 Icons.description_outlined,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17
-                                                    .withValues(alpha: 0.5),
+                                                color: ctx
+                                                    .taqaColors
+                                                    .textSecondary,
                                                 size: 18,
                                               ),
                                               SizedBox(
@@ -2569,8 +2555,9 @@ class DietPageState extends State<DietPage> {
                                                                       .w700,
                                                               height: 25 / 15,
                                                               letterSpacing: 0,
-                                                              color: TaqaUiColors
-                                                                  .unnamedColor1c1d17,
+                                                              color: ctx
+                                                                  .taqaColors
+                                                                  .textPrimary,
                                                             ),
                                                           ),
                                                         ),
@@ -2584,8 +2571,9 @@ class DietPageState extends State<DietPage> {
                                                           Icon(
                                                             Icons.push_pin,
                                                             size: 14,
-                                                            color: TaqaUiColors
-                                                                .unnamedColor1c1d17,
+                                                            color: ctx
+                                                                .taqaColors
+                                                                .textPrimary,
                                                           ),
                                                         ],
                                                       ],
@@ -2604,11 +2592,9 @@ class DietPageState extends State<DietPage> {
                                                         fontWeight:
                                                             FontWeight.w600,
                                                         letterSpacing: 0,
-                                                        color: TaqaUiColors
-                                                            .unnamedColor1c1d17
-                                                            .withValues(
-                                                              alpha: 0.6,
-                                                            ),
+                                                        color: ctx
+                                                            .taqaColors
+                                                            .textSecondary,
                                                       ),
                                                     ),
                                                     SizedBox(
@@ -2626,11 +2612,9 @@ class DietPageState extends State<DietPage> {
                                                         fontSize:
                                                             TaqaUiScale.sp(12),
                                                         letterSpacing: 0,
-                                                        color: TaqaUiColors
-                                                            .unnamedColor1c1d17
-                                                            .withValues(
-                                                              alpha: 0.5,
-                                                            ),
+                                                        color: ctx
+                                                            .taqaColors
+                                                            .textSecondary,
                                                       ),
                                                     ),
                                                   ],
@@ -2675,11 +2659,14 @@ class DietPageState extends State<DietPage> {
                                                                 TaqaUiScale.h(
                                                                   12,
                                                                 ),
-                                                            child: CircularProgressIndicator(
-                                                              strokeWidth: 2,
-                                                              color: TaqaUiColors
-                                                                  .unnamedColor1c1d17,
-                                                            ),
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                  strokeWidth:
+                                                                      2,
+                                                                  color: ctx
+                                                                      .taqaColors
+                                                                      .onAccent,
+                                                                ),
                                                           )
                                                         : Row(
                                                             mainAxisSize:
@@ -2690,8 +2677,9 @@ class DietPageState extends State<DietPage> {
                                                                 Icons
                                                                     .open_in_new,
                                                                 size: 14,
-                                                                color: TaqaUiColors
-                                                                    .unnamedColor1c1d17,
+                                                                color: ctx
+                                                                    .taqaColors
+                                                                    .onAccent,
                                                               ),
                                                               SizedBox(
                                                                 width:
@@ -2722,8 +2710,9 @@ class DietPageState extends State<DietPage> {
                                                                       12 / 10,
                                                                   letterSpacing:
                                                                       0,
-                                                                  color: TaqaUiColors
-                                                                      .unnamedColor1c1d17,
+                                                                  color: ctx
+                                                                      .taqaColors
+                                                                      .onAccent,
                                                                 ),
                                                               ),
                                                             ],
@@ -3765,6 +3754,7 @@ class DietPageState extends State<DietPage> {
   Widget _buildDaySummaryCard(BuildContext context) {
     final t = AppLocalizations.of(context);
     final theme = Theme.of(context);
+    final colors = context.taqaColors;
 
     final live = _daySummaryLive;
     final target = (live?["target"] is Map)
@@ -3785,11 +3775,9 @@ class DietPageState extends State<DietPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-        ),
+        border: Border.all(color: colors.border),
       ),
       padding: const EdgeInsets.all(14),
       child: Column(
@@ -3801,7 +3789,7 @@ class DietPageState extends State<DietPage> {
                 child: Text(
                   t.translate("diet_remaining_title"),
                   style: theme.textTheme.titleSmall?.copyWith(
-                    color: Colors.white,
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -3822,7 +3810,7 @@ class DietPageState extends State<DietPage> {
                   child: Text(
                     t.translate("diet_frozen_badge"),
                     style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
+                      color: colors.textPrimary,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -3836,7 +3824,7 @@ class DietPageState extends State<DietPage> {
               Text(
                 "$remCal",
                 style: theme.textTheme.displaySmall?.copyWith(
-                  color: Colors.white,
+                  color: colors.textPrimary,
                   fontWeight: FontWeight.w900,
                   height: 1.0,
                 ),
@@ -3847,7 +3835,7 @@ class DietPageState extends State<DietPage> {
                 child: Text(
                   t.translate("diet_kcal_unit"),
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white70,
+                    color: colors.textSecondary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -3856,7 +3844,7 @@ class DietPageState extends State<DietPage> {
               Text(
                 "${t.translate("diet_consumed")}: $conCal / $tarCal",
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
+                  color: colors.textSecondary,
                 ),
               ),
             ],
@@ -3910,7 +3898,7 @@ class DietPageState extends State<DietPage> {
               child: Text(
                 t.translate("diet_freeze_note"),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
+                  color: colors.textSecondary,
                 ),
               ),
             ),
@@ -3920,7 +3908,7 @@ class DietPageState extends State<DietPage> {
               child: Text(
                 t.translate("diet_frozen_note"),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
+                  color: colors.textSecondary,
                 ),
               ),
             ),

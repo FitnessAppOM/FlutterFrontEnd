@@ -40,8 +40,9 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
   try {
     final saved = await TaqaPopupGuard.dialog<bool>(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: context.taqaColors.scrim,
       builder: (ctx) {
+        final colors = ctx.taqaColors;
         return StatefulBuilder(
           builder: (ctx, setLocalState) {
             return Center(
@@ -52,13 +53,9 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                   constraints: const BoxConstraints(maxWidth: 420),
                   padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.white,
+                    color: colors.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.08,
-                      ),
-                    ),
+                    border: Border.all(color: colors.border),
                     boxShadow: const [
                       BoxShadow(
                         color: Color(0x26000000),
@@ -73,11 +70,11 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                     children: [
                       Text(
                         "Set $setIndex",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -93,11 +90,11 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                       decimal: true,
                                     ),
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                                 decoration: const InputDecoration(
                                   isDense: true,
@@ -121,11 +118,11 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                 controller: repsCtrl,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                                 decoration: const InputDecoration(
                                   isDense: true,
@@ -149,11 +146,11 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                 controller: rirCtrl,
                                 keyboardType: TextInputType.number,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: 24,
                                   fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                                 decoration: const InputDecoration(
                                   isDense: true,
@@ -184,30 +181,33 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                                 height: 24,
                                 decoration: BoxDecoration(
                                   color: done
-                                      ? const Color(0xFFE4E93B)
+                                      ? colors.accent
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
-                                    color: TaqaUiColors.unnamedColor1c1d17
-                                        .withValues(alpha: 0.3),
+                                    color: done
+                                        ? colors.onAccent.withValues(
+                                            alpha: 0.35,
+                                          )
+                                        : colors.border,
                                   ),
                                 ),
                                 child: done
-                                    ? const Icon(
+                                    ? Icon(
                                         Icons.check,
                                         size: 16,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: colors.onAccent,
                                       )
                                     : null,
                               ),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 "Completed",
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ],
@@ -222,21 +222,18 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                               onPressed: () => Navigator.of(ctx).pop(false),
                               style: OutlinedButton.styleFrom(
                                 minimumSize: const Size.fromHeight(44),
-                                side: BorderSide(
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.25),
-                                ),
+                                side: BorderSide(color: colors.border),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 "CANCEL",
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ),
@@ -248,10 +245,8 @@ Future<TaqaSetRowEditResult?> showTaqaSetRowEditDialog({
                               style: ElevatedButton.styleFrom(
                                 elevation: 0,
                                 minimumSize: const Size.fromHeight(44),
-                                backgroundColor:
-                                    TaqaUiColors.unnamedColorE4e93b,
-                                foregroundColor:
-                                    TaqaUiColors.unnamedColor1c1d17,
+                                backgroundColor: colors.accent,
+                                foregroundColor: colors.onAccent,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -305,14 +300,13 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F6F1),
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -322,7 +316,7 @@ class _Field extends StatelessWidget {
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: 10,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
+              color: colors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),

@@ -16,6 +16,7 @@ class ArticlePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final useContent = item.content.isNotEmpty;
     final bodyText = (useContent ? item.content : item.subtitle).trim();
@@ -31,12 +32,8 @@ class ArticlePage extends StatelessWidget {
         : DateFormat('EEE, MMMM d', locale).format(item.createdAt!.toLocal());
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-      appBar: TaqaPageAppBar(
-        title: "News",
-        backgroundColor: TaqaUiColors.unnamedColor1c1d17,
-        titleColor: TaqaUiColors.white,
-      ),
+      backgroundColor: colors.background,
+      appBar: TaqaPageAppBar(title: "News", backgroundColor: colors.background),
       body: SafeArea(
         child: Column(
           children: [
@@ -58,7 +55,7 @@ class ArticlePage extends StatelessWidget {
                               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                               fontSize: TaqaUiScale.sp(8),
                               fontWeight: FontWeight.w400,
-                              color: TaqaUiColors.white,
+                              color: colors.textSecondary,
                               letterSpacing: 0,
                               height: 10 / 8,
                             ),
@@ -72,7 +69,7 @@ class ArticlePage extends StatelessWidget {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(25),
                             fontWeight: FontWeight.w700,
-                            color: TaqaUiColors.white,
+                            color: colors.textPrimary,
                             height: 1,
                           ),
                         ),
@@ -85,7 +82,7 @@ class ArticlePage extends StatelessWidget {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(15),
                               fontWeight: FontWeight.w400,
-                              color: TaqaUiColors.white,
+                              color: colors.textSecondary,
                               height: 13 / 15,
                             ),
                           ),
@@ -99,7 +96,7 @@ class ArticlePage extends StatelessWidget {
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(10),
                               fontWeight: FontWeight.w400,
-                              color: TaqaUiColors.lightGray,
+                              color: colors.textSecondary,
                             ),
                           )
                         else
@@ -115,7 +112,7 @@ class ArticlePage extends StatelessWidget {
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(10),
                                   fontWeight: FontWeight.w400,
-                                  color: TaqaUiColors.white,
+                                  color: colors.textPrimary,
                                   height: 12 / 10,
                                 ),
                               ),

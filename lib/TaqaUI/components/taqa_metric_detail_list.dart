@@ -21,6 +21,7 @@ class TaqaMetricDetailList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final rows = detailLabels.entries
         .where((entry) => details[entry.key] != null)
         .toList(growable: false);
@@ -29,8 +30,9 @@ class TaqaMetricDetailList extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -44,7 +46,7 @@ class TaqaMetricDetailList extends StatelessWidget {
                     rows[i].value,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+                      color: colors.textSecondary,
                       fontSize: TaqaUiScale.sp(13),
                     ),
                   ),
@@ -52,7 +54,7 @@ class TaqaMetricDetailList extends StatelessWidget {
                     details[rows[i].key]!,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                       fontSize: TaqaUiScale.sp(13),
                       fontWeight: FontWeight.w600,
                     ),

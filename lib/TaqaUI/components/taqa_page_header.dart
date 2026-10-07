@@ -5,14 +5,10 @@ import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
 class TaqaPageHeader extends StatelessWidget {
-  const TaqaPageHeader({
-    super.key,
-    required this.title,
-    this.color = TaqaUiColors.unnamedColor1c1d17,
-  });
+  const TaqaPageHeader({super.key, required this.title, this.color});
 
   final String title;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +27,7 @@ class TaqaPageHeader extends StatelessWidget {
           fontWeight: FontWeight.w700,
           height: 25 / 15,
           letterSpacing: 0,
-          color: color,
+          color: color ?? context.taqaColors.textPrimary,
         ),
       ),
     );

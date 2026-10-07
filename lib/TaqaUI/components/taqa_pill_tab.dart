@@ -14,31 +14,28 @@ class TaqaPillTab extends StatelessWidget {
     required this.label,
     required this.active,
     required this.onTap,
-    this.activeColor = TaqaUiColors.lime,
-    this.activeTextColor = TaqaUiColors.charcoal,
+    this.activeColor,
+    this.activeTextColor,
   });
 
   final String label;
   final bool active;
   final VoidCallback? onTap;
-  final Color activeColor;
-  final Color activeTextColor;
+  final Color? activeColor;
+  final Color? activeTextColor;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         height: TaqaUiScale.h(45),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? activeColor : TaqaUiColors.white,
+          color: active ? (activeColor ?? colors.accent) : colors.surface,
           borderRadius: TaqaUiScale.radius(5),
-          border: active
-              ? null
-              : Border.all(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.12),
-                ),
+          border: active ? null : Border.all(color: colors.border),
         ),
         child: Text(
           taqaUppercase(label),
@@ -48,8 +45,10 @@ class TaqaPillTab extends StatelessWidget {
             fontSize: TaqaUiScale.sp(10),
             fontWeight: FontWeight.w600,
             color: onTap == null
-                ? TaqaUiColors.charcoal.withValues(alpha: 0.35)
-                : (active ? activeTextColor : TaqaUiColors.charcoal),
+                ? colors.textSecondary.withValues(alpha: 0.55)
+                : (active
+                      ? (activeTextColor ?? colors.onAccent)
+                      : colors.textPrimary),
             height: 12 / 10,
             letterSpacing: 0,
           ),

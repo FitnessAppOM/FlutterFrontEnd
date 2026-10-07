@@ -68,7 +68,7 @@ Future<TaqaTemplateAssignment?> showTaqaTemplateAssignSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (_) => _TaqaTemplateAssignSheet(
       templateTitle: templateTitle,
       clients: clients,
@@ -85,7 +85,7 @@ Future<void> showTaqaTemplatePreviewSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (_) => _TaqaTemplatePreviewSheet(title: title, days: days),
   );
 }
@@ -99,7 +99,7 @@ Future<void> showTaqaTemplateAssignedClientsSheet({
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (_) => _TaqaTemplateAssignedClientsSheet(
       templateTitle: templateTitle,
       clients: clients,
@@ -114,13 +114,14 @@ class _TaqaSheetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       children: [
         Container(
           width: TaqaUiScale.w(36),
           height: TaqaUiScale.h(3),
           decoration: BoxDecoration(
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.25),
+            color: colors.textSecondary.withValues(alpha: 0.45),
             borderRadius: TaqaUiScale.radius(2),
           ),
         ),
@@ -162,6 +163,7 @@ class _TaqaTemplateAssignSheetState extends State<_TaqaTemplateAssignSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     return FractionallySizedBox(
       heightFactor: 0.76,
@@ -173,7 +175,7 @@ class _TaqaTemplateAssignSheetState extends State<_TaqaTemplateAssignSheet> {
           TaqaUiScale.h(16) + bottomInset,
         ),
         decoration: BoxDecoration(
-          color: TaqaUiColors.lightGray,
+          color: colors.background,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(15)),
           ),
@@ -209,7 +211,7 @@ class _TaqaTemplateAssignSheetState extends State<_TaqaTemplateAssignSheet> {
                           ? Text(
                               'CURRENT TEMPLATE',
                               style: TextStyle(
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                                 fontSize: TaqaUiScale.sp(8),
                                 height: 10 / 8,
@@ -258,6 +260,7 @@ class _TaqaTemplateAssignedClientsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final title = templateTitle.trim();
     return FractionallySizedBox(
@@ -270,7 +273,7 @@ class _TaqaTemplateAssignedClientsSheet extends StatelessWidget {
           TaqaUiScale.h(16) + bottomInset,
         ),
         decoration: BoxDecoration(
-          color: TaqaUiColors.lightGray,
+          color: colors.background,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(15)),
           ),
@@ -297,7 +300,7 @@ class _TaqaTemplateAssignedClientsSheet extends StatelessWidget {
                     footer: Text(
                       'CURRENT TEMPLATE',
                       style: TextStyle(
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                         fontSize: TaqaUiScale.sp(8),
                         height: 10 / 8,
@@ -322,6 +325,7 @@ class _TaqaTemplatePreviewSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     return FractionallySizedBox(
       heightFactor: 0.76,
@@ -333,7 +337,7 @@ class _TaqaTemplatePreviewSheet extends StatelessWidget {
           TaqaUiScale.h(16) + bottomInset,
         ),
         decoration: BoxDecoration(
-          color: TaqaUiColors.lightGray,
+          color: colors.background,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(15)),
           ),

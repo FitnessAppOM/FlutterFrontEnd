@@ -21,7 +21,7 @@ class TaqaSectionHeading extends StatelessWidget {
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(18),
           fontWeight: FontWeight.w700,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: context.taqaColors.textPrimary,
         ),
       ),
     );
@@ -39,7 +39,7 @@ class TaqaSectionDivider extends StatelessWidget {
       child: Divider(
         height: 1,
         thickness: 1,
-        color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
+        color: context.taqaColors.divider,
       ),
     );
   }
@@ -60,7 +60,7 @@ class _FieldLabel extends StatelessWidget {
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(11),
           fontWeight: FontWeight.w400,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+          color: context.taqaColors.textSecondary,
         ),
       ),
     );
@@ -99,7 +99,7 @@ class TaqaUnderlineTextField extends StatelessWidget {
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(14),
       fontWeight: FontWeight.w500,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,21 +114,19 @@ class TaqaUnderlineTextField extends StatelessWidget {
           validator: validator,
           inputFormatters: inputFormatters,
           style: textStyle,
-          cursorColor: TaqaUiColors.unnamedColor1c1d17,
+          cursorColor: context.taqaColors.textPrimary,
           decoration: InputDecoration(
             isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
             hintText: hint,
             hintStyle: textStyle.copyWith(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+              color: context.taqaColors.textSecondary,
             ),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
-              ),
+              borderSide: BorderSide(color: context.taqaColors.divider),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+              borderSide: BorderSide(color: context.taqaColors.textPrimary),
             ),
             errorBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: TaqaUiColors.unnamedColorE93b3b),
@@ -175,7 +173,7 @@ class TaqaUnderlineDropdown extends StatelessWidget {
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(14),
       fontWeight: FontWeight.w500,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -186,17 +184,15 @@ class TaqaUnderlineDropdown extends StatelessWidget {
           isExpanded: true,
           icon: Icon(
             Icons.keyboard_arrow_down,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+            color: context.taqaColors.textSecondary,
             size: TaqaUiScale.w(20),
           ),
-          dropdownColor: TaqaUiColors.white,
+          dropdownColor: context.taqaColors.surfaceElevated,
           style: textStyle,
           validator: validator,
           hint: Text(
             hint,
-            style: textStyle.copyWith(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
-            ),
+            style: textStyle.copyWith(color: context.taqaColors.textSecondary),
           ),
           items: options
               .map(
@@ -214,12 +210,10 @@ class TaqaUnderlineDropdown extends StatelessWidget {
             isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: TaqaUiScale.h(6)),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
-              ),
+              borderSide: BorderSide(color: context.taqaColors.divider),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: TaqaUiColors.unnamedColor1c1d17),
+              borderSide: BorderSide(color: context.taqaColors.textPrimary),
             ),
             errorBorder: const UnderlineInputBorder(
               borderSide: BorderSide(color: TaqaUiColors.unnamedColorE93b3b),
@@ -256,7 +250,9 @@ class TaqaPillChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? TaqaUiColors.unnamedColor1c1d17 : TaqaUiColors.white,
+      color: selected
+          ? context.taqaColors.surfaceInverse
+          : context.taqaColors.surface,
       borderRadius: TaqaUiScale.radius(20),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(20),
@@ -267,11 +263,7 @@ class TaqaPillChoice extends StatelessWidget {
             borderRadius: TaqaUiScale.radius(20),
             border: selected
                 ? null
-                : Border.all(
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.2,
-                    ),
-                  ),
+                : Border.all(color: context.taqaColors.border),
           ),
           child: Text(
             label,
@@ -280,8 +272,8 @@ class TaqaPillChoice extends StatelessWidget {
               fontSize: TaqaUiScale.sp(12),
               fontWeight: FontWeight.w600,
               color: selected
-                  ? TaqaUiColors.white
-                  : TaqaUiColors.unnamedColor1c1d17,
+                  ? context.taqaColors.textOnInverse
+                  : context.taqaColors.textPrimary,
             ),
           ),
         ),
@@ -316,7 +308,7 @@ class TaqaUploadRow extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(14),
               fontWeight: FontWeight.w500,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+              color: context.taqaColors.textSecondary,
             ),
           ),
         ),
@@ -330,7 +322,7 @@ class TaqaUploadRow extends StatelessWidget {
               padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
               decoration: BoxDecoration(
                 borderRadius: TaqaUiScale.radius(5),
-                border: Border.all(color: TaqaUiColors.unnamedColor1c1d17),
+                border: Border.all(color: context.taqaColors.textPrimary),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -338,7 +330,7 @@ class TaqaUploadRow extends StatelessWidget {
                   Icon(
                     Icons.upload_outlined,
                     size: TaqaUiScale.w(14),
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: context.taqaColors.textPrimary,
                   ),
                   SizedBox(width: TaqaUiScale.w(4)),
                   Text(
@@ -347,7 +339,7 @@ class TaqaUploadRow extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                 ],
@@ -385,16 +377,14 @@ class TaqaSummaryRow extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(14),
                     fontWeight: FontWeight.w500,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.55,
-                    ),
+                    color: context.taqaColors.textSecondary,
                   ),
                 ),
               ),
               if (onTap != null)
                 Icon(
                   Icons.chevron_right,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                  color: context.taqaColors.textSecondary,
                   size: TaqaUiScale.w(20),
                 ),
             ],

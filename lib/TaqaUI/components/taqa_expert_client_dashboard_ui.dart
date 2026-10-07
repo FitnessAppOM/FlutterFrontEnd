@@ -25,6 +25,7 @@ class TaqaClientDashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final borderRadius = TaqaUiScale.radius(radius);
     final ink = Ink(
       width: double.infinity,
@@ -35,8 +36,9 @@ class TaqaClientDashboardCard extends StatelessWidget {
         TaqaUiScale.h(padding),
       ),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: borderRadius,
+        border: Border.all(color: colors.border),
       ),
       child: child,
     );
@@ -71,12 +73,13 @@ class TaqaClientDashboardTitleText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Text(
       text,
       maxLines: maxLines,
       overflow: overflow,
       style: TextStyle(
-        color: TaqaUiColors.charcoal,
+        color: colors.textPrimary,
         fontFamily: TaqaUiFontFamilies.interTight,
         fontWeight: FontWeight.w700,
         fontSize: TaqaUiScale.sp(15),
@@ -105,13 +108,14 @@ class TaqaClientDashboardBodyText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Text(
       text,
       maxLines: maxLines,
       overflow: overflow,
       textAlign: textAlign,
       style: TextStyle(
-        color: color ?? TaqaUiColors.charcoal,
+        color: color ?? colors.textPrimary,
         fontFamily: TaqaUiFontFamilies.interTight,
         fontSize: TaqaUiScale.sp(15),
         fontWeight: FontWeight.w400,
@@ -146,6 +150,7 @@ class TaqaClientDashboardNavigationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaClientDashboardCard(
       onTap: loading ? null : onTap,
       minHeight: 79,
@@ -165,7 +170,7 @@ class TaqaClientDashboardNavigationCard extends StatelessWidget {
               else if (showChevron)
                 Icon(
                   Icons.chevron_right,
-                  color: TaqaUiColors.charcoal,
+                  color: colors.textSecondary,
                   size: TaqaUiScale.w(20),
                 ),
             ],
@@ -393,13 +398,14 @@ class TaqaClientDashboardInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Row(
       children: [
         Expanded(
           child: Text(
             label,
             style: TextStyle(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.62),
+              color: colors.textSecondary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
@@ -414,7 +420,7 @@ class TaqaClientDashboardInfoRow extends StatelessWidget {
             value,
             textAlign: TextAlign.end,
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontWeight: FontWeight.w400,
               fontSize: TaqaUiScale.sp(15),
@@ -444,7 +450,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
   final String? summary;
   final VoidCallback onTap;
 
-  Color get _statusColor {
+  Color _statusColor(BuildContext context) {
     switch (status) {
       case 'applied':
         return AppColors.successGreen;
@@ -455,7 +461,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
       case 'reviewed':
         return AppColors.accent;
       default:
-        return Colors.white54;
+        return context.taqaColors.textSecondary;
     }
   }
 
@@ -476,6 +482,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaClientDashboardCard(
       onTap: onTap,
       padding: 10,
@@ -489,7 +496,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
                 Text(
                   'Week ${weekStart ?? '-'}',
                   style: TextStyle(
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontWeight: FontWeight.w700,
                     fontSize: TaqaUiScale.sp(14),
@@ -499,7 +506,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
                 Text(
                   '$itemCount suggestions',
                   style: TextStyle(
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.62),
+                    color: colors.textSecondary,
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(14),
                   ),
@@ -511,7 +518,7 @@ class TaqaClientAiReviewCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+                      color: colors.textSecondary,
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(14),
                     ),
@@ -526,12 +533,12 @@ class TaqaClientAiReviewCard extends StatelessWidget {
             children: [
               TaqaClientDashboardStatusPill(
                 label: _statusLabel,
-                color: _statusColor,
+                color: _statusColor(context),
               ),
               SizedBox(height: TaqaUiScale.h(8)),
               Icon(
                 Icons.chevron_right,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.38),
+                color: colors.textSecondary,
                 size: TaqaUiScale.w(20),
               ),
             ],

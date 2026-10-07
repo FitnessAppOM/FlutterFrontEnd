@@ -221,7 +221,7 @@ class _CoachPageState extends State<CoachPage> {
     String? errorText;
     final result = await showDialog<String>(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: context.taqaColors.scrim,
       builder: (ctx) {
         final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
         return StatefulBuilder(
@@ -244,7 +244,7 @@ class _CoachPageState extends State<CoachPage> {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.charcoal,
+                        color: ctx.taqaColors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
@@ -254,7 +254,7 @@ class _CoachPageState extends State<CoachPage> {
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(13),
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                        color: ctx.taqaColors.textSecondary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(14)),
@@ -278,7 +278,7 @@ class _CoachPageState extends State<CoachPage> {
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     fontSize: TaqaUiScale.sp(10),
                                     fontWeight: FontWeight.w600,
-                                    color: TaqaUiColors.charcoal,
+                                    color: ctx.taqaColors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -309,7 +309,7 @@ class _CoachPageState extends State<CoachPage> {
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(10),
                                       fontWeight: FontWeight.w700,
-                                      color: TaqaUiColors.charcoal,
+                                      color: ctx.taqaColors.onAccent,
                                     ),
                                   ),
                                 ),
@@ -519,7 +519,9 @@ class _CoachPageState extends State<CoachPage> {
                       width: TaqaUiScale.w(36),
                       height: TaqaUiScale.h(4),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+                        color: sheetContext.taqaColors.textSecondary.withValues(
+                          alpha: 0.45,
+                        ),
                         borderRadius: TaqaUiScale.radius(99),
                       ),
                     ),
@@ -531,7 +533,7 @@ class _CoachPageState extends State<CoachPage> {
                       fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                       fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                      color: sheetContext.taqaColors.textSecondary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(14)),
@@ -558,7 +560,7 @@ class _CoachPageState extends State<CoachPage> {
                             Icon(
                               Icons.link,
                               size: TaqaUiScale.w(16),
-                              color: TaqaUiColors.charcoal,
+                              color: sheetContext.taqaColors.onAccent,
                             ),
                             SizedBox(width: TaqaUiScale.w(8)),
                             Text(
@@ -567,7 +569,7 @@ class _CoachPageState extends State<CoachPage> {
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(14),
                                 fontWeight: FontWeight.w700,
-                                color: TaqaUiColors.charcoal,
+                                color: sheetContext.taqaColors.onAccent,
                               ),
                             ),
                           ],
@@ -585,7 +587,7 @@ class _CoachPageState extends State<CoachPage> {
                         ).translate('coach_no_connected_coaches'),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                          color: sheetContext.taqaColors.textSecondary,
                           fontSize: TaqaUiScale.sp(13),
                         ),
                       ),
@@ -605,12 +607,10 @@ class _CoachPageState extends State<CoachPage> {
                         margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
                         padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
+                          color: sheetContext.taqaColors.surface,
                           borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.08,
-                            ),
+                            color: sheetContext.taqaColors.border,
                           ),
                         ),
                         child: Column(
@@ -620,9 +620,7 @@ class _CoachPageState extends State<CoachPage> {
                               children: [
                                 Icon(
                                   Icons.verified_user_outlined,
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.6,
-                                  ),
+                                  color: sheetContext.taqaColors.textSecondary,
                                 ),
                                 SizedBox(width: TaqaUiScale.w(10)),
                                 Expanded(
@@ -635,7 +633,9 @@ class _CoachPageState extends State<CoachPage> {
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
-                                          color: TaqaUiColors.charcoal,
+                                          color: sheetContext
+                                              .taqaColors
+                                              .textPrimary,
                                           fontWeight: FontWeight.w700,
                                           fontSize: TaqaUiScale.sp(14),
                                         ),
@@ -648,8 +648,9 @@ class _CoachPageState extends State<CoachPage> {
                                           style: TextStyle(
                                             fontFamily:
                                                 TaqaUiFontFamilies.interTight,
-                                            color: TaqaUiColors.charcoal
-                                                .withValues(alpha: 0.55),
+                                            color: sheetContext
+                                                .taqaColors
+                                                .textSecondary,
                                             fontSize: TaqaUiScale.sp(12),
                                           ),
                                         ),
@@ -708,7 +709,7 @@ class _CoachPageState extends State<CoachPage> {
                         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                         fontSize: TaqaUiScale.sp(10),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                        color: sheetContext.taqaColors.textSecondary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(10)),
@@ -727,12 +728,10 @@ class _CoachPageState extends State<CoachPage> {
                         margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
                         padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
+                          color: sheetContext.taqaColors.surface,
                           borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
-                            color: TaqaUiColors.charcoal.withValues(
-                              alpha: 0.08,
-                            ),
+                            color: sheetContext.taqaColors.border,
                           ),
                         ),
                         child: Row(
@@ -752,7 +751,8 @@ class _CoachPageState extends State<CoachPage> {
                                     _firstNameOnly(request.coachName),
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
-                                      color: TaqaUiColors.charcoal,
+                                      color:
+                                          sheetContext.taqaColors.textPrimary,
                                       fontWeight: FontWeight.w700,
                                       fontSize: TaqaUiScale.sp(14),
                                     ),
@@ -774,9 +774,7 @@ class _CoachPageState extends State<CoachPage> {
                                 request.specialty!,
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.interTight,
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.55,
-                                  ),
+                                  color: sheetContext.taqaColors.textSecondary,
                                   fontSize: TaqaUiScale.sp(12),
                                 ),
                               ),
@@ -825,7 +823,7 @@ class _CoachPageState extends State<CoachPage> {
           onPressed: _openCoachesSheet,
           icon: Icon(
             Icons.groups_2_outlined,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: context.taqaColors.textPrimary,
           ),
         ),
       ),
@@ -951,14 +949,15 @@ class _CoachSheetActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = TaqaUiColors.charcoal.withValues(alpha: 0.7);
+    final color = context.taqaColors.textPrimary;
     return InkWell(
       onTap: onTap,
       borderRadius: TaqaUiScale.radius(999),
       child: Container(
         padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: context.taqaColors.surfaceElevated,
+          border: Border.all(color: context.taqaColors.border),
           borderRadius: TaqaUiScale.radius(999),
         ),
         child: Row(
@@ -1020,22 +1019,20 @@ class _CoachCodeFieldState extends State<_CoachCodeField> {
       onChanged: widget.onChanged,
       style: TextStyle(
         fontFamily: TaqaUiFontFamilies.interTight,
-        color: TaqaUiColors.charcoal,
+        color: context.taqaColors.textPrimary,
       ),
       decoration: InputDecoration(
         counterText: "",
         hintText: AppLocalizations.of(context).translate('coach_code_hint'),
         hintStyle: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
+          color: context.taqaColors.textSecondary,
         ),
         filled: true,
-        fillColor: TaqaUiColors.white,
+        fillColor: context.taqaColors.surface,
         enabledBorder: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
-          borderSide: BorderSide(
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
-          ),
+          borderSide: BorderSide(color: context.taqaColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
@@ -1079,16 +1076,14 @@ class _ReportReasonFieldState extends State<_ReportReasonField> {
       onChanged: widget.onChanged,
       style: TextStyle(
         fontFamily: TaqaUiFontFamilies.interTight,
-        color: TaqaUiColors.charcoal,
+        color: context.taqaColors.textPrimary,
       ),
       decoration: InputDecoration(
         hintText: 'Write the reason...',
-        hintStyle: TextStyle(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.4),
-        ),
+        hintStyle: TextStyle(color: context.taqaColors.textSecondary),
         errorText: widget.errorText,
         filled: true,
-        fillColor: TaqaUiColors.unnamedColorE3e3e3,
+        fillColor: context.taqaColors.surfaceElevated,
         enabledBorder: OutlineInputBorder(
           borderRadius: TaqaUiScale.radius(10),
           borderSide: BorderSide.none,

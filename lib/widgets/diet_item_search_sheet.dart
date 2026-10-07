@@ -341,7 +341,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
     final t = AppLocalizations.of(context);
     return showModalBottomSheet<String>(
       context: context,
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: context.taqaColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -358,7 +358,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(16),
                   fontWeight: FontWeight.w800,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(14)),
@@ -395,18 +395,16 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
         child: Container(
           padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: context.taqaColors.surface,
             borderRadius: TaqaUiScale.radius(14),
-            border: Border.all(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
-            ),
+            border: Border.all(color: context.taqaColors.border),
           ),
           child: Row(
             children: [
               Icon(
                 icon,
                 size: TaqaUiScale.sp(22),
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: context.taqaColors.textPrimary,
               ),
               SizedBox(width: TaqaUiScale.w(12)),
               Expanded(
@@ -421,7 +419,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: context.taqaColors.textPrimary,
                       ),
                     ),
                     if (subtitle.isNotEmpty)
@@ -432,9 +430,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(12),
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.55,
-                            ),
+                            color: context.taqaColors.textSecondary,
                           ),
                         ),
                       ),
@@ -444,7 +440,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
               Icon(
                 Icons.chevron_right,
                 size: TaqaUiScale.sp(20),
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                color: context.taqaColors.textSecondary,
               ),
             ],
           ),
@@ -475,12 +471,13 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
   }) async {
     final t = AppLocalizations.of(context);
     var currentValue = initial;
-    final dark = TaqaUiColors.unnamedColor1c1d17;
+    final dark = context.taqaColors.surfaceInverse;
+    final onDark = context.taqaColors.textOnInverse;
 
     final result = await showModalBottomSheet<double>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: context.taqaColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -544,11 +541,11 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                 12,
                               ),
                               filled: true,
-                              fillColor: dark.withValues(alpha: 0.04),
+                              fillColor: context.taqaColors.surfaceElevated,
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: TaqaUiScale.radius(12),
                                 borderSide: BorderSide(
-                                  color: dark.withValues(alpha: 0.15),
+                                  color: context.taqaColors.border,
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
@@ -601,7 +598,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(14),
                             fontWeight: FontWeight.w800,
-                            color: TaqaUiColors.white,
+                            color: onDark,
                           ),
                         ),
                       ),
@@ -897,8 +894,8 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                       width: 44,
                       margin: EdgeInsets.only(bottom: TaqaUiScale.h(16)),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.12,
+                        color: context.taqaColors.textSecondary.withValues(
+                          alpha: 0.45,
                         ),
                         borderRadius: BorderRadius.circular(999),
                       ),
@@ -915,7 +912,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                         Align(
@@ -929,7 +926,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                   },
                             icon: Icon(
                               Icons.close,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: context.taqaColors.textPrimary,
                             ),
                           ),
                         ),
@@ -943,9 +940,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(13),
                           letterSpacing: 0,
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.6,
-                          ),
+                          color: context.taqaColors.textSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -956,11 +951,10 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                         ? Container(
                             height: TaqaUiScale.h(39),
                             decoration: BoxDecoration(
-                              color: TaqaUiColors.white,
+                              color: context.taqaColors.surface,
                               borderRadius: TaqaUiScale.radius(15),
                               border: Border.all(
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.10),
+                                color: context.taqaColors.border,
                               ),
                             ),
                             alignment: Alignment.centerLeft,
@@ -971,7 +965,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(15),
                                 letterSpacing: 0,
-                                color: TaqaUiColors.unnamedColorE3e3e3,
+                                color: context.taqaColors.textSecondary,
                               ),
                             ),
                           )
@@ -979,11 +973,10 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                             height: TaqaUiScale.h(39),
                             padding: TaqaUiScale.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: TaqaUiColors.white,
+                              color: context.taqaColors.surface,
                               borderRadius: TaqaUiScale.radius(15),
                               border: Border.all(
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.10),
+                                color: context.taqaColors.border,
                               ),
                             ),
                             child: Row(
@@ -991,7 +984,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                 Icon(
                                   Icons.search,
                                   size: TaqaUiScale.w(18),
-                                  color: TaqaUiColors.unnamedColorE3e3e3,
+                                  color: context.taqaColors.textSecondary,
                                 ),
                                 SizedBox(width: TaqaUiScale.w(8)),
                                 Expanded(
@@ -1002,7 +995,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(15),
                                       letterSpacing: 0,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: context.taqaColors.textPrimary,
                                     ),
                                     decoration: InputDecoration(
                                       isDense: true,
@@ -1013,7 +1006,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                                             TaqaUiFontFamilies.interTight,
                                         fontSize: TaqaUiScale.sp(15),
                                         letterSpacing: 0,
-                                        color: TaqaUiColors.unnamedColorE3e3e3,
+                                        color: context.taqaColors.textSecondary,
                                       ),
                                       border: InputBorder.none,
                                       enabledBorder: InputBorder.none,
@@ -1091,7 +1084,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           _error!,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: context.taqaColors.textPrimary,
           ),
           textAlign: TextAlign.center,
         ),
@@ -1104,7 +1097,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
           t.translate("diet_no_results"),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            color: context.taqaColors.textSecondary,
           ),
         ),
       );
@@ -1144,7 +1137,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
       fontWeight: FontWeight.w700,
       height: 21 / 15,
       letterSpacing: 0,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: context.taqaColors.textPrimary,
     );
 
     return InkWell(
@@ -1157,11 +1150,9 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
       child: Container(
         padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
         decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+          color: context.taqaColors.surface,
           borderRadius: TaqaUiScale.radius(15),
-          border: Border.all(
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-          ),
+          border: Border.all(color: context.taqaColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1185,9 +1176,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: nameStyle.copyWith(
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.5,
-                            ),
+                            color: context.taqaColors.textSecondary,
                           ),
                         ),
                     ],
@@ -1198,7 +1187,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                   padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
                   decoration: BoxDecoration(
                     border: Border.all(
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                       width: 0.5,
                     ),
                     borderRadius: TaqaUiScale.radius(5),
@@ -1211,7 +1200,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                       fontWeight: FontWeight.w400,
                       height: 10 / 8,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                 ),
@@ -1226,7 +1215,7 @@ class _DietItemSearchSheetState extends State<DietItemSearchSheet> {
                 fontWeight: FontWeight.w400,
                 height: 21 / 15,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: context.taqaColors.textPrimary,
               ),
             ),
           ],

@@ -81,7 +81,27 @@ ThemeData _buildTaqaTheme(TaqaUiPalette palette) {
     extensions: <ThemeExtension<dynamic>>[palette],
     canvasColor: palette.background,
     cardColor: palette.surface,
-    dialogTheme: DialogThemeData(backgroundColor: palette.surface),
+    dialogTheme: DialogThemeData(
+      backgroundColor: palette.surface,
+      surfaceTintColor: Colors.transparent,
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: palette.surface,
+      modalBackgroundColor: palette.surface,
+      surfaceTintColor: Colors.transparent,
+      dragHandleColor: palette.textSecondary,
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: palette.surface,
+      surfaceTintColor: Colors.transparent,
+      textStyle: TextStyle(color: palette.textPrimary),
+    ),
+    listTileTheme: ListTileThemeData(
+      textColor: palette.textPrimary,
+      iconColor: palette.textPrimary,
+      selectedColor: palette.onAccent,
+      selectedTileColor: palette.accent,
+    ),
     dividerColor: palette.divider,
     iconTheme: IconThemeData(color: palette.textPrimary),
     inputDecorationTheme: InputDecorationTheme(

@@ -5,6 +5,7 @@ import '../../widgets/Main/card_container.dart';
 import '../../models/news_item.dart';
 import '../../services/news/news_tag_actions.dart';
 import '../../localization/app_localizations.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 class AnnouncementsPage extends StatelessWidget {
   const AnnouncementsPage({super.key, required this.items});
@@ -16,12 +17,14 @@ class AnnouncementsPage extends StatelessWidget {
     final t = AppLocalizations.of(context).translate;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final colors = context.taqaColors;
     final announcements = items;
 
     return Scaffold(
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
         title: t("announcements_title"),
-        backgroundColor: cs.surface,
+        backgroundColor: colors.background,
       ),
       body: SafeArea(
         child: ListView(

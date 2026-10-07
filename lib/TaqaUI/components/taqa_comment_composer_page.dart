@@ -117,7 +117,7 @@ class _TaqaCommentComposerPageState extends State<TaqaCommentComposerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(title: widget.title),
       body: SafeArea(
         top: false,
@@ -138,7 +138,7 @@ class _TaqaCommentComposerPageState extends State<TaqaCommentComposerPage> {
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
-                      color: TaqaUiColors.charcoal,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(10)),
@@ -153,30 +153,30 @@ class _TaqaCommentComposerPageState extends State<TaqaCommentComposerPage> {
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w400,
                       height: 21 / 15,
-                      color: TaqaUiColors.charcoal,
+                      color: context.taqaColors.textPrimary,
                     ),
                     decoration: InputDecoration(
                       hintText: widget.hintText,
                       hintStyle: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
-                        color: TaqaUiColors.unnamedColorE3e3e3,
+                        color: context.taqaColors.textSecondary,
                       ),
-                      border: const UnderlineInputBorder(
+                      border: UnderlineInputBorder(
                         borderSide: BorderSide(
-                          color: TaqaUiColors.charcoal,
+                          color: context.taqaColors.divider,
                           width: .5,
                         ),
                       ),
-                      enabledBorder: const UnderlineInputBorder(
+                      enabledBorder: UnderlineInputBorder(
                         borderSide: BorderSide(
-                          color: TaqaUiColors.charcoal,
+                          color: context.taqaColors.divider,
                           width: .5,
                         ),
                       ),
-                      focusedBorder: const UnderlineInputBorder(
+                      focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(
-                          color: TaqaUiColors.charcoal,
+                          color: context.taqaColors.textPrimary,
                           width: .5,
                         ),
                       ),
@@ -193,7 +193,7 @@ class _TaqaCommentComposerPageState extends State<TaqaCommentComposerPage> {
                         icon: Icon(
                           Icons.mic,
                           size: TaqaUiScale.w(10),
-                          color: TaqaUiColors.charcoal,
+                          color: context.taqaColors.textPrimary,
                         ),
                       )
                     else if (_voiceState == 1)

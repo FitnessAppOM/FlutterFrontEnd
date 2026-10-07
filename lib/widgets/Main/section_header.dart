@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/taqa_ui_colors.dart';
+
 class SectionHeader extends StatelessWidget {
   final String title;
 
@@ -7,23 +9,20 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Row(
       children: [
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Colors.white,
+              color: colors.textPrimary,
             ),
           ),
         ),
-        Container(
-          height: 3,
-          width: 40,
-          color: Colors.amber,
-        ),
+        Container(height: 3, width: 40, color: colors.accent),
       ],
     );
   }

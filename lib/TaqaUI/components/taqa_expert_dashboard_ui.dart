@@ -21,6 +21,7 @@ class TaqaDashboardPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return SizedBox(
       height: TaqaUiScale.h(39),
       child: Stack(
@@ -37,7 +38,7 @@ class TaqaDashboardPageHeader extends StatelessWidget {
               fontWeight: FontWeight.w700,
               height: 25 / 15,
               letterSpacing: 0,
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
             ),
           ),
           if (onBack != null)
@@ -65,6 +66,7 @@ class TaqaManagementSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -72,7 +74,7 @@ class TaqaManagementSectionTitle extends StatelessWidget {
           title,
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
-            color: TaqaUiColors.charcoal,
+            color: colors.textPrimary,
             fontWeight: FontWeight.w700,
             fontSize: TaqaUiScale.sp(18),
           ),
@@ -83,7 +85,7 @@ class TaqaManagementSectionTitle extends StatelessWidget {
             subtitle!,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              color: colors.textSecondary,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
               height: 18 / 15,
@@ -108,12 +110,14 @@ class TaqaManagementMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       height: TaqaUiScale.h(75),
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(5),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +126,7 @@ class TaqaManagementMetricCard extends StatelessWidget {
             taqaUppercase(label),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textSecondary,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               height: 10 / 8,
@@ -134,7 +138,7 @@ class TaqaManagementMetricCard extends StatelessWidget {
             value,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
               fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
               height: 1,
@@ -182,6 +186,7 @@ class TaqaFloatingAddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final size = TaqaUiScale.w(62);
     final radius = TaqaUiScale.r(31);
     final shape = BorderRadius.only(
@@ -200,11 +205,12 @@ class TaqaFloatingAddButton extends StatelessWidget {
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surfaceElevated,
             borderRadius: shape,
+            border: Border.all(color: colors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
+                color: colors.scrim.withValues(alpha: 0.26),
                 blurRadius: TaqaUiScale.r(30),
               ),
             ],
@@ -213,15 +219,15 @@ class TaqaFloatingAddButton extends StatelessWidget {
               ? SizedBox(
                   width: TaqaUiScale.w(18),
                   height: TaqaUiScale.h(18),
-                  child: const CircularProgressIndicator(
+                  child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 )
               : Icon(
                   Icons.add,
                   size: TaqaUiScale.w(26),
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.textPrimary,
                 ),
         ),
       ),
@@ -249,6 +255,7 @@ class TaqaManagementListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final content = Container(
       constraints: minHeight == null
           ? null
@@ -256,16 +263,12 @@ class TaqaManagementListCard extends StatelessWidget {
       padding: padding ?? TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         borderRadius: TaqaUiScale.radius(radius),
-        border: showBorder
-            ? Border.all(
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.10),
-              )
-            : null,
+        border: showBorder ? Border.all(color: colors.border) : null,
       ),
       child: child,
     );
     return Material(
-      color: TaqaUiColors.white,
+      color: colors.surface,
       borderRadius: TaqaUiScale.radius(radius),
       child: onTap == null
           ? content
@@ -285,7 +288,7 @@ class TaqaCompactActionButton extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.loading = false,
-    this.color = TaqaUiColors.charcoal,
+    this.color,
     this.height = 30,
   });
 
@@ -293,11 +296,12 @@ class TaqaCompactActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final bool loading;
-  final Color color;
+  final Color? color;
   final double height;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor = color ?? context.taqaColors.textPrimary;
     return Material(
       color: Colors.transparent,
       borderRadius: TaqaUiScale.radius(5),
@@ -309,7 +313,7 @@ class TaqaCompactActionButton extends StatelessWidget {
           padding: TaqaUiScale.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             borderRadius: TaqaUiScale.radius(5),
-            border: Border.all(color: color.withValues(alpha: 0.55)),
+            border: Border.all(color: resolvedColor.withValues(alpha: 0.55)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -320,11 +324,11 @@ class TaqaCompactActionButton extends StatelessWidget {
                   height: TaqaUiScale.h(13),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: color,
+                    color: resolvedColor,
                   ),
                 )
               else
-                Icon(icon, size: TaqaUiScale.w(13), color: color),
+                Icon(icon, size: TaqaUiScale.w(13), color: resolvedColor),
               SizedBox(width: TaqaUiScale.w(5)),
               Text(
                 taqaUppercase(label),
@@ -334,7 +338,7 @@ class TaqaCompactActionButton extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                   height: 10 / 8,
                   letterSpacing: 0,
-                  color: color,
+                  color: resolvedColor,
                 ),
               ),
             ],
@@ -352,7 +356,7 @@ class TaqaIconActionButton extends StatelessWidget {
     required this.onTap,
     required this.tooltip,
     this.loading = false,
-    this.color = TaqaUiColors.charcoal,
+    this.color,
     this.iconSize = 20,
   });
 
@@ -360,11 +364,12 @@ class TaqaIconActionButton extends StatelessWidget {
   final VoidCallback? onTap;
   final String tooltip;
   final bool loading;
-  final Color color;
+  final Color? color;
   final double iconSize;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedColor = color ?? context.taqaColors.textPrimary;
     return IconButton(
       tooltip: tooltip,
       onPressed: loading ? null : onTap,
@@ -377,7 +382,7 @@ class TaqaIconActionButton extends StatelessWidget {
                 color: TaqaUiColors.lime,
               ),
             )
-          : Icon(icon, color: color, size: TaqaUiScale.w(iconSize)),
+          : Icon(icon, color: resolvedColor, size: TaqaUiScale.w(iconSize)),
     );
   }
 }
@@ -408,6 +413,7 @@ class TaqaExpertClientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaManagementListCard(
       minHeight: 79,
       radius: 15,
@@ -431,7 +437,7 @@ class TaqaExpertClientCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.charcoal,
+                          color: colors.textPrimary,
                           fontWeight: FontWeight.w700,
                           fontSize: TaqaUiScale.sp(15),
                           height: 25 / 15,
@@ -452,7 +458,7 @@ class TaqaExpertClientCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontFamily: TaqaUiFontFamilies.interTight,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textSecondary,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w400,
                       height: 18 / 15,
@@ -471,7 +477,7 @@ class TaqaExpertClientCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textSecondary,
                             fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w400,
                             height: 18 / 15,
@@ -490,7 +496,7 @@ class TaqaExpertClientCard extends StatelessWidget {
                         alerts.join('\n'),
                         style: TextStyle(
                           fontFamily: TaqaUiFontFamilies.interTight,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                           fontSize: TaqaUiScale.sp(15),
                           fontWeight: FontWeight.w400,
                           height: 18 / 15,
@@ -591,6 +597,7 @@ class TaqaAssignedClientsStack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final preview = clients.take(3).toList(growable: false);
     final overflow = totalCount - preview.length;
     final baseWidth = preview.isEmpty ? 0 : (preview.length - 1) * 18 + 30;
@@ -615,11 +622,11 @@ class TaqaAssignedClientsStack extends StatelessWidget {
               start: TaqaUiScale.w(baseWidth),
               child: CircleAvatar(
                 radius: TaqaUiScale.r(15),
-                backgroundColor: TaqaUiColors.charcoal.withValues(alpha: 0.12),
+                backgroundColor: colors.surfaceElevated,
                 child: Text(
                   '+$overflow',
                   style: TextStyle(
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                     fontSize: TaqaUiScale.sp(10),
                     fontWeight: FontWeight.w700,
                   ),
@@ -658,10 +665,13 @@ class TaqaClientAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final url = (avatarUrl ?? '').trim();
     return CircleAvatar(
       radius: TaqaUiScale.r(radius),
-      backgroundColor: TaqaUiColors.charcoal,
+      backgroundColor: colors.isDark
+          ? colors.surfaceElevated
+          : colors.surfaceInverse,
       foregroundImage: url.isNotEmpty ? NetworkImage(url) : null,
       onForegroundImageError: url.isNotEmpty ? (_, _) {} : null,
       child: url.isNotEmpty
@@ -670,7 +680,9 @@ class TaqaClientAvatar extends StatelessWidget {
               _initials,
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
-                color: TaqaUiColors.white,
+                color: colors.isDark
+                    ? colors.textPrimary
+                    : colors.textOnInverse,
                 fontWeight: FontWeight.w700,
                 fontSize: TaqaUiScale.sp(radius * 0.58),
               ),

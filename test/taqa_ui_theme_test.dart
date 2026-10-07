@@ -4,17 +4,32 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_news_carousel.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_progress_widget_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_metric_detail_list.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_pillar_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_streak_tag.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_feed_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_community_group_picker_sheet.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_community_option_picker_sheet.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_edit_mode_bubble.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_pill_tab.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_widget_library_sheet.dart';
+import 'package:taqaproject/TaqaUI/screens/taqa_news_page.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import 'package:taqaproject/localization/app_localizations.dart';
+import 'package:taqaproject/models/news_item.dart';
+import 'package:taqaproject/services/screenings/screening_service.dart';
 import 'package:taqaproject/theme/app_theme.dart';
 import 'package:taqaproject/widgets/dashboard/progress_meter.dart';
 import 'package:taqaproject/widgets/profile/profile_goals_section.dart';
 import 'package:taqaproject/widgets/profile/profile_header.dart';
 import 'package:taqaproject/widgets/training/exercise_card.dart';
+import 'package:taqaproject/widgets/screening/screening_form_sheet.dart';
 
 void main() {
   testWidgets('light and dark themes expose their centralized Taqa palettes', (
@@ -93,6 +108,360 @@ void main() {
     expect(decoration.border, isNotNull);
   });
 
+  testWidgets('history-style cards use the dark semantic surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
+            body: TaqaLogEntryCard(
+              title: 'Coach PIN',
+              badgeText: '',
+              subtitle: '123456',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<Text>(find.text('Coach PIN')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('option dialog uses dark surfaces for coach portal choices', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showTaqaOptionDialog<String>(
+                  context: context,
+                  title: 'Choose portal',
+                  options: const [
+                    TaqaDialogOption(value: 'coach', title: 'Coach'),
+                    TaqaDialogOption(value: 'client', title: 'Client'),
+                  ],
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.text('Choose portal')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+    expect(
+      decorations.where(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceElevated,
+      ),
+      hasLength(2),
+    );
+  });
+
+  testWidgets('shared info popups use the dark semantic surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showTaqaInfoDialog(
+                  context: context,
+                  title: 'Notice',
+                  message: 'Dark popup content',
+                ),
+                child: const Text('Open info'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open info'));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<Text>(find.text('Notice')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('Dark popup content')).style?.color,
+      TaqaUiPalette.dark.textSecondary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('picker lists use dark semantic surfaces', (tester) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: Scaffold(
+            body: TaqaCommunityGroupPickerSheet(
+              selectedId: 1,
+              options: const [
+                TaqaCommunityGroupPickerOption(
+                  id: 1,
+                  name: 'Selected group',
+                  memberCount: 4,
+                ),
+                TaqaCommunityGroupPickerOption(
+                  id: 2,
+                  name: 'Other group',
+                  memberCount: 2,
+                ),
+              ],
+              onSelected: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.background,
+      ),
+      isTrue,
+    );
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets(
+    'Fitness Score cards and metric lists avoid raw white and black',
+    (tester) async {
+      tester.view.physicalSize = TaqaUiScale.designSize;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        ScreenUtilInit(
+          designSize: TaqaUiScale.designSize,
+          builder: (_, _) => MaterialApp(
+            theme: buildDarkTheme(),
+            localizationsDelegates: const [AppLocalizationsDelegate()],
+            supportedLocales: const [Locale('en'), Locale('ar')],
+            home: const Scaffold(
+              body: Column(
+                children: [
+                  TaqaPillarCard(
+                    metricKey: 'sleep',
+                    label: 'Sleep',
+                    score: 80,
+                    icon: Icons.bed,
+                    color: Colors.purple,
+                    details: {},
+                    detailLabels: {},
+                  ),
+                  TaqaPillarCard(
+                    metricKey: 'training_load',
+                    label: 'Training load',
+                    score: 65,
+                    icon: Icons.fitness_center,
+                    color: Colors.orange,
+                    details: {},
+                    detailLabels: {},
+                  ),
+                  TaqaMetricDetailList(
+                    details: {'value': '42'},
+                    detailLabels: {'value': 'Metric'},
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final animatedDecorations = tester
+          .widgetList<AnimatedContainer>(find.byType(AnimatedContainer))
+          .map((container) => container.decoration)
+          .whereType<BoxDecoration>();
+      expect(
+        animatedDecorations.any(
+          (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+        ),
+        isTrue,
+      );
+      expect(
+        animatedDecorations.any(
+          (decoration) =>
+              decoration.color == TaqaUiPalette.dark.surfaceElevated,
+        ),
+        isTrue,
+      );
+      expect(
+        animatedDecorations.any(
+          (decoration) =>
+              decoration.color == TaqaUiColors.white ||
+              decoration.color == TaqaUiColors.charcoal,
+        ),
+        isFalse,
+      );
+      expect(
+        tester.widget<Text>(find.text('Metric')).style?.color,
+        TaqaUiPalette.dark.textSecondary,
+      );
+    },
+  );
+
+  testWidgets('quarterly screening form follows dark palette', (tester) async {
+    tester.view.physicalSize = TaqaUiScale.designSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: const ScreeningFormSheet(
+            pending: ScreeningPendingResult(
+              isDue: true,
+              reason: 'quarterly',
+              daysRemaining: 7,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, TaqaUiPalette.dark.background);
+    expect(
+      IconTheme.of(tester.element(find.byIcon(Icons.close))).color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('announcements page uses centralized dark surfaces', (
+    tester,
+  ) async {
+    tester.view.physicalSize = TaqaUiScale.designSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: const TaqaNewsPage(
+            items: [
+              NewsItem(
+                id: 1,
+                title: 'Training update',
+                subtitle: 'A new plan is available',
+                content: '',
+                contentUrl: '',
+                tag: 'update',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, TaqaUiPalette.dark.background);
+    expect(
+      tester.widget<Text>(find.text('Training update')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Ink>(find.byType(Ink))
+        .map((ink) => ink.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceElevated,
+      ),
+      isTrue,
+    );
+  });
+
   testWidgets('profile surfaces and text remain contrasted in dark mode', (
     tester,
   ) async {
@@ -131,6 +500,12 @@ void main() {
     );
     expect(
       tester.widget<Text>(find.text('Strength')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
+    expect(avatar.backgroundColor, TaqaUiPalette.dark.surfaceElevated);
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.person)).color,
       TaqaUiPalette.dark.textPrimary,
     );
 
@@ -313,7 +688,6 @@ void main() {
                       title: 'Weekly update',
                       subtitle: 'Your latest Taqa news',
                       dateLabel: 'Today',
-                      color: Colors.purple,
                     ),
                   ],
                 ),
@@ -337,6 +711,15 @@ void main() {
           )
           .length,
       greaterThanOrEqualTo(2),
+    );
+    expect(
+      decoratedInks
+          .where(
+            (decoration) =>
+                decoration.color == TaqaUiPalette.dark.surfaceElevated,
+          )
+          .every((decoration) => decoration.gradient == null),
+      isTrue,
     );
   });
 
@@ -389,6 +772,132 @@ void main() {
       decoratedContainers.any(
         (decoration) => decoration.color == TaqaUiPalette.dark.surface,
       ),
+      isTrue,
+    );
+  });
+
+  testWidgets('diet day choices and edit controls follow the dark palette', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: Column(
+              children: [
+                TaqaTagButton(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                  onTap: () {},
+                ),
+                TaqaEditModeBubble(visible: true, onTap: () {}),
+                TaqaCommunityOptionPickerSheet(
+                  title: 'Training day',
+                  options: const ['Day 1', 'Day 2'],
+                  selectedValue: 'Day 1',
+                  onSelected: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('EDIT')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('DAY 1')).style?.color,
+      TaqaUiPalette.dark.onAccent,
+    );
+    expect(
+      tester.widget<Text>(find.text('DAY 2')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceElevated,
+      ),
+      isTrue,
+    );
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('coach dashboard cards and tabs use dark semantic colors', (
+    tester,
+  ) async {
+    tester.view.physicalSize = TaqaUiScale.designSize;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: ListView(
+              children: [
+                TaqaPillTab(label: 'Clients', active: false, onTap: () {}),
+                const TaqaManagementMetricCard(label: 'Clients', value: '12'),
+                const TaqaClientDashboardCard(
+                  child: TaqaClientDashboardTitleText('Client overview'),
+                ),
+                const TaqaExpertClientCard(
+                  name: 'Omar Client',
+                  status: 'green',
+                  alerts: [],
+                  showStatus: false,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('CLIENTS').first).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('Client overview')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('Omar Client')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+    expect(
+      tester
+          .widgetList<Material>(find.byType(Material))
+          .any((material) => material.color == TaqaUiPalette.dark.surface),
       isTrue,
     );
   });

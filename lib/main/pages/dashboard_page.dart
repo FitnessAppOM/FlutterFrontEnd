@@ -536,20 +536,6 @@ class DashboardPageState extends State<DashboardPage>
   static const _sleepGoalKey = "dashboard_sleep_goal";
   static const _caloriesGoalKey = "dashboard_calories_goal";
 
-  Color _colorForTag(String tag) {
-    final normalized = tag.toLowerCase().trim();
-    if (normalized.contains('update')) return const Color(0xFF6A5AE0);
-    if (normalized.contains('nutrition')) return const Color(0xFF00BFA6);
-    if (normalized.contains('workout') || normalized.contains('training')) {
-      return const Color(0xFFFF8A00);
-    }
-    if (normalized.contains('reminder') || normalized.contains('journal')) {
-      return const Color(0xFF35B6FF);
-    }
-    // Default accent in the same palette family.
-    return const Color(0xFF6A5AE0);
-  }
-
   void _changeDay(int deltaDays) {
     final currentWeekStart = _trendWeekStartFor(_selectedDate);
     final next = DateTime(
@@ -5346,7 +5332,6 @@ class DashboardPageState extends State<DashboardPage>
               title: t("dash_stay_tuned"),
               subtitle: t("dash_announce_here"),
               dateLabel: '',
-              color: const Color(0xFF6A5AE0),
               onTap: _openAnnouncements,
             ),
           ]
@@ -5356,7 +5341,6 @@ class DashboardPageState extends State<DashboardPage>
                   title: n.title,
                   subtitle: n.subtitle,
                   dateLabel: announcementDateLabel(n.createdAt),
-                  color: _colorForTag(n.tag),
                   onTap: _openAnnouncements,
                 ),
               )

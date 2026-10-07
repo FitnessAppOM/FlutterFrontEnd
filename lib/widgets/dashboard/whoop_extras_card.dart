@@ -33,17 +33,17 @@ class WhoopExtrasCard extends StatelessWidget {
                   Text(
                     t("whoop_insights_title"),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-          const SizedBox(height: 8),
-          Text(
-            t("whoop_insights_subtitle"),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
-                  fontWeight: FontWeight.w600,
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    t("whoop_insights_subtitle"),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white60,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -68,6 +68,8 @@ class WhoopExtrasCard extends StatelessWidget {
                   'assets/images/whoop.png',
                   height: 14,
                   fit: BoxFit.contain,
+                  color: Colors.white,
+                  colorBlendMode: BlendMode.srcIn,
                 ),
               ),
             ),

@@ -4,7 +4,7 @@ import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
 
-/// Reusable light TaqaUI sheet for choosing one text option.
+/// Reusable theme-aware TaqaUI sheet for choosing one text option.
 class TaqaCommunityOptionPickerSheet extends StatelessWidget {
   const TaqaCommunityOptionPickerSheet({
     super.key,
@@ -21,6 +21,7 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return SafeArea(
       top: false,
       child: ConstrainedBox(
@@ -30,7 +31,7 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
         child: Container(
           padding: TaqaUiScale.insetsLTRB(16, 10, 16, 24),
           decoration: BoxDecoration(
-            color: TaqaUiColors.unnamedColorE3e3e3,
+            color: colors.background,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(TaqaUiScale.r(24)),
             ),
@@ -44,7 +45,7 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
                   width: TaqaUiScale.w(36),
                   height: TaqaUiScale.h(4),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+                    color: colors.textSecondary.withValues(alpha: 0.45),
                     borderRadius: TaqaUiScale.radius(99),
                   ),
                 ),
@@ -56,7 +57,7 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                   fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                  color: colors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(12)),
@@ -79,13 +80,15 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
                                 padding: TaqaUiScale.symmetric(horizontal: 14),
                                 decoration: BoxDecoration(
                                   color: selected
-                                      ? TaqaUiColors.accent
-                                      : TaqaUiColors.white,
+                                      ? colors.accent
+                                      : colors.surface,
                                   borderRadius: TaqaUiScale.radius(5),
                                   border: Border.all(
-                                    color: TaqaUiColors.charcoal.withValues(
-                                      alpha: selected ? 0.35 : 0.08,
-                                    ),
+                                    color: selected
+                                        ? colors.onAccent.withValues(
+                                            alpha: 0.35,
+                                          )
+                                        : colors.border,
                                   ),
                                 ),
                                 child: Row(
@@ -100,7 +103,9 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
                                               TaqaUiFontFamilies.interTight,
                                           fontSize: TaqaUiScale.sp(14),
                                           fontWeight: FontWeight.w700,
-                                          color: TaqaUiColors.charcoal,
+                                          color: selected
+                                              ? colors.onAccent
+                                              : colors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -108,7 +113,7 @@ class TaqaCommunityOptionPickerSheet extends StatelessWidget {
                                       Icon(
                                         Icons.check,
                                         size: TaqaUiScale.w(18),
-                                        color: TaqaUiColors.charcoal,
+                                        color: colors.onAccent,
                                       ),
                                   ],
                                 ),
