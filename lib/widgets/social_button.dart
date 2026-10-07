@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
@@ -59,21 +60,21 @@ class SocialButton extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final colors = context.taqaColors;
+    final radius = TaqaUiScale.radius(5);
     return Material(
-      color: TaqaUiColors.white,
-      borderRadius: TaqaUiScale.radius(5),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: colors.border),
+      ),
       child: InkWell(
-        borderRadius: TaqaUiScale.radius(5),
+        borderRadius: radius,
         onTap: onPressed,
         child: Container(
           width: double.infinity,
           height: TaqaUiScale.h(48),
-          decoration: BoxDecoration(
-            borderRadius: TaqaUiScale.radius(5),
-            border: Border.all(
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15),
-            ),
-          ),
+          decoration: BoxDecoration(borderRadius: TaqaUiScale.radius(5)),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -92,16 +93,20 @@ class SocialButton extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: TaqaUiScale.w(20),
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
-              Text(
-                text,
-                style: TextStyle(
-                  fontFamily: TaqaUiFontFamilies.interTight,
-                  fontSize: TaqaUiScale.sp(13),
-                  fontWeight: FontWeight.w600,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: TaqaUiFontFamilies.interTight,
+                    fontSize: TaqaUiScale.sp(13),
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                  ),
                 ),
               ),
             ],

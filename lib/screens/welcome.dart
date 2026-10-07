@@ -214,6 +214,7 @@ class _WelcomePageState extends State<WelcomePage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
+        if (!mounted) return;
         final target =
             directNotificationTarget ??
             (NavigationService.journalNotificationPending
@@ -441,6 +442,7 @@ class _WelcomePageState extends State<WelcomePage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     final hasAccount = (lastEmail != null && lastEmail!.isNotEmpty);
     final hasVerifiedAccount = hasAccount && lastVerified;
@@ -451,7 +453,7 @@ class _WelcomePageState extends State<WelcomePage> {
         : (lastEmail?.split('@').first.trim() ?? '');
 
     return Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
           padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -502,7 +504,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           fontSize: TaqaUiScale.sp(28),
                           fontWeight: FontWeight.w700,
                           height: 1,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ],
@@ -523,7 +525,7 @@ class _WelcomePageState extends State<WelcomePage> {
                       fontSize: TaqaUiScale.sp(20),
                       fontWeight: FontWeight.w700,
                       height: 26 / 20,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
 
@@ -532,7 +534,9 @@ class _WelcomePageState extends State<WelcomePage> {
                   Text(
                     t.translate("welcome_tagline_sub"),
                     textAlign: TextAlign.center,
-                    style: TaqaUiStyles.subtitle,
+                    style: TaqaUiStyles.subtitle.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
 
                   SizedBox(height: TaqaUiScale.h(24)),
@@ -581,8 +585,9 @@ class _WelcomePageState extends State<WelcomePage> {
 
                   SizedBox(height: TaqaUiScale.h(20)),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         t.translate("new_to_taqa"),
@@ -590,9 +595,7 @@ class _WelcomePageState extends State<WelcomePage> {
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(13),
                           fontWeight: FontWeight.w400,
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.6,
-                          ),
+                          color: colors.textSecondary,
                         ),
                       ),
                       TextButton(
@@ -611,8 +614,8 @@ class _WelcomePageState extends State<WelcomePage> {
                             fontSize: TaqaUiScale.sp(13),
                             fontWeight: FontWeight.w700,
                             decoration: TextDecoration.underline,
-                            decorationColor: TaqaUiColors.unnamedColor1c1d17,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            decorationColor: colors.textPrimary,
+                            color: colors.textPrimary,
                           ),
                         ),
                       ),

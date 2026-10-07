@@ -102,13 +102,6 @@ class _LoginPageState extends State<LoginPage> {
     final qDone = await AccountStorage.isQuestionnaireDone();
     final qExpertDone = await AccountStorage.isExpertQuestionnaireDone();
     final provider = await AccountStorage.getAuthProvider();
-    final userId = await AccountStorage.getUserId();
-    final token = await AccountStorage.getAccessToken();
-    final validSession =
-        userId != null &&
-        userId > 0 &&
-        token != null &&
-        token.trim().isNotEmpty;
 
     if (!mounted) return;
     setState(() {
@@ -162,6 +155,7 @@ class _LoginPageState extends State<LoginPage> {
         }
         final directNotificationTarget =
             await NavigationService.consumeDirectNotificationTarget();
+        if (!mounted) return;
         final target =
             directNotificationTarget ??
             (NavigationService.journalNotificationPending
@@ -260,7 +254,7 @@ class _LoginPageState extends State<LoginPage> {
                     data?['jwt'] ??
                     data?['token'])
                 ?.toString()
-                ?.trim();
+                .trim();
 
         // Backend must return user_id and access_token; otherwise do not overwrite storage
         if (userId <= 0 || token == null || token.isEmpty) {
@@ -400,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
                 result["jwt"] ??
                 result["token"])
             ?.toString()
-            ?.trim();
+            .trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -492,7 +486,7 @@ class _LoginPageState extends State<LoginPage> {
                 result["jwt"] ??
                 result["token"])
             ?.toString()
-            ?.trim();
+            .trim();
 
     if (userId <= 0 || accessToken == null || accessToken.isEmpty) {
       if (!mounted) return;
@@ -553,14 +547,15 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final canSubmit =
         !loading && email.text.trim().isNotEmpty && password.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("login_title"),
-        backgroundColor: context.taqaColors.background,
+        backgroundColor: colors.background,
       ),
       body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -615,7 +610,7 @@ class _LoginPageState extends State<LoginPage> {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(12),
                         fontWeight: FontWeight.w600,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),

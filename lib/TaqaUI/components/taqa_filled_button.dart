@@ -24,11 +24,10 @@ class TaqaFilledButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final disabled = onTap == null || loading;
     return Material(
-      color: disabled
-          ? TaqaUiColors.unnamedColorE4e93b.withValues(alpha: 0.4)
-          : TaqaUiColors.unnamedColorE4e93b,
+      color: disabled ? colors.accent.withValues(alpha: 0.4) : colors.accent,
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
@@ -41,9 +40,9 @@ class TaqaFilledButton extends StatelessWidget {
                 ? SizedBox(
                     width: TaqaUiScale.w(18),
                     height: TaqaUiScale.h(18),
-                    child: const CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   )
                 : Text(
@@ -54,7 +53,7 @@ class TaqaFilledButton extends StatelessWidget {
                       fontWeight: fontWeight,
                       height: 12 / fontSize,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   ),
           ),
@@ -77,6 +76,7 @@ class TaqaTextActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -94,7 +94,7 @@ class TaqaTextActionButton extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 height: 12 / 10,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
               ),
             ),
           ),

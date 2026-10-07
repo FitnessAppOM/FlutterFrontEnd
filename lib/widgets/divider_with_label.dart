@@ -10,7 +10,8 @@ class DividerWithLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lineColor = TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.15);
+    final colors = context.taqaColors;
+    final lineColor = colors.divider;
     return Row(
       children: [
         Expanded(child: Divider(thickness: 1, color: lineColor)),
@@ -23,7 +24,7 @@ class DividerWithLabel extends StatelessWidget {
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               letterSpacing: 0.4,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+              color: colors.textSecondary,
             ),
           ),
         ),

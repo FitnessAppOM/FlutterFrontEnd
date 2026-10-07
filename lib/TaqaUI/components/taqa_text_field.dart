@@ -132,6 +132,7 @@ class TaqaPasswordVisibilityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       semanticLabel: visible ? 'Hide password' : 'Show password',
       behavior: HitTestBehavior.opaque,
@@ -141,7 +142,7 @@ class TaqaPasswordVisibilityButton extends StatelessWidget {
         padding: TaqaUiScale.symmetric(horizontal: 4, vertical: 8),
         child: Icon(
           visible ? Icons.visibility_off : Icons.visibility,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+          color: colors.textSecondary,
           size: TaqaUiScale.w(18),
         ),
       ),

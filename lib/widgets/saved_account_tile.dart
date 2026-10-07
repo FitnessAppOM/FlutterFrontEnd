@@ -18,11 +18,16 @@ class SavedAccountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    final radius = TaqaUiScale.radius(15);
     return Material(
-      color: TaqaUiColors.white,
-      borderRadius: TaqaUiScale.radius(15),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: radius,
+        side: BorderSide(color: colors.border),
+      ),
       child: InkWell(
-        borderRadius: TaqaUiScale.radius(15),
+        borderRadius: radius,
         onTap: onTap,
         child: Padding(
           padding: TaqaUiScale.insetsLTRB(12, 10, 8, 10),
@@ -32,13 +37,13 @@ class SavedAccountTile extends StatelessWidget {
                 width: TaqaUiScale.w(36),
                 height: TaqaUiScale.h(36),
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: TaqaUiColors.unnamedColorE4e93b,
+                  color: colors.accent,
                 ),
                 child: Icon(
                   Icons.person,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.onAccent,
                   size: TaqaUiScale.w(18),
                 ),
               ),
@@ -50,14 +55,14 @@ class SavedAccountTile extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(13),
                     fontWeight: FontWeight.w600,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
               IconButton(
                 icon: Icon(
                   Icons.more_vert,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.4),
+                  color: colors.textSecondary,
                   size: TaqaUiScale.w(20),
                 ),
                 onPressed: onMenu,
