@@ -167,11 +167,12 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   }
 
   Future<Uint8List?> _buildExportBytes(RenderRepaintBoundary boundary) async {
+    final exportBackground = context.taqaColors.surface;
     final bytes = await _capturePngWithOptionalHideMap(boundary);
     if (bytes == null) return null;
     final flattened = await CardioShareService.flattenPngOnBackground(
       bytes,
-      TaqaUiColors.white,
+      exportBackground,
       // Must match the captured card's own borderRadius (TaqaUiScale.radius(15)
       // in build()) so the background mask lines up with the card's actual
       // rounded corner instead of leaving square edges outside it.
@@ -304,6 +305,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final snapshotUrl = _buildSnapshotUrl();
     if (snapshotUrl.isEmpty && !_snapshotReady) {
       _snapshotReady = true;
@@ -313,7 +315,10 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(13),
       fontWeight: FontWeight.w600,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: colors.textPrimary,
+    );
+    final accentActionTextStyle = actionTextStyle.copyWith(
+      color: colors.onAccent,
     );
 
     return SafeArea(
@@ -321,7 +326,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
       child: Container(
         padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: colors.background,
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(TaqaUiScale.r(20)),
           ),
@@ -334,27 +339,23 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
               height: TaqaUiScale.h(4),
               margin: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
               decoration: BoxDecoration(
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.12),
+                color: colors.textSecondary.withValues(alpha: 0.45),
                 borderRadius: TaqaUiScale.radius(99),
               ),
             ),
             ClipRRect(
               borderRadius: TaqaUiScale.radius(18),
               child: Container(
-                color: TaqaUiColors.unnamedColorE3e3e3,
+                color: colors.background,
                 padding: TaqaUiScale.insetsLTRB(4, 4, 4, 4),
                 child: RepaintBoundary(
                   key: _captureKey,
                   child: Container(
                     padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
+                      color: colors.surface,
                       borderRadius: TaqaUiScale.radius(15),
-                      border: Border.all(
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.10,
-                        ),
-                      ),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -379,7 +380,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(14),
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.textPrimary,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 0.3,
                                     ),
@@ -392,8 +393,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(11),
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.6),
+                                      color: colors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -403,16 +403,13 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                               padding: TaqaUiScale.insetsLTRB(8, 5, 8, 5),
                               decoration: BoxDecoration(
                                 borderRadius: TaqaUiScale.radius(999),
-                                border: Border.all(
-                                  color: TaqaUiColors.unnamedColor1c1d17
-                                      .withValues(alpha: 0.6),
-                                ),
+                                border: Border.all(color: colors.textSecondary),
                               ),
                               child: Text(
                                 _sessionDateLabel(),
                                 style: TextStyle(
                                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: colors.textPrimary,
                                   fontSize: TaqaUiScale.sp(10),
                                 ),
                               ),
@@ -429,15 +426,14 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                               height: TaqaUiScale.h(190),
                               child: snapshotUrl.isEmpty
                                   ? Container(
-                                      color: TaqaUiColors.unnamedColorE3e3e3,
+                                      color: colors.surfaceElevated,
                                       alignment: Alignment.center,
                                       child: Text(
                                         'Route unavailable',
                                         style: TextStyle(
                                           fontFamily:
                                               TaqaUiFontFamilies.interTight,
-                                          color: TaqaUiColors.unnamedColor1c1d17
-                                              .withValues(alpha: 0.6),
+                                          color: colors.textSecondary,
                                           fontSize: TaqaUiScale.sp(13),
                                         ),
                                       ),
@@ -469,13 +465,12 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                                                   return child;
                                                 }
                                                 return Container(
-                                                  color: TaqaUiColors
-                                                      .unnamedColorE3e3e3,
+                                                  color: colors.surfaceElevated,
                                                   alignment: Alignment.center,
                                                   child:
                                                       CircularProgressIndicator(
-                                                        color: TaqaUiColors
-                                                            .unnamedColor1c1d17,
+                                                        color:
+                                                            colors.textPrimary,
                                                       ),
                                                 );
                                               },
@@ -541,7 +536,7 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                       : _snapshotReady
                       ? t.translate("training_save_to_photos")
                       : t.translate("training_preparing"),
-                  style: actionTextStyle,
+                  style: accentActionTextStyle,
                 ),
               ),
             ),
@@ -556,12 +551,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                           ? null
                           : _shareScreenshot,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-                        side: BorderSide(
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
+                        foregroundColor: colors.textPrimary,
+                        side: BorderSide(color: colors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: TaqaUiScale.radius(5),
                         ),
@@ -606,12 +597,8 @@ class _CardioAchievementSheetState extends State<CardioAchievementSheet> {
                             }
                           : null,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: TaqaUiColors.unnamedColor1c1d17,
-                        side: BorderSide(
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.3,
-                          ),
-                        ),
+                        foregroundColor: colors.textPrimary,
+                        side: BorderSide(color: colors.border),
                         shape: RoundedRectangleBorder(
                           borderRadius: TaqaUiScale.radius(5),
                         ),

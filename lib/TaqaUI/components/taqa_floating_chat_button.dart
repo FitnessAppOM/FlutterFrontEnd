@@ -16,6 +16,7 @@ class TaqaFloatingChatButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final size = TaqaUiScale.w(62);
     final radius = TaqaUiScale.r(31);
     return Material(
@@ -32,7 +33,8 @@ class TaqaFloatingChatButton extends StatelessWidget {
           height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: colors.surface,
+            border: Border.all(color: colors.border),
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(radius),
               topRight: Radius.circular(radius),
@@ -41,7 +43,7 @@ class TaqaFloatingChatButton extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
+                color: colors.scrim.withValues(alpha: 0.24),
                 blurRadius: TaqaUiScale.r(30),
               ),
             ],
@@ -53,7 +55,7 @@ class TaqaFloatingChatButton extends StatelessWidget {
               fontSize: TaqaUiScale.sp(12),
               height: 14 / 12,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
         ),

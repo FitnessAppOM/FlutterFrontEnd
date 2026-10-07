@@ -86,7 +86,7 @@ class TaqaCommunityManagementList extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(14),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                color: context.taqaColors.textSecondary,
               ),
             ),
           );

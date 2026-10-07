@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../Typography/taqa_ui_typography.dart';
 import '../styles/taqa_ui_scale.dart';
+import '../taqa_ui_colors.dart';
 
 /// One metric shown in a [TaqaCardioStatPanel] (e.g. Time, Distance, Pace,
 /// Steps). [accent] highlights the value in the panel's lime-yellow accent
@@ -30,15 +31,16 @@ class TaqaCardioStatPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.insetsLTRB(18, 14, 18, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1D1D20),
+        color: colors.surfaceInverse,
         borderRadius: TaqaUiScale.radius(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        boxShadow: const [
+        border: Border.all(color: colors.border),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x66000000),
+            color: colors.scrim.withValues(alpha: 0.35),
             blurRadius: 20,
             offset: Offset(0, 10),
           ),
@@ -73,7 +75,9 @@ class _Readout extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: metric.accent ? const Color(0xFFFFE033) : Colors.white,
+              color: metric.accent
+                  ? context.taqaColors.accent
+                  : context.taqaColors.textOnInverse,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(16),
               letterSpacing: -0.3,
@@ -86,7 +90,7 @@ class _Readout extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: Colors.white.withValues(alpha: 0.48),
+              color: context.taqaColors.textOnInverse.withValues(alpha: 0.58),
               fontSize: TaqaUiScale.sp(10),
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
@@ -107,7 +111,7 @@ class _Divider extends StatelessWidget {
       width: 1,
       height: TaqaUiScale.h(28),
       margin: TaqaUiScale.symmetric(horizontal: 4),
-      color: Colors.white.withValues(alpha: 0.1),
+      color: context.taqaColors.textOnInverse.withValues(alpha: 0.18),
     );
   }
 }

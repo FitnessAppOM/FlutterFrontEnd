@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class CoachInfoPanel extends StatelessWidget {
   const CoachInfoPanel({
@@ -21,12 +21,12 @@ class CoachInfoPanel extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, color: AppColors.accent),
+            Icon(icon, color: context.taqaColors.accent),
             const SizedBox(width: 8),
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: context.taqaColors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -36,9 +36,9 @@ class CoachInfoPanel extends StatelessWidget {
         const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.cardDark,
+            color: context.taqaColors.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: context.taqaColors.border),
           ),
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -49,7 +49,7 @@ class CoachInfoPanel extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Text(
                       '- $line',
-                      style: const TextStyle(color: Colors.white70),
+                      style: TextStyle(color: context.taqaColors.textSecondary),
                     ),
                   ),
                 )

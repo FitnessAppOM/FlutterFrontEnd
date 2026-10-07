@@ -211,9 +211,14 @@ class _ExpertPlanTemplateCreatePageState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
-      appBar: const TaqaPageAppBar(title: 'Create Plan Template'),
+      backgroundColor: colors.background,
+      appBar: TaqaPageAppBar(
+        title: 'Create Plan Template',
+        backgroundColor: colors.background,
+        titleColor: colors.textPrimary,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -247,12 +252,8 @@ class _ExpertPlanTemplateCreatePageState
             Container(
               padding: TaqaUiScale.insetsLTRB(16, 10, 17, 16),
               decoration: BoxDecoration(
-                color: TaqaUiColors.lightGray,
-                border: Border(
-                  top: BorderSide(
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.12),
-                  ),
-                ),
+                color: colors.background,
+                border: Border(top: BorderSide(color: colors.divider)),
               ),
               child: TaqaFilledButton(
                 label: 'Save Template',

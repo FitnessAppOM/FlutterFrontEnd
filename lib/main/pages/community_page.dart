@@ -8,7 +8,6 @@ import '../../localization/app_localizations.dart';
 import '../../core/user_friendly_error.dart';
 import '../../services/community/community_models.dart';
 import '../../services/community/community_service.dart';
-import '../../theme/app_theme.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -557,10 +556,8 @@ class _CommunityPageState extends State<CommunityPage> {
                     OutlinedButton(
                       onPressed: _loadingMore ? null : _loadMore,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: TaqaUiColors.charcoal,
-                        side: BorderSide(
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
-                        ),
+                        foregroundColor: context.taqaColors.textPrimary,
+                        side: BorderSide(color: context.taqaColors.border),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: _loadingMore
@@ -797,8 +794,8 @@ class _CommunityPageState extends State<CommunityPage> {
         onLikeTap: () => _toggleLike(item),
         onCommentTap: () => _openComments(item),
         trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_horiz, color: TaqaUiColors.charcoal),
-          color: TaqaUiColors.white,
+          icon: Icon(Icons.more_horiz, color: context.taqaColors.textPrimary),
+          color: context.taqaColors.surface,
           surfaceTintColor: Colors.transparent,
           onSelected: (value) async {
             if (value == 'report') {
@@ -1018,10 +1015,8 @@ class _CommunityDiscoverPageState extends State<CommunityDiscoverPage> {
                 OutlinedButton(
                   onPressed: () => _load(),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: TaqaUiColors.charcoal,
-                    side: BorderSide(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.18),
-                    ),
+                    foregroundColor: context.taqaColors.textPrimary,
+                    side: BorderSide(color: context.taqaColors.border),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text(t.translate('community_retry')),
@@ -1488,7 +1483,7 @@ class _CommunityGroupDetailPageState extends State<CommunityGroupDetailPage> {
                 icon: Icon(
                   Icons.settings_outlined,
                   size: TaqaUiScale.w(22),
-                  color: TaqaUiColors.charcoal,
+                  color: context.taqaColors.textPrimary,
                 ),
                 onPressed: () async {
                   final action = await Navigator.push<String>(
@@ -2303,18 +2298,24 @@ class _CommunityChallengeProgressPageState
                         t,
                         challenge,
                       ).toUpperCase(),
-                      style: TaqaUiStyles.dailyOutlookTag,
+                      style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                        color: context.taqaColors.textSecondary,
+                      ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
                     Text(
                       challenge.name,
-                      style: TaqaUiStyles.communityChallengeName,
+                      style: TaqaUiStyles.communityChallengeName.copyWith(
+                        color: context.taqaColors.textPrimary,
+                      ),
                     ),
                     if ((challenge.description ?? '').trim().isNotEmpty) ...[
                       SizedBox(height: TaqaUiScale.h(8)),
                       Text(
                         challenge.description!.trim(),
-                        style: TaqaUiStyles.dailyOutlookDescription,
+                        style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                          color: context.taqaColors.textSecondary,
+                        ),
                       ),
                     ],
                     SizedBox(height: TaqaUiScale.h(20)),
@@ -2324,7 +2325,7 @@ class _CommunityChallengeProgressPageState
                         value: progress,
                         minHeight: TaqaUiScale.h(12),
                         color: TaqaUiColors.lime,
-                        backgroundColor: TaqaUiColors.lightGray,
+                        backgroundColor: context.taqaColors.surfaceElevated,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(10)),
@@ -2333,11 +2334,15 @@ class _CommunityChallengeProgressPageState
                       children: [
                         Text(
                           _valueLabel(challenge.progressValue),
-                          style: TaqaUiStyles.dailyOutlookTitle,
+                          style: TaqaUiStyles.dailyOutlookTitle.copyWith(
+                            color: context.taqaColors.textPrimary,
+                          ),
                         ),
                         Text(
                           '${challenge.progressPercent.clamp(0, 100).round()}%',
-                          style: TaqaUiStyles.scoreCardValue,
+                          style: TaqaUiStyles.scoreCardValue.copyWith(
+                            color: context.taqaColors.textPrimary,
+                          ),
                         ),
                       ],
                     ),
@@ -2350,7 +2355,9 @@ class _CommunityChallengeProgressPageState
                               '{value}',
                               _valueLabel(challenge.goalValue!),
                             ),
-                        style: TaqaUiStyles.dailyOutlookDescription,
+                        style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                          color: context.taqaColors.textSecondary,
+                        ),
                       ),
                     ],
                     if (challenge.startAt != null ||
@@ -2363,7 +2370,9 @@ class _CommunityChallengeProgressPageState
                           if (challenge.endAt != null)
                             _dateLabel(challenge.endAt!),
                         ].join(' – '),
-                        style: TaqaUiStyles.dailyOutlookDescription,
+                        style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                          color: context.taqaColors.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -2423,7 +2432,7 @@ class _ChallengeSegmentCard extends StatelessWidget {
                 : Icons.radio_button_unchecked,
             color: segment.isCompleted
                 ? TaqaUiColors.lime
-                : TaqaUiColors.charcoal.withValues(alpha: 0.4),
+                : context.taqaColors.textSecondary,
           ),
           SizedBox(width: TaqaUiScale.w(12)),
           Expanded(
@@ -2434,21 +2443,27 @@ class _ChallengeSegmentCard extends StatelessWidget {
                   t
                       .translate('community_week')
                       .replaceAll('{number}', '${segment.segmentIndex + 1}'),
-                  style: TaqaUiStyles.dailyOutlookTitle,
+                  style: TaqaUiStyles.dailyOutlookTitle.copyWith(
+                    color: context.taqaColors.textPrimary,
+                  ),
                 ),
                 SizedBox(height: TaqaUiScale.h(4)),
                 Text(
                   target == null
                       ? valueLabel(segment.progressValue)
                       : '${valueLabel(segment.progressValue)} / ${valueLabel(target)}',
-                  style: TaqaUiStyles.dailyOutlookDescription,
+                  style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                    color: context.taqaColors.textSecondary,
+                  ),
                 ),
                 if (segment.periodStart != null &&
                     segment.periodEnd != null) ...[
                   SizedBox(height: TaqaUiScale.h(4)),
                   Text(
                     '${dateLabel(segment.periodStart!)} – ${dateLabel(segment.periodEnd!)}',
-                    style: TaqaUiStyles.dailyOutlookDescription,
+                    style: TaqaUiStyles.dailyOutlookDescription.copyWith(
+                      color: context.taqaColors.textSecondary,
+                    ),
                   ),
                 ],
               ],
@@ -2573,6 +2588,9 @@ class _CommunityBadgeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contentColor = badge.isEarned
+        ? context.taqaColors.onAccent
+        : context.taqaColors.textPrimary;
     final tagWidth = ((badge.category.length * 7) + 10)
         .clamp(34, 112)
         .toDouble();
@@ -2588,7 +2606,7 @@ class _CommunityBadgeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: badge.isEarned
             ? TaqaUiColors.unnamedColorE4e93b
-            : TaqaUiColors.white,
+            : context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Row(
@@ -2599,7 +2617,7 @@ class _CommunityBadgeCard extends StatelessWidget {
             child: Icon(
               Icons.workspace_premium_outlined,
               size: TaqaUiScale.w(21),
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: contentColor,
             ),
           ),
           SizedBox(width: TaqaUiScale.w(10)),
@@ -2622,7 +2640,7 @@ class _CommunityBadgeCard extends StatelessWidget {
                             fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w700,
                             height: 21 / 15,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: contentColor,
                           ),
                         ),
                       ),
@@ -2644,7 +2662,7 @@ class _CommunityBadgeCard extends StatelessWidget {
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w400,
                     height: 21 / 15,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: contentColor,
                   ),
                 ),
                 if (!badge.isEarned && badge.progressValue != null) ...[
@@ -2657,7 +2675,7 @@ class _CommunityBadgeCard extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(13),
                       fontWeight: FontWeight.w600,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: contentColor,
                     ),
                   ),
                 ],
@@ -3037,9 +3055,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
         maxChildSize: 0.95,
         builder: (context, scrollController) {
           return Container(
-            decoration: const BoxDecoration(
-              color: TaqaUiColors.unnamedColorE3e3e3,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            decoration: BoxDecoration(
+              color: context.taqaColors.background,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(26),
+              ),
             ),
             child: Column(
               children: [
@@ -3048,7 +3068,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   width: 44,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.24),
+                    color: context.taqaColors.textSecondary,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -3057,7 +3077,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                   t.translate('community_comments'),
                   style: TextStyle(
                     fontFamily: TaqaUiFontFamilies.interTight,
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     fontSize: TaqaUiScale.sp(18),
                     fontWeight: FontWeight.w800,
                   ),
@@ -3073,9 +3093,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                             child: Text(
                               _error!,
                               style: TextStyle(
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.7,
-                                ),
+                                color: context.taqaColors.textSecondary,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -3085,7 +3103,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       ? Center(
                           child: Text(
                             t.translate('community_no_comments'),
-                            style: TaqaUiStyles.dailyOutlookDescription,
+                            style: TaqaUiStyles.dailyOutlookDescription
+                                .copyWith(
+                                  color: context.taqaColors.textSecondary,
+                                ),
                             textAlign: TextAlign.center,
                           ),
                         )
@@ -3100,7 +3121,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                               child: Container(
                                 padding: const EdgeInsets.all(14),
                                 decoration: BoxDecoration(
-                                  color: TaqaUiColors.white,
+                                  color: context.taqaColors.surface,
+                                  border: Border.all(
+                                    color: context.taqaColors.border,
+                                  ),
                                   borderRadius: TaqaUiScale.radius(15),
                                 ),
                                 child: Column(
@@ -3117,8 +3141,10 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                         Expanded(
                                           child: Text(
                                             comment.author.primaryLabel,
-                                            style: const TextStyle(
-                                              color: TaqaUiColors.charcoal,
+                                            style: TextStyle(
+                                              color: context
+                                                  .taqaColors
+                                                  .textPrimary,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -3129,8 +3155,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                             t.locale.languageCode,
                                           ),
                                           style: TextStyle(
-                                            color: TaqaUiColors.charcoal
-                                                .withValues(alpha: 0.54),
+                                            color: context
+                                                .taqaColors
+                                                .textSecondary,
                                             fontSize: 11,
                                           ),
                                         ),
@@ -3139,8 +3166,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                               _reportComment(comment),
                                           icon: Icon(
                                             Icons.flag_outlined,
-                                            color: TaqaUiColors.charcoal
-                                                .withValues(alpha: 0.54),
+                                            color: context
+                                                .taqaColors
+                                                .textSecondary,
                                           ),
                                         ),
                                       ],
@@ -3149,9 +3177,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                                     Text(
                                       comment.commentText,
                                       style: TextStyle(
-                                        color: TaqaUiColors.charcoal.withValues(
-                                          alpha: 0.8,
-                                        ),
+                                        color: context.taqaColors.textPrimary,
                                         height: 1.45,
                                       ),
                                     ),
@@ -3165,11 +3191,9 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.white,
+                    color: context.taqaColors.surface,
                     border: Border(
-                      top: BorderSide(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-                      ),
+                      top: BorderSide(color: context.taqaColors.divider),
                     ),
                   ),
                   child: Row(
@@ -3177,20 +3201,22 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
-                          style: const TextStyle(color: TaqaUiColors.charcoal),
+                          style: TextStyle(
+                            color: context.taqaColors.textPrimary,
+                          ),
                           minLines: 1,
                           maxLines: 4,
                           decoration: InputDecoration(
                             hintText: t.translate('community_add_comment'),
-                            enabledBorder: const UnderlineInputBorder(
+                            enabledBorder: UnderlineInputBorder(
                               borderSide: BorderSide(
-                                color: TaqaUiColors.charcoal,
+                                color: context.taqaColors.border,
                                 width: 0.5,
                               ),
                             ),
-                            focusedBorder: const UnderlineInputBorder(
+                            focusedBorder: UnderlineInputBorder(
                               borderSide: BorderSide(
-                                color: TaqaUiColors.charcoal,
+                                color: context.taqaColors.textPrimary,
                                 width: 0.5,
                               ),
                             ),
@@ -3383,7 +3409,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: TaqaUiColors.unnamedColorE3e3e3,
+            color: context.taqaColors.background,
             borderRadius: BorderRadius.vertical(
               top: Radius.circular(TaqaUiScale.r(24)),
             ),
@@ -3395,7 +3421,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                 width: TaqaUiScale.w(44),
                 height: TaqaUiScale.h(5),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.2),
+                  color: context.taqaColors.textSecondary,
                   borderRadius: TaqaUiScale.radius(999),
                 ),
               ),
@@ -3404,7 +3430,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                 widget.groupName,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.charcoal,
+                  color: context.taqaColors.textPrimary,
                   fontSize: TaqaUiScale.sp(18),
                   fontWeight: FontWeight.w800,
                 ),
@@ -3415,7 +3441,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                   fontSize: TaqaUiScale.sp(8),
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                  color: context.taqaColors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(12)),
@@ -3427,7 +3453,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                           height: TaqaUiScale.h(28),
                           child: CircularProgressIndicator(
                             strokeWidth: TaqaUiScale.w(2),
-                            color: TaqaUiColors.charcoal,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                       )
@@ -3441,9 +3467,7 @@ class _GroupMembersSheetState extends State<_GroupMembersSheet> {
                           child: Text(
                             _error!,
                             style: TextStyle(
-                              color: TaqaUiColors.charcoal.withValues(
-                                alpha: 0.65,
-                              ),
+                              color: context.taqaColors.textSecondary,
                             ),
                           ),
                         ),
@@ -3530,7 +3554,7 @@ class _CommunityPopupMenuLabel extends StatelessWidget {
         fontSize: TaqaUiScale.sp(14),
         fontWeight: FontWeight.w500,
         height: isArabic ? 1.45 : 1.2,
-        color: TaqaUiColors.charcoal,
+        color: context.taqaColors.textPrimary,
       ),
     );
   }
@@ -3570,8 +3594,8 @@ class _GroupFeedCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item.actor.primaryLabel,
-                  style: const TextStyle(
-                    color: TaqaUiColors.charcoal,
+                  style: TextStyle(
+                    color: context.taqaColors.textPrimary,
                     fontWeight: FontWeight.w800,
                   ).copyWith(height: arabicHeight),
                 ),
@@ -3579,9 +3603,9 @@ class _GroupFeedCard extends StatelessWidget {
               PopupMenuButton<String>(
                 icon: Icon(
                   Icons.more_horiz,
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                  color: context.taqaColors.textSecondary,
                 ),
-                color: TaqaUiColors.white,
+                color: context.taqaColors.surface,
                 surfaceTintColor: Colors.transparent,
                 onSelected: (value) {
                   if (value == 'report') {
@@ -3613,7 +3637,7 @@ class _GroupFeedCard extends StatelessWidget {
             item.event.title,
             textAlign: TextAlign.start,
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w800,
               height: isArabic ? 1.45 : 1.2,
@@ -3625,7 +3649,7 @@ class _GroupFeedCard extends StatelessWidget {
               item.event.subtitle!,
               textAlign: TextAlign.start,
               style: TextStyle(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+                color: context.taqaColors.textSecondary,
                 height: isArabic ? 1.45 : 1.3,
               ),
             ),
@@ -3635,15 +3659,13 @@ class _GroupFeedCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.favorite_border,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                color: context.taqaColors.textSecondary,
                 size: 18,
               ),
               const SizedBox(width: 6),
               Text(
                 '${item.likeCount}',
-                style: TextStyle(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
-                ),
+                style: TextStyle(color: context.taqaColors.textSecondary),
               ),
               if (item.canComment) ...[
                 const SizedBox(width: 18),
@@ -3653,14 +3675,14 @@ class _GroupFeedCard extends StatelessWidget {
                     children: [
                       Icon(
                         Icons.chat_bubble_outline,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                        color: context.taqaColors.textSecondary,
                         size: 18,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         '${item.commentCount}',
                         style: TextStyle(
-                          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                          color: context.taqaColors.textSecondary,
                         ),
                       ),
                     ],
@@ -3693,9 +3715,9 @@ class _GroupPickerTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = TaqaUiColors.charcoal.withValues(alpha: 0.12);
+    final borderColor = context.taqaColors.border;
     return Material(
-      color: selected ? TaqaUiColors.lime : TaqaUiColors.white,
+      color: selected ? context.taqaColors.accent : context.taqaColors.surface,
       borderRadius: TaqaUiScale.radius(5),
       child: Container(
         height: TaqaUiScale.h(45),
@@ -3717,7 +3739,11 @@ class _GroupPickerTab extends StatelessWidget {
                       textAlign: TextAlign.center,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TaqaUiStyles.dailyOutlookButton,
+                      style: TaqaUiStyles.dailyOutlookButton.copyWith(
+                        color: selected
+                            ? context.taqaColors.onAccent
+                            : context.taqaColors.textPrimary,
+                      ),
                     ),
                   ),
                 ),
@@ -3731,7 +3757,9 @@ class _GroupPickerTab extends StatelessWidget {
                 child: Icon(
                   Icons.list_rounded,
                   size: TaqaUiScale.w(18),
-                  color: TaqaUiColors.charcoal,
+                  color: selected
+                      ? context.taqaColors.onAccent
+                      : context.taqaColors.textPrimary,
                 ),
               ),
             ),
@@ -3752,13 +3780,13 @@ class _MiniChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal.withValues(alpha: 0.06),
+        color: context.taqaColors.surfaceElevated,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+          color: context.taqaColors.textSecondary,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -3778,13 +3806,13 @@ class _Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: radius,
-      backgroundColor: TaqaUiColors.charcoal.withValues(alpha: 0.08),
+      backgroundColor: context.taqaColors.surfaceElevated,
       backgroundImage: url != null ? NetworkImage(url!) : null,
       child: url == null
           ? Text(
               label.isNotEmpty ? label.substring(0, 1).toUpperCase() : '?',
-              style: const TextStyle(
-                color: TaqaUiColors.charcoal,
+              style: TextStyle(
+                color: context.taqaColors.textPrimary,
                 fontWeight: FontWeight.w800,
               ),
             )
@@ -3811,8 +3839,8 @@ class _InlineSectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              color: TaqaUiColors.charcoal,
+            style: TextStyle(
+              color: context.taqaColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -3835,11 +3863,9 @@ class _LightCard extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.symmetric(horizontal: 20, vertical: 20),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(18),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: child,
     );
@@ -3867,13 +3893,13 @@ class _CommunityEmptyCard extends StatelessWidget {
           Icon(
             Icons.groups_2_outlined,
             size: TaqaUiScale.w(32),
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+            color: context.taqaColors.textSecondary,
           ),
           SizedBox(height: TaqaUiScale.h(12)),
           Text(
             title,
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(16),
               fontWeight: FontWeight.w800,
@@ -3884,7 +3910,7 @@ class _CommunityEmptyCard extends StatelessWidget {
           Text(
             message,
             style: TextStyle(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.68),
+              color: context.taqaColors.textSecondary,
               height: 1.45,
             ),
             textAlign: TextAlign.center,
@@ -3978,9 +4004,7 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
               t
                   .translate('community_metric')
                   .replaceAll('{metric}', _summary.metric.replaceAll('_', ' ')),
-              style: TextStyle(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
-              ),
+              style: TextStyle(color: context.taqaColors.textSecondary),
             ),
             const SizedBox(height: 16),
             if (_summary.items.isEmpty)
@@ -4003,8 +4027,8 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
                                   '#${entry.rankPosition}',
                                   style: TextStyle(
                                     color: entry.isCurrentUser
-                                        ? AppColors.accent
-                                        : TaqaUiColors.charcoal,
+                                        ? context.taqaColors.accent
+                                        : context.taqaColors.textPrimary,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -4012,17 +4036,15 @@ class _CommunityLeaderboardPageState extends State<CommunityLeaderboardPage> {
                               Expanded(
                                 child: Text(
                                   entry.displayName,
-                                  style: const TextStyle(
-                                    color: TaqaUiColors.charcoal,
+                                  style: TextStyle(
+                                    color: context.taqaColors.textPrimary,
                                   ),
                                 ),
                               ),
                               Text(
                                 entry.scoreLabel,
                                 style: TextStyle(
-                                  color: TaqaUiColors.charcoal.withValues(
-                                    alpha: 0.72,
-                                  ),
+                                  color: context.taqaColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -4203,11 +4225,9 @@ class _PinCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4220,9 +4240,9 @@ class _PinCard extends StatelessWidget {
                 PopupMenuButton<String>(
                   icon: Icon(
                     Icons.more_horiz,
-                    color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                    color: context.taqaColors.textSecondary,
                   ),
-                  color: TaqaUiColors.white,
+                  color: context.taqaColors.surface,
                   surfaceTintColor: Colors.transparent,
                   onSelected: (value) {
                     if (value == 'edit') {
@@ -4251,8 +4271,8 @@ class _PinCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             pin.title,
-            style: const TextStyle(
-              color: TaqaUiColors.charcoal,
+            style: TextStyle(
+              color: context.taqaColors.textPrimary,
               fontWeight: FontWeight.w800,
               fontSize: 15,
             ),
@@ -4261,7 +4281,7 @@ class _PinCard extends StatelessWidget {
           Text(
             pin.body,
             style: TextStyle(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.74),
+              color: context.taqaColors.textSecondary,
               height: 1.4,
             ),
           ),
@@ -4448,7 +4468,7 @@ Future<void> _showGroupCodeDialog(
 }) async {
   await showDialog<void>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
       return Align(
         alignment: Alignment.center,
@@ -4461,7 +4481,8 @@ Future<void> _showGroupCodeDialog(
               constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
               padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: ctx.taqaColors.surface,
+                border: Border.all(color: ctx.taqaColors.border),
                 borderRadius: TaqaUiScale.radius(15),
               ),
               child: Column(
@@ -4477,7 +4498,7 @@ Future<void> _showGroupCodeDialog(
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: ctx.taqaColors.textPrimary,
                     ),
                   ),
                   if (message != null && message.trim().isNotEmpty) ...[
@@ -4491,9 +4512,7 @@ Future<void> _showGroupCodeDialog(
                         fontWeight: FontWeight.w400,
                         height: 18 / 13,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
-                        ),
+                        color: ctx.taqaColors.textSecondary,
                       ),
                     ),
                   ],
@@ -4505,7 +4524,7 @@ Future<void> _showGroupCodeDialog(
                       fontSize: TaqaUiScale.sp(32),
                       fontWeight: FontWeight.w800,
                       letterSpacing: 6,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: ctx.taqaColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(24)),
@@ -4527,7 +4546,7 @@ Future<void> _showGroupCodeDialog(
                               fontWeight: FontWeight.w700,
                               height: 12 / 10,
                               letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: ctx.taqaColors.onAccent,
                             ),
                           ),
                         ),
@@ -4545,6 +4564,7 @@ Future<void> _showGroupCodeDialog(
 }
 
 Widget _taqaDialogField({
+  required BuildContext context,
   required TextEditingController controller,
   required String hint,
   int maxLines = 1,
@@ -4553,10 +4573,8 @@ Widget _taqaDialogField({
   return Container(
     width: double.infinity,
     padding: TaqaUiScale.insetsLTRB(0, 8, 0, 8),
-    decoration: const BoxDecoration(
-      border: Border(
-        bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
-      ),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: context.taqaColors.divider)),
     ),
     child: TextField(
       controller: controller,
@@ -4565,7 +4583,7 @@ Widget _taqaDialogField({
         fontFamily: TaqaUiFontFamilies.interTight,
         fontSize: TaqaUiScale.sp(16),
         fontWeight: FontWeight.w500,
-        color: TaqaUiColors.unnamedColor1c1d17,
+        color: context.taqaColors.textPrimary,
       ),
       decoration: InputDecoration(
         isDense: true,
@@ -4588,7 +4606,7 @@ Widget _taqaDialogField({
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(16),
           fontWeight: FontWeight.w400,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.3),
+          color: context.taqaColors.textSecondary,
         ),
       ),
     ),
@@ -4596,6 +4614,7 @@ Widget _taqaDialogField({
 }
 
 Widget _taqaDialogDropdown<T>({
+  required BuildContext context,
   required T value,
   required List<DropdownMenuItem<T>> items,
   required ValueChanged<T?> onChanged,
@@ -4603,27 +4622,25 @@ Widget _taqaDialogDropdown<T>({
   return Container(
     width: double.infinity,
     padding: TaqaUiScale.insetsLTRB(0, 4, 0, 4),
-    decoration: const BoxDecoration(
-      border: Border(
-        bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
-      ),
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: context.taqaColors.divider)),
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<T>(
         value: value,
         isExpanded: true,
-        dropdownColor: TaqaUiColors.white,
+        dropdownColor: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(12),
         icon: Icon(
           Icons.keyboard_arrow_down,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+          color: context.taqaColors.textSecondary,
         ),
         items: items,
         style: TextStyle(
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(16),
           fontWeight: FontWeight.w500,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: context.taqaColors.textPrimary,
         ),
         onChanged: onChanged,
       ),
@@ -4632,6 +4649,7 @@ Widget _taqaDialogDropdown<T>({
 }
 
 Widget _taqaDialogDateField({
+  required BuildContext context,
   required String label,
   required String value,
   required VoidCallback onTap,
@@ -4642,10 +4660,8 @@ Widget _taqaDialogDateField({
     child: Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(0, 8, 0, 8),
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: TaqaUiColors.unnamedColorE3e3e3),
-        ),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: context.taqaColors.divider)),
       ),
       child: Row(
         children: [
@@ -4659,9 +4675,7 @@ Widget _taqaDialogDateField({
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(11),
                     fontWeight: FontWeight.w400,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.4,
-                    ),
+                    color: context.taqaColors.textSecondary,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(2)),
@@ -4671,7 +4685,7 @@ Widget _taqaDialogDateField({
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(16),
                     fontWeight: FontWeight.w500,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: context.taqaColors.textPrimary,
                   ),
                 ),
               ],
@@ -4680,7 +4694,7 @@ Widget _taqaDialogDateField({
           Icon(
             Icons.calendar_today_outlined,
             size: TaqaUiScale.w(16),
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+            color: context.taqaColors.textSecondary,
           ),
         ],
       ),
@@ -4708,7 +4722,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
 
   final result = await showDialog<_CreateGroupPayload>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
       final bottomInset = MediaQuery.of(ctx).viewInsets.bottom;
       return StatefulBuilder(
@@ -4734,17 +4748,19 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                       fontSize: TaqaUiScale.sp(22),
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: ctx.taqaColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(28)),
                   _taqaDialogField(
+                    context: ctx,
                     controller: nameController,
                     hint: t.translate('community_group_name'),
                     errorText: nameError,
                   ),
                   SizedBox(height: TaqaUiScale.h(20)),
                   _taqaDialogField(
+                    context: ctx,
                     controller: descriptionController,
                     hint: t.translate('community_description'),
                     maxLines: 3,
@@ -4755,6 +4771,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                     children: [
                       Expanded(
                         child: _taqaDialogDropdown<String>(
+                          context: ctx,
                           value: visibility,
                           items: [
                             DropdownMenuItem(
@@ -4775,6 +4792,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                       SizedBox(width: TaqaUiScale.w(20)),
                       Expanded(
                         child: _taqaDialogDropdown<String>(
+                          context: ctx,
                           value: kind,
                           items: [
                             DropdownMenuItem(
@@ -4820,7 +4838,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(16),
                             fontWeight: FontWeight.w500,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: ctx.taqaColors.textPrimary,
                           ),
                         ),
                       ),
@@ -4850,7 +4868,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                                   fontSize: TaqaUiScale.sp(13),
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0,
-                                  color: TaqaUiColors.unnamedColor1c1d17,
+                                  color: ctx.taqaColors.textPrimary,
                                 ),
                               ),
                             ),
@@ -4901,7 +4919,7 @@ Future<_CreateGroupPayload?> _showGroupFormDialog(
                                     fontSize: TaqaUiScale.sp(13),
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 0,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: ctx.taqaColors.onAccent,
                                   ),
                                 ),
                               ),
@@ -4956,7 +4974,7 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
   String reason = 'other';
   final result = await TaqaPopupGuard.dialog<Map<String, String?>>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (dialogContext) {
       return StatefulBuilder(
         builder: (dialogContext, setState) {
@@ -4979,7 +4997,7 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
+                      color: dialogContext.taqaColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(16)),
@@ -5012,7 +5030,7 @@ Future<Map<String, String?>?> _showReportDialog(BuildContext context) async {
                     hint: t.translate('community_optional_details'),
                     minLines: 3,
                     maxLines: 4,
-                    backgroundColor: TaqaUiColors.lightGray,
+                    backgroundColor: dialogContext.taqaColors.surfaceElevated,
                   ),
                   SizedBox(height: TaqaUiScale.h(16)),
                   Row(
@@ -5112,7 +5130,7 @@ Future<_PinEditorResult?> _showPinEditor(
   String pinType = existing?.pinType ?? 'expert_tip';
   final result = await TaqaPopupGuard.dialog<_PinEditorResult>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (dialogContext) {
       return StatefulBuilder(
         builder: (dialogContext, setState) {
@@ -5137,7 +5155,7 @@ Future<_PinEditorResult?> _showPinEditor(
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
+                      color: dialogContext.taqaColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(16)),
@@ -5157,7 +5175,7 @@ Future<_PinEditorResult?> _showPinEditor(
                     controller: titleController,
                     label: t.translate('community_pin_title'),
                     hint: t.translate('community_pin_title'),
-                    backgroundColor: TaqaUiColors.lightGray,
+                    backgroundColor: dialogContext.taqaColors.surfaceElevated,
                   ),
                   SizedBox(height: TaqaUiScale.h(14)),
                   TaqaTextField(
@@ -5166,7 +5184,7 @@ Future<_PinEditorResult?> _showPinEditor(
                     hint: t.translate('community_pinned_content'),
                     minLines: 3,
                     maxLines: 4,
-                    backgroundColor: TaqaUiColors.lightGray,
+                    backgroundColor: dialogContext.taqaColors.surfaceElevated,
                   ),
                   SizedBox(height: TaqaUiScale.h(14)),
                   TaqaTextField(
@@ -5174,7 +5192,7 @@ Future<_PinEditorResult?> _showPinEditor(
                     keyboardType: TextInputType.number,
                     label: t.translate('community_sort_order'),
                     hint: t.translate('community_sort_order'),
-                    backgroundColor: TaqaUiColors.lightGray,
+                    backgroundColor: dialogContext.taqaColors.surfaceElevated,
                   ),
                   SizedBox(height: TaqaUiScale.h(16)),
                   Row(
@@ -5247,7 +5265,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
       existing?.endAt ?? DateTime.now().add(const Duration(days: 30));
   final result = await showDialog<_ChallengeEditorResult>(
     context: context,
-    barrierColor: const Color(0x66000000),
+    barrierColor: context.taqaColors.scrim,
     builder: (ctx) {
       return GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -5288,7 +5306,8 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                     constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
                     padding: TaqaUiScale.insetsLTRB(20, 24, 20, 20),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
+                      color: ctx.taqaColors.surface,
+                      border: Border.all(color: ctx.taqaColors.border),
                       borderRadius: TaqaUiScale.radius(24),
                     ),
                     child: SingleChildScrollView(
@@ -5306,22 +5325,25 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                               fontSize: TaqaUiScale.sp(22),
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: ctx.taqaColors.textPrimary,
                             ),
                           ),
                           SizedBox(height: TaqaUiScale.h(28)),
                           _taqaDialogField(
+                            context: ctx,
                             controller: nameController,
                             hint: t.translate('community_challenge_name'),
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
+                            context: ctx,
                             controller: descriptionController,
                             hint: t.translate('community_description'),
                             maxLines: 3,
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogDropdown<String>(
+                            context: ctx,
                             value: type,
                             items: [
                               DropdownMenuItem(
@@ -5364,6 +5386,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                             children: [
                               Expanded(
                                 child: _taqaDialogDateField(
+                                  context: ctx,
                                   label: t.translate('community_start'),
                                   value: DateFormat(
                                     'MMM d',
@@ -5375,6 +5398,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                               SizedBox(width: TaqaUiScale.w(20)),
                               Expanded(
                                 child: _taqaDialogDateField(
+                                  context: ctx,
                                   label: t.translate('community_end'),
                                   value: DateFormat(
                                     'MMM d',
@@ -5387,11 +5411,13 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
+                            context: ctx,
                             controller: goalController,
                             hint: t.translate('community_goal_value'),
                           ),
                           SizedBox(height: TaqaUiScale.h(20)),
                           _taqaDialogField(
+                            context: ctx,
                             controller: unitController,
                             hint: t.translate('community_progress_unit'),
                           ),
@@ -5405,7 +5431,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                     fontFamily: TaqaUiFontFamilies.interTight,
                                     fontSize: TaqaUiScale.sp(16),
                                     fontWeight: FontWeight.w500,
-                                    color: TaqaUiColors.unnamedColor1c1d17,
+                                    color: ctx.taqaColors.textPrimary,
                                   ),
                                 ),
                               ),
@@ -5436,8 +5462,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                           fontSize: TaqaUiScale.sp(13),
                                           fontWeight: FontWeight.w600,
                                           letterSpacing: 0,
-                                          color:
-                                              TaqaUiColors.unnamedColor1c1d17,
+                                          color: ctx.taqaColors.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -5493,8 +5518,7 @@ Future<_ChallengeEditorResult?> _showChallengeEditor(
                                             fontSize: TaqaUiScale.sp(13),
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0,
-                                            color:
-                                                TaqaUiColors.unnamedColor1c1d17,
+                                            color: ctx.taqaColors.onAccent,
                                           ),
                                         ),
                                       ),

@@ -43,7 +43,7 @@ class TaqaTrainingDaySection extends StatelessWidget {
                 child: Text(
                   'Day $dayNumber',
                   style: TextStyle(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w700,
@@ -168,29 +168,41 @@ class TaqaTrainingDayNameField extends StatelessWidget {
       child: TextFormField(
         initialValue: initialValue,
         enabled: enabled,
-        cursorColor: TaqaUiColors.charcoal,
+        cursorColor: context.taqaColors.textPrimary,
         textInputAction: TextInputAction.done,
         style: TextStyle(
-          color: TaqaUiColors.charcoal,
+          color: context.taqaColors.textPrimary,
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(15),
           fontWeight: FontWeight.w400,
           height: 25 / 15,
           letterSpacing: 0,
         ),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           isDense: true,
           border: UnderlineInputBorder(
-            borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            borderSide: BorderSide(
+              color: context.taqaColors.border,
+              width: 0.5,
+            ),
           ),
           enabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            borderSide: BorderSide(
+              color: context.taqaColors.border,
+              width: 0.5,
+            ),
           ),
           focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            borderSide: BorderSide(
+              color: context.taqaColors.textPrimary,
+              width: 0.5,
+            ),
           ),
           disabledBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+            borderSide: BorderSide(
+              color: context.taqaColors.divider,
+              width: 0.5,
+            ),
           ),
           contentPadding: EdgeInsets.zero,
         ),
@@ -225,7 +237,8 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
       margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
       padding: TaqaUiScale.insetsLTRB(14, 10, 13, 10),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
@@ -239,7 +252,7 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
                   child: Text(
                     'Exercise',
                     style: TextStyle(
-                      color: TaqaUiColors.charcoal,
+                      color: context.taqaColors.textPrimary,
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w700,
@@ -261,7 +274,7 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
                         ),
                         child: Icon(
                           Icons.drag_indicator,
-                          color: TaqaUiColors.charcoal,
+                          color: context.taqaColors.textPrimary,
                           size: TaqaUiScale.w(20),
                         ),
                       ),
@@ -284,10 +297,10 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 height: TaqaUiScale.h(21),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: TaqaUiColors.charcoal,
+                      color: context.taqaColors.divider,
                       width: 0.5,
                     ),
                   ),
@@ -297,7 +310,7 @@ class TaqaTrainingExerciseCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w400,
@@ -344,19 +357,25 @@ class TaqaTrainingRemoveIcon extends StatelessWidget {
       child: SizedBox(
         width: TaqaUiScale.w(8),
         height: TaqaUiScale.h(8),
-        child: CustomPaint(painter: const _TaqaTrainingRemoveIconPainter()),
+        child: CustomPaint(
+          painter: _TaqaTrainingRemoveIconPainter(
+            context.taqaColors.textPrimary,
+          ),
+        ),
       ),
     );
   }
 }
 
 class _TaqaTrainingRemoveIconPainter extends CustomPainter {
-  const _TaqaTrainingRemoveIconPainter();
+  const _TaqaTrainingRemoveIconPainter(this.color);
+
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1F1F1F)
+      ..color = color
       ..strokeWidth = TaqaUiScale.w(1.2)
       ..strokeCap = StrokeCap.square;
     canvas
@@ -365,7 +384,8 @@ class _TaqaTrainingRemoveIconPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TaqaTrainingRemoveIconPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class TaqaTrainingMetricField extends StatelessWidget {
@@ -395,7 +415,7 @@ class TaqaTrainingMetricField extends StatelessWidget {
             label,
             maxLines: 1,
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(10),
               fontWeight: FontWeight.w700,
@@ -408,40 +428,40 @@ class TaqaTrainingMetricField extends StatelessWidget {
             child: TextFormField(
               controller: controller,
               enabled: enabled,
-              cursorColor: TaqaUiColors.charcoal,
+              cursorColor: context.taqaColors.textPrimary,
               keyboardType: keyboardType,
               textInputAction: TextInputAction.done,
               style: TextStyle(
-                color: TaqaUiColors.charcoal,
+                color: context.taqaColors.textPrimary,
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w400,
                 height: 21 / 15,
                 letterSpacing: 0,
               ),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
                 border: UnderlineInputBorder(
                   borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.border,
                     width: 0.5,
                   ),
                 ),
                 enabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.border,
                     width: 0.5,
                   ),
                 ),
                 focusedBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     width: 0.5,
                   ),
                 ),
                 disabledBorder: UnderlineInputBorder(
                   borderSide: BorderSide(
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.divider,
                     width: 0.5,
                   ),
                 ),
@@ -478,7 +498,7 @@ class TaqaTrainingMetricValue extends StatelessWidget {
             label,
             maxLines: 1,
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: context.taqaColors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(10),
               fontWeight: FontWeight.w700,
@@ -489,9 +509,12 @@ class TaqaTrainingMetricValue extends StatelessWidget {
           Expanded(
             child: Container(
               width: double.infinity,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: TaqaUiColors.charcoal, width: 0.5),
+                  bottom: BorderSide(
+                    color: context.taqaColors.divider,
+                    width: 0.5,
+                  ),
                 ),
               ),
               child: Text(
@@ -499,7 +522,7 @@ class TaqaTrainingMetricValue extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: TaqaUiColors.charcoal,
+                  color: context.taqaColors.textPrimary,
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w400,

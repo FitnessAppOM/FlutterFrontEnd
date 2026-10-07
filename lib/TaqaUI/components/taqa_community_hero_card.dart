@@ -332,7 +332,7 @@ class _TaqaBadgeChipStack extends StatelessWidget {
       return SizedBox(
         width: chipSize,
         height: chipSize,
-        child: _badgeChip(chipSize, layoutScale, filled: false),
+        child: _badgeChip(context, chipSize, layoutScale, filled: false),
       );
     }
 
@@ -348,14 +348,14 @@ class _TaqaBadgeChipStack extends StatelessWidget {
         children.add(
           Positioned(
             left: overlap * i,
-            child: _badgeChip(chipSize, layoutScale),
+            child: _badgeChip(context, chipSize, layoutScale),
           ),
         );
       }
       children.add(
         Positioned(
           left: overlap * visible,
-          child: _overflowChip(chipSize, overflow),
+          child: _overflowChip(context, chipSize, overflow),
         ),
       );
     } else {
@@ -363,7 +363,7 @@ class _TaqaBadgeChipStack extends StatelessWidget {
         children.add(
           Positioned(
             left: overlap * i,
-            child: _badgeChip(chipSize, layoutScale),
+            child: _badgeChip(context, chipSize, layoutScale),
           ),
         );
       }
@@ -376,15 +376,21 @@ class _TaqaBadgeChipStack extends StatelessWidget {
     );
   }
 
-  Widget _badgeChip(double size, double layoutScale, {bool filled = true}) {
+  Widget _badgeChip(
+    BuildContext context,
+    double size,
+    double layoutScale, {
+    bool filled = true,
+  }) {
+    final colors = context.taqaColors;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: filled ? TaqaUiColors.white : Colors.transparent,
+        color: filled ? colors.surface : Colors.transparent,
         shape: BoxShape.circle,
         border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: filled ? 0.12 : 0.35),
+          color: filled ? colors.border : colors.textSecondary,
         ),
       ),
       child: FittedBox(
@@ -397,27 +403,29 @@ class _TaqaBadgeChipStack extends StatelessWidget {
             filled
                 ? Icons.workspace_premium_rounded
                 : Icons.workspace_premium_outlined,
-            color: TaqaUiColors.charcoal.withValues(alpha: filled ? 1 : 0.35),
+            color: filled ? colors.textPrimary : colors.textSecondary,
           ),
         ),
       ),
     );
   }
 
-  Widget _overflowChip(double size, int overflow) {
+  Widget _overflowChip(BuildContext context, double size, int overflow) {
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: TaqaUiColors.charcoal,
+      decoration: BoxDecoration(
+        color: context.taqaColors.surfaceInverse,
         shape: BoxShape.circle,
       ),
       child: Text(
         '+$overflow',
         maxLines: 1,
         overflow: TextOverflow.clip,
-        style: TaqaUiStyles.communityBadgeStackOverflow,
+        style: TaqaUiStyles.communityBadgeStackOverflow.copyWith(
+          color: context.taqaColors.textOnInverse,
+        ),
       ),
     );
   }

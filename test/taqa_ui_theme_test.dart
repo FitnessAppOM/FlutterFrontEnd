@@ -9,13 +9,16 @@ import 'package:taqaproject/TaqaUI/components/taqa_metric_detail_list.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_pillar_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_streak_tag.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_feed_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_cardio_stat_panel.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_group_picker_sheet.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_option_picker_sheet.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_edit_mode_bubble.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_expert_client_dashboard_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_expert_dashboard_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_floating_chat_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_pill_tab.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_training_plan_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_widget_library_sheet.dart';
 import 'package:taqaproject/TaqaUI/screens/taqa_news_page.dart';
@@ -900,5 +903,129 @@ void main() {
           .any((material) => material.color == TaqaUiPalette.dark.surface),
       isTrue,
     );
+  });
+
+  testWidgets('chat launcher stays visible on the dark background', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: Scaffold(body: TaqaFloatingChatButton(onTap: () {})),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final label = tester.widget<Text>(
+      find.descendant(
+        of: find.byType(TaqaFloatingChatButton),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(label.style?.color, TaqaUiPalette.dark.textPrimary);
+    final decoration = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere(
+          (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+        );
+    expect(decoration.border, isNotNull);
+  });
+
+  testWidgets('plan-template inputs and exercise cards use dark surfaces', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: ListView(
+              children: [
+                TaqaTrainingDayNameField(
+                  initialValue: 'Strength day',
+                  enabled: true,
+                  onChanged: (_) {},
+                ),
+                TaqaTrainingExerciseCard(
+                  exerciseName: 'Squat',
+                  onExerciseTap: () {},
+                  metricFields: const [
+                    TaqaTrainingMetricValue(label: 'Sets', value: '3'),
+                    TaqaTrainingMetricValue(label: 'Reps', value: '8'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('Squat')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+    expect(
+      decorations.any((decoration) => decoration.color == TaqaUiColors.white),
+      isFalse,
+    );
+  });
+
+  testWidgets('cardio achievement stats use the semantic inverse surface', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
+            body: TaqaCardioStatPanel(
+              metrics: [
+                TaqaCardioStatMetric(
+                  label: 'Time',
+                  value: '12:34',
+                  accent: true,
+                ),
+                TaqaCardioStatMetric(label: 'Steps', value: '2400'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('2400')).style?.color,
+      TaqaUiPalette.dark.textOnInverse,
+    );
+    final decoration = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere(
+          (decoration) => decoration.color == TaqaUiPalette.dark.surfaceInverse,
+        );
+    expect(decoration.border, isNotNull);
   });
 }

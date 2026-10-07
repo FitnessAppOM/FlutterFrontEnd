@@ -58,7 +58,7 @@ class ExpertClientChatPage extends StatelessWidget {
           onPressed: () => _handleBackPressed(context),
           icon: Icon(
             canPop ? Icons.arrow_back : Icons.close,
-            color: TaqaUiColors.charcoal,
+            color: context.taqaColors.textPrimary,
           ),
           tooltip: canPop ? 'Back' : 'Close',
         ),

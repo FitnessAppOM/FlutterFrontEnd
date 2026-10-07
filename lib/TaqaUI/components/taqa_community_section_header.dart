@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../styles/taqa_ui_styles.dart';
+import '../taqa_ui_colors.dart';
 import 'taqa_outline_tag_button.dart';
 
 class TaqaCommunitySectionHeader extends StatelessWidget {
@@ -25,7 +26,9 @@ class TaqaCommunitySectionHeader extends StatelessWidget {
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TaqaUiStyles.userName,
+            style: TaqaUiStyles.userName.copyWith(
+              color: context.taqaColors.textPrimary,
+            ),
           ),
         ),
         if (actionLabel != null)
