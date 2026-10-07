@@ -28,22 +28,23 @@ class TaqaLinearMetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final clamped = loading ? 0.0 : progress.clamp(0.0, 1.0).toDouble();
-    final surfaceColor = lightSurface
-        ? TaqaUiColors.white
-        : TaqaUiColors.charcoal;
-    final textColor = lightSurface
-        ? TaqaUiColors.unnamedColor1c1d17
-        : TaqaUiColors.white;
+    final surfaceColor = lightSurface ? colors.surface : colors.surfaceInverse;
+    final textColor = lightSurface ? colors.textPrimary : colors.textOnInverse;
     final valueBarColor = lightSurface
-        ? TaqaUiColors.charcoal
-        : TaqaUiColors.lightGray;
+        ? colors.textPrimary
+        : colors.textOnInverse;
+    final trackColor = lightSurface
+        ? colors.surfaceElevated
+        : colors.textOnInverse.withValues(alpha: 0.18);
 
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
       decoration: BoxDecoration(
         color: surfaceColor,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,7 +99,7 @@ class TaqaLinearMetricCard extends StatelessWidget {
               height: TaqaUiScale.h(17),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: TaqaUiColors.unnamedColorE3e3e3,
+                color: trackColor,
                 borderRadius: TaqaUiScale.radius(9),
               ),
               child: Align(

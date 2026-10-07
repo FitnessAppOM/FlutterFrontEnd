@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class SleepProgressBar extends StatelessWidget {
-  const SleepProgressBar({
-    super.key,
-    required this.value,
-  });
+  const SleepProgressBar({super.key, required this.value});
 
   final double value;
 
@@ -19,7 +16,7 @@ class SleepProgressBar extends StatelessWidget {
           height: 10,
           width: width,
           decoration: BoxDecoration(
-            color: AppColors.black.withValues(alpha: 0.35),
+            color: context.taqaColors.surfaceElevated,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Align(
@@ -29,10 +26,7 @@ class SleepProgressBar extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF00BFA6),
-                    Color(0xFF35B6FF),
-                  ],
+                  colors: [Color(0xFF00BFA6), Color(0xFF35B6FF)],
                 ),
               ),
             ),

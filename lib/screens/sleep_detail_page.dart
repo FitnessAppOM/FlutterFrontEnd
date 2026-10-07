@@ -21,7 +21,6 @@ import '../services/metrics/daily_metrics_api.dart';
 import '../services/health/sleep_service.dart';
 import '../services/whoop/whoop_sleep_service.dart';
 import '../services/whoop/whoop_widget_data_service.dart';
-import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 import '../widgets/common/date_switcher.dart';
@@ -667,7 +666,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   fontWeight: FontWeight.w700,
                   height: 1,
                   letterSpacing: 0,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
             ),
@@ -691,8 +690,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         SizedBox(height: TaqaUiScale.h(19)),
         Expanded(
           child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppColors.accent),
+              ? Center(
+                  child: CircularProgressIndicator(
+                    color: context.taqaColors.accent,
+                  ),
                 )
               : _daily.isEmpty || !_daily.values.any((v) => v > 0)
               ? TaqaEmptyCard(
@@ -759,7 +760,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         "${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
     TaqaPopupGuard.dialogVoid(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: context.taqaColors.scrim,
       builder: (ctx) {
         return TaqaPopupDialog(
           maxHeightFactor: 0.82,
@@ -772,7 +773,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
-                  color: TaqaUiColors.charcoal,
+                  color: ctx.taqaColors.textPrimary,
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
@@ -819,7 +820,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         child: Text(
           t("sleep_metrics_whoop_only"),
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: Colors.white60,
+            color: context.taqaColors.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -1100,14 +1101,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       onNext: () => _changeMetricsDate(1),
       canGoNext: canGoNext,
       labelStyle: TextStyle(
-        color: TaqaUiColors.unnamedColor1c1d17,
+        color: context.taqaColors.textPrimary,
         fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
         fontSize: TaqaUiScale.sp(8),
         fontWeight: FontWeight.w400,
         letterSpacing: 0,
         height: 10 / 8,
       ),
-      iconColor: TaqaUiColors.unnamedColor1c1d17,
+      iconColor: context.taqaColors.textPrimary,
       labelWidth: TaqaUiScale.w(62),
     );
   }
@@ -1131,14 +1132,14 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           onPrev: () => _changeMetricsDate(-1),
           onNext: () => _changeMetricsDate(1),
           canGoNext: canGoNext,
-          labelStyle: const TextStyle(
-            color: TaqaUiColors.unnamedColor1c1d17,
+          labelStyle: TextStyle(
+            color: context.taqaColors.textPrimary,
             fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
             fontSize: 8,
             fontWeight: FontWeight.w400,
             letterSpacing: 0,
           ),
-          iconColor: TaqaUiColors.unnamedColor1c1d17,
+          iconColor: context.taqaColors.textPrimary,
           labelWidth: 100,
         ),
       ],
@@ -1262,7 +1263,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
+        border: Border.all(color: context.taqaColors.border),
         borderRadius: TaqaUiScale.radius(15),
       ),
       child: Column(
@@ -1276,7 +1278,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textSecondary,
               letterSpacing: 0,
               height: 10 / 8,
             ),
@@ -1288,7 +1290,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
               height: 1,
             ),
           ),
@@ -1301,7 +1303,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textSecondary,
               letterSpacing: 0,
               height: 13 / 8,
             ),
@@ -1372,7 +1374,8 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         child: Container(
           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: context.taqaColors.surface,
+            border: Border.all(color: context.taqaColors.border),
             borderRadius: TaqaUiScale.radius(15),
           ),
           child: Column(
@@ -1389,7 +1392,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(5)),
@@ -1403,7 +1406,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w400,
                   height: 11 / 10,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(10)),
@@ -1421,10 +1424,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                             key: ValueKey<int>(_selectedBarIndex!),
                             padding: TaqaUiScale.insetsLTRB(12, 7, 12, 7),
                             decoration: BoxDecoration(
-                              color: TaqaUiColors.charcoal,
+                              color: context.taqaColors.surfaceInverse,
                               borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: TaqaUiColors.lime.withValues(
+                                color: context.taqaColors.accent.withValues(
                                   alpha: 0.45,
                                 ),
                                 width: 0.5,
@@ -1439,7 +1442,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(10),
                                 fontWeight: FontWeight.w700,
-                                color: TaqaUiColors.white,
+                                color: context.taqaColors.textOnInverse,
                               ),
                             ),
                           ),
@@ -1453,7 +1456,10 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   maxValue: actualMax,
                   midValue: midVal,
                   formatValue: _formatHoursLabel,
-                  gradient: const [Color(0xFF404040), Color(0xFF1C1D17)],
+                  gradient: [
+                    context.taqaColors.textSecondary,
+                    context.taqaColors.surfaceInverse,
+                  ],
                   selectedGradient: const [
                     Color(0xFFE4E93B),
                     Color(0xFFC9CF36),
@@ -1468,8 +1474,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
                   yAxisGap: yAxisGap,
                   labelHeight: labelHeight,
                   labelGap: labelGap,
-                  axisTextColor: TaqaUiColors.unnamedColor1c1d17,
-                  labelTextColor: TaqaUiColors.unnamedColor1c1d17,
+                  gridLineColor: context.taqaColors.divider,
+                  axisTextColor: context.taqaColors.textSecondary,
+                  labelTextColor: context.taqaColors.textSecondary,
                 ),
               ),
             ],
@@ -1501,11 +1508,9 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
         height: 70,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.cardDark,
+          color: context.taqaColors.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: const Color(0xFFD4AF37).withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: context.taqaColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1514,7 +1519,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             Text(
               title,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
+                color: context.taqaColors.textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1522,7 +1527,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.white,
+                color: context.taqaColors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),

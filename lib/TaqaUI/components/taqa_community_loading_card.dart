@@ -34,7 +34,7 @@ class TaqaCommunityLoadingCard extends StatelessWidget {
             height: TaqaUiScale.h(28),
             child: CircularProgressIndicator(
               strokeWidth: TaqaUiScale.w(2),
-              color: colors.textPrimary,
+              color: colors.accent,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(12)),

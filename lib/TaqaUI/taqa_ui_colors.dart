@@ -52,7 +52,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
     required this.accent,
     required this.onAccent,
     required this.danger,
+    required this.onDanger,
     required this.success,
+    required this.onSuccess,
     required this.scrim,
   });
 
@@ -70,7 +72,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
     accent: TaqaUiColors.lime,
     onAccent: TaqaUiColors.charcoal,
     danger: TaqaUiColors.recordRed,
+    onDanger: TaqaUiColors.white,
     success: TaqaUiColors.successGreen,
+    onSuccess: TaqaUiColors.charcoal,
     scrim: Color(0x66000000),
   );
 
@@ -88,7 +92,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
     accent: TaqaUiColors.lime,
     onAccent: TaqaUiColors.charcoal,
     danger: TaqaUiColors.recordRed,
+    onDanger: TaqaUiColors.white,
     success: TaqaUiColors.successGreen,
+    onSuccess: TaqaUiColors.charcoal,
     scrim: Color(0x99000000),
   );
 
@@ -105,7 +111,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
   final Color accent;
   final Color onAccent;
   final Color danger;
+  final Color onDanger;
   final Color success;
+  final Color onSuccess;
   final Color scrim;
 
   bool get isDark => brightness == Brightness.dark;
@@ -125,7 +133,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
     Color? accent,
     Color? onAccent,
     Color? danger,
+    Color? onDanger,
     Color? success,
+    Color? onSuccess,
     Color? scrim,
   }) {
     return TaqaUiPalette(
@@ -142,7 +152,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
       accent: accent ?? this.accent,
       onAccent: onAccent ?? this.onAccent,
       danger: danger ?? this.danger,
+      onDanger: onDanger ?? this.onDanger,
       success: success ?? this.success,
+      onSuccess: onSuccess ?? this.onSuccess,
       scrim: scrim ?? this.scrim,
     );
   }
@@ -164,7 +176,9 @@ class TaqaUiPalette extends ThemeExtension<TaqaUiPalette> {
       accent: Color.lerp(accent, other.accent, t)!,
       onAccent: Color.lerp(onAccent, other.onAccent, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
+      onDanger: Color.lerp(onDanger, other.onDanger, t)!,
       success: Color.lerp(success, other.success, t)!,
+      onSuccess: Color.lerp(onSuccess, other.onSuccess, t)!,
       scrim: Color.lerp(scrim, other.scrim, t)!,
     );
   }

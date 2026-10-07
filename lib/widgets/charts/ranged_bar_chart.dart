@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class RangedBarChartEntry {
   const RangedBarChartEntry({required this.axisLabel, required this.value});
@@ -29,8 +30,8 @@ class RangedBarChart extends StatelessWidget {
     this.labelGap = 4.0,
     this.gridLineColor,
     this.yAxisTitle,
-    this.axisTextColor = Colors.white54,
-    this.labelTextColor = Colors.white54,
+    this.axisTextColor,
+    this.labelTextColor,
   });
 
   final List<RangedBarChartEntry> entries;
@@ -51,22 +52,23 @@ class RangedBarChart extends StatelessWidget {
   final double labelGap;
   final Color? gridLineColor;
   final String? yAxisTitle;
-  final Color axisTextColor;
-  final Color labelTextColor;
+  final Color? axisTextColor;
+  final Color? labelTextColor;
 
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
     final theme = Theme.of(context);
+    final colors = context.taqaColors;
     final axisTextStyle = theme.textTheme.bodySmall?.copyWith(
-      color: axisTextColor,
+      color: axisTextColor ?? colors.textSecondary,
       fontSize: 9.sp,
     );
     final labelTextStyle = theme.textTheme.bodySmall?.copyWith(
-      color: labelTextColor,
+      color: labelTextColor ?? colors.textSecondary,
       fontSize: 9.sp,
     );
-    final lineColor = gridLineColor ?? Colors.white.withValues(alpha: 0.06);
+    final lineColor = gridLineColor ?? colors.divider;
 
     final chart = LayoutBuilder(
       builder: (context, constraints) {
@@ -90,7 +92,9 @@ class RangedBarChart extends StatelessWidget {
           final entry = pair.value;
           final isSelected = selectedIndex == index;
           final safeValue = entry.value.isFinite ? entry.value : 0.0;
-          final safeMaxValue = maxValue.isFinite && maxValue > 0 ? maxValue : 1.0;
+          final safeMaxValue = maxValue.isFinite && maxValue > 0
+              ? maxValue
+              : 1.0;
           final heightFactor = (safeValue / safeMaxValue).clamp(0.0, 1.0);
           final label = entry.axisLabel;
           final showLabel = showAxisLabels && label.isNotEmpty;
@@ -101,7 +105,7 @@ class RangedBarChart extends StatelessWidget {
               borderRadius: BorderRadius.circular(8.r),
               border: isSelected
                   ? Border.all(
-                      color: Colors.white.withValues(alpha: 0.75),
+                      color: colors.accent.withValues(alpha: 0.75),
                       width: 1.1,
                     )
                   : null,
@@ -158,7 +162,9 @@ class RangedBarChart extends StatelessWidget {
         }).toList();
 
         double yForValue(num v) {
-          final safeMaxValue = maxValue.isFinite && maxValue > 0 ? maxValue : 1.0;
+          final safeMaxValue = maxValue.isFinite && maxValue > 0
+              ? maxValue
+              : 1.0;
           final safeInput = v.isFinite ? v : 0;
           final ratio = (safeInput / safeMaxValue).clamp(0.0, 1.0);
           return (1.0 - ratio) * barMaxHeight;
@@ -238,7 +244,7 @@ class RangedBarChart extends StatelessWidget {
         Text(
           yAxisTitle!,
           style: TextStyle(
-            color: Colors.white60,
+            color: colors.textSecondary,
             fontSize: 9.sp,
             fontWeight: FontWeight.w600,
           ),

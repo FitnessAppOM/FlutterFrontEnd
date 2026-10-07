@@ -5,10 +5,13 @@ import 'package:taqaproject/TaqaUI/components/taqa_news_carousel.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_progress_widget_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_linear_metric_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_metric_detail_list.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_pillar_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_streak_tag.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_toast.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_feed_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_community_loading_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_cardio_stat_panel.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_group_picker_sheet.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_option_picker_sheet.dart';
@@ -18,6 +21,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_expert_dashboard_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_floating_chat_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_pill_tab.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_sleep_stages_wide_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_training_plan_ui.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_widget_library_sheet.dart';
@@ -29,6 +33,7 @@ import 'package:taqaproject/models/news_item.dart';
 import 'package:taqaproject/services/screenings/screening_service.dart';
 import 'package:taqaproject/theme/app_theme.dart';
 import 'package:taqaproject/widgets/dashboard/progress_meter.dart';
+import 'package:taqaproject/widgets/charts/ranged_bar_chart.dart';
 import 'package:taqaproject/widgets/profile/profile_goals_section.dart';
 import 'package:taqaproject/widgets/profile/profile_header.dart';
 import 'package:taqaproject/widgets/training/exercise_card.dart';
@@ -53,6 +58,71 @@ void main() {
 
     expect(lightTheme.extension<TaqaUiPalette>(), TaqaUiPalette.light);
     expect(darkTheme.extension<TaqaUiPalette>(), TaqaUiPalette.dark);
+  });
+
+  testWidgets('shared toast follows the dark semantic palette', (tester) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => AppToast.show(
+                  context,
+                  'Dark toast',
+                  type: AppToastType.info,
+                ),
+                child: const Text('Show toast'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Show toast'));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(
+      tester.widget<Text>(find.text('Dark toast')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.info_outline)).color,
+      TaqaUiPalette.dark.onAccent,
+    );
+
+    final toastDecoration = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere(
+          (decoration) =>
+              decoration.color == TaqaUiPalette.dark.surface &&
+              decoration.border != null,
+        );
+    expect(
+      (toastDecoration.border! as Border).top.color,
+      TaqaUiPalette.dark.border,
+    );
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  test('legacy snackbars follow the dark semantic palette', () {
+    final snackBarTheme = buildDarkTheme().snackBarTheme;
+
+    expect(snackBarTheme.backgroundColor, TaqaUiPalette.dark.surfaceElevated);
+    expect(
+      snackBarTheme.contentTextStyle?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(snackBarTheme.actionTextColor, TaqaUiPalette.dark.accent);
+    expect(snackBarTheme.closeIconColor, TaqaUiPalette.dark.textPrimary);
+    expect(snackBarTheme.behavior, SnackBarBehavior.floating);
   });
 
   testWidgets('legacy app-bar defaults follow the active palette', (
@@ -1028,4 +1098,160 @@ void main() {
         );
     expect(decoration.border, isNotNull);
   });
+
+  testWidgets('cardio history metrics use centralized dark surfaces', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
+            body: Row(
+              children: [
+                Expanded(
+                  child: TaqaLinearMetricCard(
+                    title: 'Distance',
+                    valueText: '5.00 km',
+                    subtitle: 'Cardio session',
+                    progress: 0,
+                    showBar: false,
+                    keepBarSpaceWhenHidden: false,
+                  ),
+                ),
+                Expanded(
+                  child: TaqaLinearMetricCard(
+                    title: 'Pace',
+                    valueText: '05:30 /km',
+                    subtitle: 'Cardio session',
+                    progress: 0.5,
+                    lightSurface: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('5.00 km')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('05:30 /km')).style?.color,
+      TaqaUiPalette.dark.textOnInverse,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceInverse,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('community loading state uses dark surface and accent', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: const Scaffold(body: TaqaCommunityLoadingCard()),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<CircularProgressIndicator>(
+            find.byType(CircularProgressIndicator),
+          )
+          .color,
+      TaqaUiPalette.dark.accent,
+    );
+    final decoration = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>()
+        .firstWhere(
+          (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+        );
+    expect(decoration.border, isNotNull);
+  });
+
+  testWidgets('sleep cards and bar-chart labels follow the dark palette', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                TaqaSleepStagesWideCard(
+                  title: 'Sleep stages',
+                  lightPct: 0.5,
+                  deepPct: 0.3,
+                  remPct: 0.2,
+                ),
+                SizedBox(
+                  height: 180,
+                  child: RangedBarChart(
+                    entries: [RangedBarChartEntry(axisLabel: 'MON', value: 7)],
+                    maxValue: 10,
+                    midValue: 5,
+                    formatValue: _testChartLabel,
+                    gradient: [Colors.grey, Colors.black],
+                    selectedGradient: [Colors.lime, Colors.green],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('Stages')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    expect(
+      tester.widget<Text>(find.text('MON')).style?.color,
+      TaqaUiPalette.dark.textSecondary,
+    );
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+  });
 }
+
+String _testChartLabel(double value) => value.toStringAsFixed(0);

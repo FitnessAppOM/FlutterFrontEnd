@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class MonthlyDetailsButton extends StatelessWidget {
   const MonthlyDetailsButton({super.key, required this.onPressed});
@@ -9,10 +10,17 @@ class MonthlyDetailsButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: onPressed,
-      icon: const Icon(Icons.list_alt, color: Colors.white70, size: 18),
-      label: const Text(
+      icon: Icon(
+        Icons.list_alt,
+        color: context.taqaColors.textSecondary,
+        size: 18,
+      ),
+      label: Text(
         "Details",
-        style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: context.taqaColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),

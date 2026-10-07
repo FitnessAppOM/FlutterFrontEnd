@@ -11,7 +11,6 @@ import '../core/account_storage.dart';
 import '../localization/app_localizations.dart';
 import '../services/health/water_service.dart';
 import '../services/metrics/daily_metrics_api.dart';
-import '../theme/app_theme.dart';
 
 class WaterIntakeDetailPage extends StatefulWidget {
   const WaterIntakeDetailPage({super.key, this.initialDate});
@@ -251,7 +250,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                       fontWeight: FontWeight.w700,
                       height: 1,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                 ),
@@ -282,7 +281,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textSecondary,
                       letterSpacing: 0,
                       height: 11 / 10,
                     ),
@@ -293,8 +292,10 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
             SizedBox(height: TaqaUiScale.h(8)),
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.accent),
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: context.taqaColors.accent,
+                      ),
                     )
                   : _buildHistoryLogs(t),
             ),
@@ -328,8 +329,9 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
             return Container(
               padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: context.taqaColors.surface,
                 borderRadius: TaqaUiScale.radius(15),
+                border: Border.all(color: context.taqaColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +342,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                       letterSpacing: 0,
                       height: 25 / 15,
                     ),
@@ -352,7 +354,7 @@ class _WaterIntakeDetailPageState extends State<WaterIntakeDetailPage> {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textSecondary,
                       letterSpacing: 0,
                       height: 21 / 15,
                     ),

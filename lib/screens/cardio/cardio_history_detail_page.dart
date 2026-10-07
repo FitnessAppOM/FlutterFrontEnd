@@ -6,7 +6,6 @@ import 'package:taqaproject/TaqaUI/components/taqa_linear_metric_card.dart';
 import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
-import 'package:taqaproject/theme/app_theme.dart';
 
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
@@ -110,6 +109,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             final speedKmh = pace > 0.01 ? 60.0 / pace : 0.0;
             final sessionDate = _parseDate(entryDate);
             final userName = await AccountStorage.getName();
+            if (!context.mounted) return;
             await showModalBottomSheet(
               context: context,
               isDismissible: true,
@@ -142,17 +142,19 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(13),
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                color: context.taqaColors.textSecondary,
               ),
             ),
             const SizedBox(height: 16),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+              Text(_error!, style: TextStyle(color: context.taqaColors.danger)),
             if (_loading)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
                 child: Center(
-                  child: CircularProgressIndicator(color: AppColors.accent),
+                  child: CircularProgressIndicator(
+                    color: context.taqaColors.accent,
+                  ),
                 ),
               )
             else if (!isMapless)
@@ -178,11 +180,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
       return Container(
         height: 220,
         decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+          color: context.taqaColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
-          ),
+          border: Border.all(color: context.taqaColors.border),
         ),
         child: Center(
           child: Text(
@@ -191,7 +191,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
             ).translate("training_route_unavailable"),
             style: TextStyle(
               fontFamily: TaqaUiFontFamilies.interTight,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              color: context.taqaColors.textSecondary,
             ),
           ),
         ),
@@ -208,9 +208,9 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
               url,
               fit: BoxFit.cover,
               gaplessPlayback: true,
-              errorBuilder: (_, __, ___) {
+              errorBuilder: (_, _, _) {
                 return Container(
-                  color: TaqaUiColors.white,
+                  color: context.taqaColors.surface,
                   child: Center(
                     child: Text(
                       AppLocalizations.of(
@@ -218,7 +218,7 @@ class _CardioHistoryDetailPageState extends State<CardioHistoryDetailPage> {
                       ).translate("training_map_unavailable"),
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                        color: context.taqaColors.textSecondary,
                       ),
                     ),
                   ),

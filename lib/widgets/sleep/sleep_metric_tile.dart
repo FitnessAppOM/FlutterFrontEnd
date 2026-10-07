@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class SleepMetricTile extends StatelessWidget {
   const SleepMetricTile({
@@ -25,9 +25,9 @@ class SleepMetricTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardDark,
+        color: context.taqaColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.18)),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +48,7 @@ class SleepMetricTile extends StatelessWidget {
                 child: Text(
                   title,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.white70,
+                    color: context.taqaColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -60,7 +60,7 @@ class SleepMetricTile extends StatelessWidget {
             Text(
               value,
               style: theme.textTheme.titleLarge?.copyWith(
-                color: Colors.white,
+                color: context.taqaColors.textPrimary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -69,14 +69,11 @@ class SleepMetricTile extends StatelessWidget {
             Text(
               subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white60,
+                color: context.taqaColors.textSecondary,
               ),
             ),
           ],
-          if (child != null) ...[
-            const SizedBox(height: 12),
-            child!,
-          ],
+          if (child != null) ...[const SizedBox(height: 12), child!],
         ],
       ),
     );

@@ -24,6 +24,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final arcSize = TaqaUiScale.w(120);
     final strokeWidth = TaqaUiScale.w(12);
     final safeLight = lightPct.clamp(0.0, 1.0).toDouble();
@@ -43,8 +44,9 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(15, 10, 15, 15),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,7 +57,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textSecondary,
               letterSpacing: 0,
               height: 10 / 8,
             ),
@@ -77,7 +79,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                         deepPct: nDeep,
                         remPct: nRem,
                         strokeWidth: strokeWidth,
-                        baseColor: const Color(0xFFCECED0),
+                        baseColor: colors.divider,
                         lightColor: lightColor,
                         deepColor: deepColor,
                         remColor: remColor,
@@ -89,7 +91,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                         height: 1,
                       ),
                     ),
@@ -102,18 +104,21 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _legendRow(
+                      context: context,
                       color: lightColor,
                       label: 'Light',
                       value: '${(safeLight * 100).toStringAsFixed(0)}%',
                     ),
                     SizedBox(height: TaqaUiScale.h(6)),
                     _legendRow(
+                      context: context,
                       color: deepColor,
                       label: 'Deep',
                       value: '${(safeDeep * 100).toStringAsFixed(0)}%',
                     ),
                     SizedBox(height: TaqaUiScale.h(6)),
                     _legendRow(
+                      context: context,
                       color: remColor,
                       label: 'REM',
                       value: '${(safeRem * 100).toStringAsFixed(0)}%',
@@ -129,6 +134,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
   }
 
   Widget _legendRow({
+    required BuildContext context,
     required Color color,
     required String label,
     required String value,
@@ -148,7 +154,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textSecondary,
               letterSpacing: 0,
               height: 13 / 8,
             ),
@@ -160,7 +166,7 @@ class TaqaSleepStagesWideCard extends StatelessWidget {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(8),
             fontWeight: FontWeight.w400,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: context.taqaColors.textPrimary,
             letterSpacing: 0,
             height: 13 / 8,
           ),

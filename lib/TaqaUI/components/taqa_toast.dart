@@ -20,17 +20,6 @@ class AppToast {
   }) {
     final overlay = Overlay.of(context, rootOverlay: rootOverlay);
 
-    final accentColor = switch (type) {
-      AppToastType.success => TaqaUiColors.unnamedColorE4e93b,
-      AppToastType.error => TaqaUiColors.unnamedColorE93b3b,
-      _ => TaqaUiColors.unnamedColor1c1d17,
-    };
-
-    final iconColor = switch (type) {
-      AppToastType.success => TaqaUiColors.unnamedColor1c1d17,
-      _ => TaqaUiColors.white,
-    };
-
     final icon = switch (type) {
       AppToastType.success => Icons.check_rounded,
       AppToastType.error => Icons.priority_high_rounded,
@@ -41,8 +30,7 @@ class AppToast {
     entry = OverlayEntry(
       builder: (ctx) => _ToastOverlay(
         message: message,
-        accentColor: accentColor,
-        iconColor: iconColor,
+        type: type,
         icon: icon,
         position: position,
         duration: duration,
@@ -61,8 +49,7 @@ class AppToast {
 class _ToastOverlay extends StatefulWidget {
   const _ToastOverlay({
     required this.message,
-    required this.accentColor,
-    required this.iconColor,
+    required this.type,
     required this.icon,
     required this.position,
     required this.duration,
@@ -70,8 +57,7 @@ class _ToastOverlay extends StatefulWidget {
   });
 
   final String message;
-  final Color accentColor;
-  final Color iconColor;
+  final AppToastType type;
   final IconData icon;
   final AppToastPosition position;
   final Duration duration;
@@ -124,6 +110,17 @@ class _ToastOverlayState extends State<_ToastOverlay>
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    final colors = context.taqaColors;
+    final accentColor = switch (widget.type) {
+      AppToastType.success => colors.success,
+      AppToastType.error => colors.danger,
+      AppToastType.info => colors.accent,
+    };
+    final iconColor = switch (widget.type) {
+      AppToastType.success => colors.onSuccess,
+      AppToastType.error => colors.onDanger,
+      AppToastType.info => colors.onAccent,
+    };
     final topInset = mediaQuery.padding.top + TaqaUiScale.h(16);
     final bottomInset = mediaQuery.padding.bottom + TaqaUiScale.h(16);
     return Positioned(
@@ -140,11 +137,12 @@ class _ToastOverlayState extends State<_ToastOverlay>
             child: Container(
               padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiScale.radius(15),
+                border: Border.all(color: colors.border),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.12),
+                    color: colors.scrim.withValues(alpha: 0.22),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -158,12 +156,12 @@ class _ToastOverlayState extends State<_ToastOverlay>
                     height: TaqaUiScale.h(24),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: widget.accentColor,
+                      color: accentColor,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       widget.icon,
-                      color: widget.iconColor,
+                      color: iconColor,
                       size: TaqaUiScale.w(14),
                     ),
                   ),
@@ -177,7 +175,7 @@ class _ToastOverlayState extends State<_ToastOverlay>
                         fontWeight: FontWeight.w600,
                         height: 18 / 13,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),

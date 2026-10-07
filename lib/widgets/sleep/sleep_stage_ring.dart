@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class SleepStageRing extends StatelessWidget {
   const SleepStageRing({
@@ -25,14 +26,15 @@ class SleepStageRing extends StatelessWidget {
           lightPct: lightPct,
           deepPct: deepPct,
           remPct: remPct,
+          backgroundColor: context.taqaColors.divider,
         ),
         child: Center(
           child: Text(
             "Stages",
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Colors.white60,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: context.taqaColors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -45,11 +47,13 @@ class _RingPainter extends CustomPainter {
     required this.lightPct,
     required this.deepPct,
     required this.remPct,
+    required this.backgroundColor,
   });
 
   final double lightPct;
   final double deepPct;
   final double remPct;
+  final Color backgroundColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -60,7 +64,7 @@ class _RingPainter extends CustomPainter {
 
     final total = max(0.0, lightPct) + max(0.0, deepPct) + max(0.0, remPct);
     final bgPaint = Paint()
-      ..color = const Color(0xFF1E1E1E)
+      ..color = backgroundColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round;
@@ -96,6 +100,7 @@ class _RingPainter extends CustomPainter {
   bool shouldRepaint(covariant _RingPainter oldDelegate) {
     return oldDelegate.lightPct != lightPct ||
         oldDelegate.deepPct != deepPct ||
-        oldDelegate.remPct != remPct;
+        oldDelegate.remPct != remPct ||
+        oldDelegate.backgroundColor != backgroundColor;
   }
 }

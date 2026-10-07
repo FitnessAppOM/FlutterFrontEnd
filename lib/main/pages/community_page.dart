@@ -561,10 +561,13 @@ class _CommunityPageState extends State<CommunityPage> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: _loadingMore
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 18,
                               width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: context.taqaColors.accent,
+                              ),
                             )
                           : Text(t.translate('community_load_more')),
                     ),
@@ -3085,7 +3088,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 const SizedBox(height: 12),
                 Expanded(
                   child: _loading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: context.taqaColors.accent,
+                          ),
+                        )
                       : _error != null
                       ? Center(
                           child: Padding(
@@ -3201,9 +3208,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       Expanded(
                         child: TextField(
                           controller: _controller,
-                          style: TextStyle(
-                            color: context.taqaColors.textPrimary,
-                          ),
+                          style: TextStyle(color: context.taqaColors.accent),
                           minLines: 1,
                           maxLines: 4,
                           decoration: InputDecoration(

@@ -96,6 +96,23 @@ ThemeData _buildTaqaTheme(TaqaUiPalette palette) {
       surfaceTintColor: Colors.transparent,
       textStyle: TextStyle(color: palette.textPrimary),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: palette.surfaceElevated,
+      contentTextStyle: TextStyle(
+        color: palette.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      actionTextColor: palette.accent,
+      disabledActionTextColor: palette.textSecondary,
+      closeIconColor: palette.textPrimary,
+      behavior: SnackBarBehavior.floating,
+      elevation: 6,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.tile),
+        side: BorderSide(color: palette.border),
+      ),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+    ),
     listTileTheme: ListTileThemeData(
       textColor: palette.textPrimary,
       iconColor: palette.textPrimary,

@@ -13,7 +13,6 @@ import '../core/account_storage.dart';
 import '../services/diet/calories_service.dart';
 import '../services/metrics/daily_metrics_api.dart';
 import '../services/training/training_calories_service.dart';
-import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../widgets/charts/ranged_bar_chart.dart';
 
@@ -267,7 +266,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                       fontWeight: FontWeight.w700,
                       height: 1,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                 ),
@@ -289,8 +288,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
             SizedBox(height: TaqaUiScale.h(19)),
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.accent),
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: context.taqaColors.accent,
+                      ),
                     )
                   : !_daily.values.any((v) => v > 0)
                   ? TaqaEmptyCard(
@@ -357,8 +358,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
         child: Container(
           padding: TaqaUiScale.insetsLTRB(14, 10, 14, 14),
           decoration: BoxDecoration(
-            color: TaqaUiColors.white,
+            color: context.taqaColors.surface,
             borderRadius: TaqaUiScale.radius(15),
+            border: Border.all(color: context.taqaColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -370,7 +372,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
                   height: 25 / 15,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(5)),
@@ -385,7 +387,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w400,
                   height: 11 / 10,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(10)),
@@ -403,10 +405,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                             key: ValueKey<int>(_selectedBarIndex!),
                             padding: TaqaUiScale.insetsLTRB(12, 7, 12, 7),
                             decoration: BoxDecoration(
-                              color: TaqaUiColors.charcoal,
+                              color: context.taqaColors.surfaceInverse,
                               borderRadius: TaqaUiScale.radius(10),
                               border: Border.all(
-                                color: TaqaUiColors.lime.withValues(
+                                color: context.taqaColors.accent.withValues(
                                   alpha: 0.45,
                                 ),
                                 width: 0.5,
@@ -421,7 +423,7 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                                 fontFamily: TaqaUiFontFamilies.interTight,
                                 fontSize: TaqaUiScale.sp(10),
                                 fontWeight: FontWeight.w700,
-                                color: TaqaUiColors.white,
+                                color: context.taqaColors.textOnInverse,
                               ),
                             ),
                           ),
@@ -435,7 +437,10 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   maxValue: actualMax,
                   midValue: midVal,
                   formatValue: _fmtCalories,
-                  gradient: const [Color(0xFF404040), Color(0xFF1C1D17)],
+                  gradient: [
+                    context.taqaColors.textSecondary,
+                    context.taqaColors.surfaceInverse,
+                  ],
                   selectedGradient: const [
                     Color(0xFFE4E93B),
                     Color(0xFFC9CF36),
@@ -450,8 +455,9 @@ class _CaloriesDetailPageState extends State<CaloriesDetailPage> {
                   yAxisGap: yAxisGap,
                   labelHeight: labelHeight,
                   labelGap: labelGap,
-                  axisTextColor: TaqaUiColors.unnamedColor1c1d17,
-                  labelTextColor: TaqaUiColors.unnamedColor1c1d17,
+                  gridLineColor: context.taqaColors.divider,
+                  axisTextColor: context.taqaColors.textSecondary,
+                  labelTextColor: context.taqaColors.textSecondary,
                 ),
               ),
             ],
