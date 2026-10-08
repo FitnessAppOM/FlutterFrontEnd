@@ -15,6 +15,8 @@ class ExerciseCard extends StatelessWidget {
   final Map<String, dynamic> exercise;
   final VoidCallback onReplace;
   final VoidCallback? onTap;
+  final VoidCallback? onEditPrescription;
+  final VoidCallback? onRemove;
   final bool disabled;
   final bool inProgress;
   final bool forceCompleted;
@@ -31,6 +33,8 @@ class ExerciseCard extends StatelessWidget {
     required this.exercise,
     required this.onReplace,
     this.onTap,
+    this.onEditPrescription,
+    this.onRemove,
     this.disabled = false,
     this.inProgress = false,
     this.forceCompleted = false,
@@ -346,7 +350,7 @@ class ExerciseCard extends StatelessWidget {
     final lastPerformedTimeSeconds = _positiveInt(
       exercise['last_performed_time_seconds'],
     );
-    final metaTags = <(IconData, String)>[];
+    final metaTags = <(IconData, String, VoidCallback?)>[];
     if (!isCardio) {
       if (isTimerBased) {
         final completedTimeLabel = performedTimeSeconds == null
@@ -362,18 +366,24 @@ class ExerciseCard extends StatelessWidget {
           completedTimeLabel != null
               ? "${t.translate("training_time")} $completedTimeLabel"
               : "$setsLabel × ${t.translate("training_time")}",
+          disabled ? null : onEditPrescription,
         ));
         if (completedTimeLabel == null && lastTimeLabel != null) {
           metaTags.add((
             Icons.history,
             "${t.translate("training_last_time")} $lastTimeLabel",
+            null,
           ));
         }
       } else {
-        metaTags.add((Icons.repeat, "$setsLabel x $repsLabel"));
-        metaTags.add((Icons.speed, "RIR $rirLabel"));
+        metaTags.add((
+          Icons.repeat,
+          "$setsLabel x $repsLabel",
+          disabled ? null : onEditPrescription,
+        ));
+        metaTags.add((Icons.speed, "RIR $rirLabel", null));
         if (showWeight && weightLabel != null) {
-          metaTags.add((Icons.fitness_center, weightLabel));
+          metaTags.add((Icons.fitness_center, weightLabel, null));
         }
       }
     }
@@ -422,6 +432,48 @@ class ExerciseCard extends StatelessWidget {
       icon: Icons.swap_horiz,
       label: t.translate("training_replace_exercise").toUpperCase(),
       onTap: disabled ? () {} : onReplace,
+    );
+    final moveReplaceToHeader =
+        isTimerBased && metaTags.length > 1 && showReplace;
+    final compactReplaceChip = Tooltip(
+      message: t.translate("training_replace_exercise"),
+      child: Material(
+        color: colors.surfaceElevated,
+        borderRadius: TaqaUiScale.radius(7),
+        child: InkWell(
+          borderRadius: TaqaUiScale.radius(7),
+          onTap: disabled ? null : onReplace,
+          child: SizedBox(
+            width: TaqaUiScale.w(24),
+            height: TaqaUiScale.h(24),
+            child: Icon(
+              Icons.swap_horiz,
+              size: TaqaUiScale.w(14),
+              color: colors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+    final removeChip = Tooltip(
+      message: t.translate("training_remove"),
+      child: Material(
+        color: colors.surfaceElevated,
+        borderRadius: TaqaUiScale.radius(7),
+        child: InkWell(
+          borderRadius: TaqaUiScale.radius(7),
+          onTap: disabled ? null : onRemove,
+          child: SizedBox(
+            width: TaqaUiScale.w(24),
+            height: TaqaUiScale.h(24),
+            child: Icon(
+              Icons.delete_outline,
+              size: TaqaUiScale.w(14),
+              color: colors.textSecondary,
+            ),
+          ),
+        ),
+      ),
     );
 
     // Resume button for an in-progress exercise: shows a live elapsed timer
@@ -574,9 +626,18 @@ class ExerciseCard extends StatelessWidget {
                                               ),
                                             ),
                                           ),
-                                          SizedBox(width: TaqaUiScale.w(6)),
-                                          if (!isCardio && showProgress)
+                                          if (moveReplaceToHeader) ...[
+                                            SizedBox(width: TaqaUiScale.w(6)),
+                                            compactReplaceChip,
+                                          ],
+                                          if (onRemove != null) ...[
+                                            SizedBox(width: TaqaUiScale.w(6)),
+                                            removeChip,
+                                          ],
+                                          if (!isCardio && showProgress) ...[
+                                            SizedBox(width: TaqaUiScale.w(6)),
                                             progressChip,
+                                          ],
                                         ],
                                       ),
                                       const Spacer(),
@@ -621,31 +682,50 @@ class ExerciseCard extends StatelessWidget {
                                         Row(
                                           children: [
                                             Expanded(
-                                              child: SingleChildScrollView(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                child: Row(
-                                                  children: [
-                                                    for (
-                                                      int i = 0;
-                                                      i < metaTags.length;
-                                                      i++
-                                                    ) ...[
-                                                      TaqaTagButton(
-                                                        icon: metaTags[i].$1,
-                                                        label: metaTags[i].$2,
-                                                        onTap: () {},
-                                                      ),
-                                                      if (i !=
-                                                          metaTags.length - 1)
-                                                        SizedBox(
-                                                          width: TaqaUiScale.w(
-                                                            6,
-                                                          ),
+                                              child: Builder(
+                                                builder: (context) {
+                                                  final tags = Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      for (
+                                                        int i = 0;
+                                                        i < metaTags.length;
+                                                        i++
+                                                      ) ...[
+                                                        TaqaTagButton(
+                                                          icon: metaTags[i].$1,
+                                                          label: metaTags[i].$2,
+                                                          onTap:
+                                                              metaTags[i].$3 ??
+                                                              () {},
                                                         ),
+                                                        if (i !=
+                                                            metaTags.length - 1)
+                                                          SizedBox(
+                                                            width:
+                                                                TaqaUiScale.w(
+                                                                  6,
+                                                                ),
+                                                          ),
+                                                      ],
                                                     ],
-                                                  ],
-                                                ),
+                                                  );
+                                                  if (moveReplaceToHeader) {
+                                                    return FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      alignment:
+                                                          AlignmentDirectional
+                                                              .centerStart,
+                                                      child: tags,
+                                                    );
+                                                  }
+                                                  return SingleChildScrollView(
+                                                    scrollDirection:
+                                                        Axis.horizontal,
+                                                    child: tags,
+                                                  );
+                                                },
                                               ),
                                             ),
                                             if (resumeChip != null)
@@ -655,9 +735,12 @@ class ExerciseCard extends StatelessWidget {
                                             // exercise is completed (past logged
                                             // history is kept; the swap applies
                                             // going forward).
-                                            if (showReplace)
+                                            if (showReplace &&
+                                                !moveReplaceToHeader)
                                               SizedBox(width: TaqaUiScale.w(8)),
-                                            if (showReplace) replaceChip,
+                                            if (showReplace &&
+                                                !moveReplaceToHeader)
+                                              replaceChip,
                                           ],
                                         ),
                                     ],

@@ -752,6 +752,90 @@ class TrainingService {
     return const {"status": "deleted"};
   }
 
+  static Future<Map<String, dynamic>> updateExercisePrescription({
+    required int programExerciseId,
+    required int sets,
+    required int reps,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/training/exercise/$programExerciseId/prescription',
+    );
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.patch(
+      url,
+      headers: headers,
+      body: json.encode({'sets': sets, 'reps': reps}),
+    );
+    _recordServerClock(res);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      final body = res.body.isNotEmpty ? json.decode(res.body) : {};
+      final detail = body is Map
+          ? (body['detail']?.toString() ?? 'Failed to update exercise')
+          : 'Failed to update exercise';
+      throw TrainingApiException(res.statusCode, detail);
+    }
+    final decoded = json.decode(res.body);
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
+  }
+
+  static Future<Map<String, dynamic>> addProgramExercise({
+    required int programDayId,
+    required int exerciseId,
+    required int sets,
+    required int reps,
+    int rir = 2,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/day/$programDayId/exercise');
+    final headers = {
+      'Content-Type': 'application/json',
+      ...await AccountStorage.getAuthHeaders(),
+    };
+    final res = await http.post(
+      url,
+      headers: headers,
+      body: json.encode({
+        'exercise_id': exerciseId,
+        'sets': sets,
+        'reps': reps,
+        'rir': rir,
+      }),
+    );
+    _recordServerClock(res);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      final body = res.body.isNotEmpty ? json.decode(res.body) : {};
+      final detail = body is Map
+          ? (body['detail']?.toString() ?? 'Failed to add exercise')
+          : 'Failed to add exercise';
+      throw TrainingApiException(res.statusCode, detail);
+    }
+    final decoded = json.decode(res.body);
+    return decoded is Map
+        ? Map<String, dynamic>.from(decoded)
+        : <String, dynamic>{};
+  }
+
+  static Future<void> removeProgramExercise(int programExerciseId) async {
+    final url = Uri.parse('$baseUrl/training/exercise/$programExerciseId');
+    final headers = await AccountStorage.getAuthHeaders();
+    final res = await http.delete(url, headers: headers);
+    _recordServerClock(res);
+    await AccountStorage.handle401(res.statusCode);
+    if (res.statusCode != 200) {
+      final body = res.body.isNotEmpty ? json.decode(res.body) : {};
+      final detail = body is Map
+          ? (body['detail']?.toString() ?? 'Failed to remove exercise')
+          : 'Failed to remove exercise';
+      throw TrainingApiException(res.statusCode, detail);
+    }
+  }
+
   static Future<Map<String, dynamic>> fetchCurrentSession() async {
     final url = Uri.parse('$baseUrl/training/session/current');
     final headers = await AccountStorage.getAuthHeaders();

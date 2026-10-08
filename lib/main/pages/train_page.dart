@@ -6,6 +6,8 @@ import 'package:taqaproject/TaqaUI/Typography/taqa_ui_typography.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_action_controls.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_filled_button.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_steps_ui.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_value_dialog.dart'
+    as taqa_value_dialog;
 import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
@@ -34,6 +36,7 @@ import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
 import '../../screens/cardio/cardio_history_page.dart';
 import '../../TaqaUI/components/taqa_completion_dialog.dart';
+import '../../TaqaUI/components/taqa_exercise_picker_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/training/training_progress_storage.dart';
 import '../../services/training/training_activity_service.dart';
@@ -98,6 +101,7 @@ void _mergeExerciseReplacement(
 class _TrainingDayExercisesPage extends StatefulWidget {
   const _TrainingDayExercisesPage({
     required this.dayLabel,
+    required this.programDayId,
     required this.exercises,
     required this.readDisabledState,
     required this.readDayNoteState,
@@ -115,6 +119,8 @@ class _TrainingDayExercisesPage extends StatefulWidget {
     required this.onSetCustomRest,
     required this.restPresets,
     required this.onSelectRestPreset,
+    required this.onPlanChanged,
+    required this.onExerciseRemoved,
     this.autoOpenLauncher = false,
   });
 
@@ -122,6 +128,7 @@ class _TrainingDayExercisesPage extends StatefulWidget {
   // this page builds — used by the minimized bar to jump straight into sets.
   final bool autoOpenLauncher;
   final String dayLabel;
+  final int? programDayId;
   final List<Map<String, dynamic>> exercises;
   final bool Function() readDisabledState;
   final String? Function() readDayNoteState;
@@ -145,6 +152,8 @@ class _TrainingDayExercisesPage extends StatefulWidget {
   final VoidCallback onSetCustomRest;
   final List<int> restPresets;
   final void Function(int seconds) onSelectRestPreset;
+  final Future<void> Function() onPlanChanged;
+  final Future<void> Function(int programExerciseId) onExerciseRemoved;
 
   @override
   State<_TrainingDayExercisesPage> createState() =>
@@ -153,6 +162,228 @@ class _TrainingDayExercisesPage extends StatefulWidget {
 
 class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
   Timer? _refreshTimer;
+  bool _addingExercise = false;
+  final Set<int> _savingExerciseIds = <int>{};
+
+  int _intValue(dynamic value, {required int fallback}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  Future<void> _editPlanPrescription(Map<String, dynamic> exercise) async {
+    final programExerciseId = widget.programExerciseIdOf(exercise);
+    if (programExerciseId == null ||
+        _savingExerciseIds.contains(programExerciseId)) {
+      return;
+    }
+    final t = AppLocalizations.of(context);
+    final currentSets = _intValue(exercise['sets'], fallback: 1).clamp(1, 12);
+    final currentReps = _intValue(exercise['reps'], fallback: 1).clamp(1, 200);
+    final sets = await showTaqaValueDialog(
+      context: context,
+      title: t.translate('training_custom_sets'),
+      initialValue: '$currentSets',
+    );
+    if (!mounted) return;
+    if (sets == null) return;
+    if (sets < 1 || sets > 12) {
+      AppToast.show(
+        context,
+        t.translate('training_sets_range_error'),
+        type: AppToastType.error,
+      );
+      return;
+    }
+    var reps = currentReps;
+    if (!isTimerBasedExercise(exercise)) {
+      final selectedReps = await showTaqaValueDialog(
+        context: context,
+        title: t.translate('training_custom_reps'),
+        initialValue: '$currentReps',
+      );
+      if (!mounted || selectedReps == null) return;
+      if (selectedReps < 1 || selectedReps > 200) {
+        AppToast.show(
+          context,
+          t.translate('training_reps_range_error'),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      reps = selectedReps;
+    }
+    setState(() => _savingExerciseIds.add(programExerciseId));
+    try {
+      final result = await TrainingService.updateExercisePrescription(
+        programExerciseId: programExerciseId,
+        sets: sets,
+        reps: reps,
+      );
+      if (mounted) {
+        setState(() {
+          exercise['sets'] = result['sets'] ?? sets;
+          exercise['reps'] = result['reps'] ?? reps;
+          exercise['set_rows'] = List.generate(
+            sets,
+            (index) => {
+              'set_index': index + 1,
+              'reps': result['reps'] ?? reps,
+              'rir': exercise['rir'],
+              'completed': false,
+            },
+          );
+        });
+      }
+      await widget.onPlanChanged();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(error),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingExerciseIds.remove(programExerciseId));
+    }
+  }
+
+  Future<void> _removeExercise(Map<String, dynamic> exercise) async {
+    final programExerciseId = widget.programExerciseIdOf(exercise);
+    if (programExerciseId == null ||
+        _savingExerciseIds.contains(programExerciseId)) {
+      return;
+    }
+    final t = AppLocalizations.of(context);
+    final name = (exercise['exercise_name'] ?? '').toString().trim();
+    final confirmed = await taqa_value_dialog.showTaqaConfirmDialog(
+      context: context,
+      title: t.translate('training_remove_exercise_title'),
+      message: t
+          .translate('training_remove_exercise_message')
+          .replaceAll('{exercise}', name),
+      cancelLabel: t.translate('common_cancel'),
+      confirmLabel: t.translate('training_remove'),
+    );
+    if (!mounted) return;
+    if (!confirmed) return;
+    setState(() => _savingExerciseIds.add(programExerciseId));
+    try {
+      await TrainingService.removeProgramExercise(programExerciseId);
+      if (mounted) {
+        setState(() => widget.exercises.remove(exercise));
+      }
+      await widget.onExerciseRemoved(programExerciseId);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate('training_exercise_removed'),
+        type: AppToastType.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(error),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingExerciseIds.remove(programExerciseId));
+    }
+  }
+
+  Future<void> _addExercise() async {
+    if (_addingExercise || widget.programDayId == null) return;
+    final t = AppLocalizations.of(context);
+    setState(() => _addingExercise = true);
+    try {
+      final rawExercises = await TrainingService.fetchAllExercises();
+      if (!mounted) return;
+      final existingNames = widget.exercises
+          .map(
+            (exercise) =>
+                widget.normalizeExerciseName(exercise['exercise_name']),
+          )
+          .where((name) => name.isNotEmpty)
+          .toSet();
+      final options = <ExercisePickerItem>[];
+      for (final raw in rawExercises) {
+        if (raw is! Map) continue;
+        final id = _intValue(raw['exercise_id'], fallback: 0);
+        final name = (raw['exercise_name'] ?? '').toString().trim();
+        if (id <= 0 || name.isEmpty) continue;
+        if (existingNames.contains(widget.normalizeExerciseName(name))) {
+          continue;
+        }
+        options.add(ExercisePickerItem(id: id, name: name));
+      }
+      final selected = await showExercisePickerSheet(
+        context: context,
+        options: options,
+        title: t.translate('training_add_exercise'),
+      );
+      if (!mounted || selected == null) return;
+      final sets = await showTaqaValueDialog(
+        context: context,
+        title: t.translate('training_custom_sets'),
+        initialValue: '3',
+      );
+      if (!mounted || sets == null) return;
+      if (sets < 1 || sets > 12) {
+        AppToast.show(
+          context,
+          t.translate('training_sets_range_error'),
+          type: AppToastType.error,
+        );
+        return;
+      }
+      final timerBased = isTimerBasedExercise({'exercise_name': selected.name});
+      var reps = 2;
+      if (!timerBased) {
+        final selectedReps = await showTaqaValueDialog(
+          context: context,
+          title: t.translate('training_custom_reps'),
+          initialValue: '8',
+        );
+        if (!mounted || selectedReps == null) return;
+        if (selectedReps < 1 || selectedReps > 200) {
+          AppToast.show(
+            context,
+            t.translate('training_reps_range_error'),
+            type: AppToastType.error,
+          );
+          return;
+        }
+        reps = selectedReps;
+      }
+      final added = await TrainingService.addProgramExercise(
+        programDayId: widget.programDayId!,
+        exerciseId: selected.id,
+        sets: sets,
+        reps: reps,
+      );
+      added['training_day_id'] = widget.programDayId;
+      if (mounted) {
+        setState(() => widget.exercises.add(added));
+      }
+      await widget.onPlanChanged();
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate('training_exercise_added'),
+        type: AppToastType.success,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        userFriendlyErrorMessage(error),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _addingExercise = false);
+    }
+  }
 
   Route<T> _buildLauncherRoute<T>(Widget page) {
     return PageRouteBuilder<T>(
@@ -522,6 +753,13 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                       (inProgress && programExerciseId != null)
                       ? live.inProgressStartMsById[programExerciseId]
                       : null;
+                  final canEditPlan =
+                      programExerciseId != null &&
+                      !isDisabled &&
+                      !live.showWorkoutTimer;
+                  final saving =
+                      programExerciseId != null &&
+                      _savingExerciseIds.contains(programExerciseId);
                   final exKey = ValueKey("day_ex_$rawId");
                   return Padding(
                     key: exKey,
@@ -529,6 +767,16 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                     child: ExerciseCard(
                       exercise: ex,
                       onReplace: () => unawaited(_replaceExercise(ex)),
+                      onEditPrescription: canEditPlan
+                          ? saving
+                                ? () {}
+                                : () => unawaited(_editPlanPrescription(ex))
+                          : null,
+                      onRemove: canEditPlan
+                          ? saving
+                                ? () {}
+                                : () => unawaited(_removeExercise(ex))
+                          : null,
                       disabled: isDisabled,
                       completedOverride: done,
                       forceCompleted: done,
@@ -548,6 +796,41 @@ class _TrainingDayExercisesPageState extends State<_TrainingDayExercisesPage> {
                   );
                 });
               })(),
+            if (!isDisabled && !live.showWorkoutTimer) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _addingExercise
+                      ? null
+                      : () => unawaited(_addExercise()),
+                  icon: _addingExercise
+                      ? SizedBox(
+                          width: TaqaUiScale.w(16),
+                          height: TaqaUiScale.h(16),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.textPrimary,
+                          ),
+                        )
+                      : Icon(Icons.add, color: colors.textPrimary),
+                  label: Text(t.translate('training_add_exercise')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
+                    minimumSize: Size(double.infinity, TaqaUiScale.h(45)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: TaqaUiScale.radius(5),
+                    ),
+                    textStyle: TextStyle(
+                      fontFamily: TaqaUiFontFamilies.interTight,
+                      fontSize: TaqaUiScale.sp(10),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
@@ -2650,6 +2933,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _trainingDayRouteOpen = false;
   bool _activeSessionLauncherOpen = false;
   final Set<String> _preloadedThumbs = <String>{};
+  final Set<int> _locallyRemovedProgramExerciseIds = <int>{};
   List<int> _dayOrder = const [];
   List<bool> _dayCompletedByIndex = const [];
   bool _isDeactivated = false;
@@ -3569,6 +3853,37 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return future;
   }
 
+  Future<void> _refreshProgramAfterMutation() async {
+    final activeRefresh = _programRefreshInFlight;
+    if (activeRefresh != null) {
+      await activeRefresh;
+    }
+    if (!mounted) return;
+    await refreshProgram();
+  }
+
+  Future<void> _handleExerciseRemoved(int programExerciseId) async {
+    if (!mounted) return;
+    setState(() {
+      _locallyRemovedProgramExerciseIds.add(programExerciseId);
+      final days = program?['days'];
+      if (days is List) {
+        for (final day in days) {
+          if (day is! Map) continue;
+          final exercises = day['exercises'];
+          if (exercises is! List) continue;
+          day['exercises'] = exercises.where((rawExercise) {
+            if (rawExercise is! Map) return true;
+            final exercise = Map<String, dynamic>.from(rawExercise);
+            return _programExerciseId(exercise) != programExerciseId;
+          }).toList();
+        }
+      }
+      _rebuildExerciseLists();
+    });
+    await _refreshProgramAfterMutation();
+  }
+
   void _rebuildExerciseLists() {
     final data = program;
     if (data == null) {
@@ -3589,7 +3904,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     if (exercises is List) {
       for (final ex in exercises) {
         if (ex is Map<String, dynamic>) {
-          if (!_isCardioExercise(ex)) {
+          final programExerciseId = _programExerciseId(ex);
+          if (!_isCardioExercise(ex) &&
+              (programExerciseId == null ||
+                  !_locallyRemovedProgramExerciseIds.contains(
+                    programExerciseId,
+                  ))) {
             train.add(ex);
           }
         }
@@ -4202,10 +4522,15 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         ex = Map<String, dynamic>.from(rawEx);
       }
       if (ex == null || _isCardioExercise(ex)) continue;
+      final programExerciseId = _programExerciseId(ex);
+      if (programExerciseId != null &&
+          _locallyRemovedProgramExerciseIds.contains(programExerciseId)) {
+        continue;
+      }
       ex['training_day_index'] = dayIndex;
       ex['training_day_label'] = dayLabel;
       if (day is Map) {
-        ex['training_day_id'] = day['day_id'];
+        ex['training_day_id'] = day['program_day_id'] ?? day['day_id'];
       }
       out.add(ex);
     }
@@ -4349,6 +4674,10 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         dayIndex: dayIndex,
         dayLabel: dayLabel,
       );
+      final rawDay = days[dayIndex];
+      final programDayId = rawDay is Map
+          ? _parseInt(rawDay['program_day_id'] ?? rawDay['day_id'])
+          : null;
 
       // Exercise cards load their thumbnails themselves. Waiting for every GIF
       // to precache here made later days feel frozen before navigation.
@@ -4356,6 +4685,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
         MaterialPageRoute(
           builder: (_) => _TrainingDayExercisesPage(
             dayLabel: dayLabel,
+            programDayId: programDayId,
             exercises: exercises,
             autoOpenLauncher: autoOpenLauncher,
             readDisabledState: () => _isDayDisabledForWorkout(dayIndex),
@@ -4381,6 +4711,8 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
             onSetCustomRest: _setCustomExRestPreset,
             restPresets: const [10, 15, 30, 45, 60],
             onSelectRestPreset: _setExRestPreset,
+            onPlanChanged: _refreshProgramAfterMutation,
+            onExerciseRemoved: _handleExerciseRemoved,
           ),
         ),
       );
