@@ -24,8 +24,9 @@ class TaqaTutorialLibraryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(title: t.translate('settings_taqa_tutorial')),
       body: SafeArea(
         top: false,
@@ -53,7 +54,7 @@ class TaqaTutorialLibraryPage extends StatelessWidget {
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w300,
                     height: 1.3,
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                   ),
                 ),
               );
@@ -95,9 +96,13 @@ class _TutorialModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
-      color: TaqaUiColors.white,
-      borderRadius: TaqaUiScale.radius(15),
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: TaqaUiScale.radius(15),
+        side: BorderSide(color: colors.border),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: TaqaUiScale.radius(15),
@@ -110,13 +115,13 @@ class _TutorialModuleCard extends StatelessWidget {
                 height: TaqaUiScale.w(46),
                 padding: EdgeInsets.all(TaqaUiScale.w(12)),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.lime,
+                  color: colors.accent,
                   borderRadius: TaqaUiScale.radius(12),
                 ),
                 child: SvgPicture.asset(
                   module.iconAssetPath,
-                  colorFilter: const ColorFilter.mode(
-                    TaqaUiColors.charcoal,
+                  colorFilter: ColorFilter.mode(
+                    colors.onAccent,
                     BlendMode.srcIn,
                   ),
                 ),
@@ -132,7 +137,7 @@ class _TutorialModuleCard extends StatelessWidget {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(16),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(3)),
@@ -143,7 +148,7 @@ class _TutorialModuleCard extends StatelessWidget {
                         fontSize: TaqaUiScale.sp(12),
                         fontWeight: FontWeight.w300,
                         height: 1.2,
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.72),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
@@ -153,7 +158,7 @@ class _TutorialModuleCard extends StatelessWidget {
               Icon(
                 Icons.chevron_right_rounded,
                 size: TaqaUiScale.w(22),
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                color: colors.textSecondary,
               ),
             ],
           ),

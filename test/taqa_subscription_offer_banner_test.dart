@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_subscription_offer_banner.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
+import 'package:taqaproject/theme/app_theme.dart';
 
 void main() {
   testWidgets('subscription offer banner clearly presents trial terms', (
@@ -15,8 +17,9 @@ void main() {
       ScreenUtilInit(
         designSize: TaqaUiScale.designSize,
         minTextAdapt: true,
-        builder: (_, _) => const MaterialApp(
-          home: Scaffold(
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
             body: Padding(
               padding: EdgeInsets.all(16),
               child: TaqaSubscriptionOfferBanner(
@@ -36,6 +39,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.byIcon(Icons.card_giftcard_rounded), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('1 MONTH FREE')).style?.color,
+      TaqaUiPalette.dark.onAccent,
+    );
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.card_giftcard_rounded)).color,
+      TaqaUiPalette.dark.accent,
+    );
     expect(tester.takeException(), isNull);
   });
 }

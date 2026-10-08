@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_referral_cards.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
+import 'package:taqaproject/theme/app_theme.dart';
 
 void main() {
   testWidgets('referral cards render and act correctly in Arabic RTL', (
@@ -18,6 +20,7 @@ void main() {
         designSize: TaqaUiScale.designSize,
         minTextAdapt: true,
         builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
           home: Directionality(
             textDirection: TextDirection.rtl,
             child: Scaffold(
@@ -67,6 +70,20 @@ void main() {
     );
 
     expect(find.text('TAQA1234'), findsOneWidget);
+    final decorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      decorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surface,
+      ),
+      isTrue,
+    );
+    expect(
+      tester.widget<EditableText>(find.text('TAQA1234')).style.color,
+      TaqaUiPalette.dark.accent,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.text('نسخ'));

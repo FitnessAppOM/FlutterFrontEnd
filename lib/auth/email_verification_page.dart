@@ -460,6 +460,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context); // Translator
+    final colors = context.taqaColors;
     final isStudentFlow = widget.studentPlanVerification;
     final canSubmit =
         !loading &&
@@ -472,11 +473,11 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(14),
       fontWeight: FontWeight.w400,
-      color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.7),
+      color: colors.textSecondary,
     );
 
     final page = Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
         title: isStudentFlow
             ? t.translate('verify_student_status')
@@ -518,17 +519,16 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                         width: double.infinity,
                         padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
-                          border: Border.all(
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.14,
-                            ),
-                          ),
+                          color: colors.surface,
+                          border: Border.all(color: colors.border),
                           borderRadius: TaqaUiScale.radius(5),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.school_outlined),
+                            Icon(
+                              Icons.school_outlined,
+                              color: colors.textPrimary,
+                            ),
                             SizedBox(width: TaqaUiScale.w(10)),
                             Expanded(
                               child: Column(
@@ -546,7 +546,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                                       fontFamily: TaqaUiFontFamilies.interTight,
                                       fontSize: TaqaUiScale.sp(14),
                                       fontWeight: FontWeight.w700,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.textPrimary,
                                     ),
                                   ),
                                 ],
@@ -565,7 +565,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(16),
                           fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                         ),
                       ),
                       SizedBox(height: TaqaUiScale.h(8)),
@@ -582,7 +582,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                         'Your account was created, but the first email was delayed. '
                         'Use Resend Code when the timer finishes.',
                         style: bodyStyle.copyWith(
-                          color: Colors.orange.shade800,
+                          color: colors.accent,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -594,7 +594,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w700,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
@@ -602,9 +602,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
                       t.translate("verification_spam_hint"),
                       style: bodyStyle.copyWith(
                         fontSize: TaqaUiScale.sp(12),
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.5,
-                        ),
+                        color: colors.textSecondary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(24)),

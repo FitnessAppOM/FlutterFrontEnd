@@ -304,6 +304,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   }
 
   Widget _buildHeaderCard() {
+    final colors = context.taqaColors;
     final checkedCount = _habits.where((h) => h.isCompleted).length;
     final totalCount = _habits.length;
     final canManage = _canManageHabits();
@@ -343,7 +344,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
             child: Text(
               'Reminder is available only when at least one assigned habit is unchecked.',
               style: TextStyle(
-                color: TaqaUiColors.charcoal,
+                color: colors.textSecondary,
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(10),
                 fontWeight: FontWeight.w400,
@@ -357,6 +358,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
 
   Widget _buildAddCard() {
     final canManage = _canManageHabits();
+    final colors = context.taqaColors;
     return TaqaManagementListCard(
       minHeight: 206,
       radius: 15,
@@ -368,7 +370,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
           Text(
             'Habit',
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontWeight: FontWeight.w700,
               fontSize: TaqaUiScale.sp(15),
@@ -382,7 +384,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _addHabit(),
             style: TextStyle(
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
@@ -391,7 +393,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
             decoration: InputDecoration(
               hintText: 'Example: 20 min walk daily',
               hintStyle: TextStyle(
-                color: TaqaUiColors.unnamedColorE3e3e3,
+                color: colors.textSecondary,
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w400,
@@ -399,14 +401,14 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
               ),
               isDense: true,
               contentPadding: EdgeInsets.only(bottom: TaqaUiScale.h(6)),
-              border: const UnderlineInputBorder(
-                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
+              border: UnderlineInputBorder(
+                borderSide: BorderSide(color: colors.border, width: .5),
               ),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: colors.border, width: .5),
               ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: TaqaUiColors.charcoal, width: .5),
+              focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: colors.accent, width: .5),
               ),
             ),
           ),
@@ -417,8 +419,8 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                 child: TaqaPillTab(
                   label: 'Weekly',
                   active: _newHabitType == CoachHabitItem.weeklyType,
-                  activeColor: TaqaUiColors.charcoal,
-                  activeTextColor: TaqaUiColors.white,
+                  activeColor: colors.accent,
+                  activeTextColor: colors.onAccent,
                   onTap: !canManage
                       ? null
                       : () => setState(
@@ -431,8 +433,8 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                 child: TaqaPillTab(
                   label: 'Daily',
                   active: _newHabitType == CoachHabitItem.dailyType,
-                  activeColor: TaqaUiColors.charcoal,
-                  activeTextColor: TaqaUiColors.white,
+                  activeColor: colors.accent,
+                  activeTextColor: colors.onAccent,
                   onTap: !canManage
                       ? null
                       : () => setState(
@@ -457,6 +459,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
   }
 
   Widget _buildHabitsListCard() {
+    final colors = context.taqaColors;
     final habits = List<CoachHabitItem>.from(_habits)
       ..sort((a, b) {
         final completedSort = (a.isCompleted ? 1 : 0).compareTo(
@@ -474,7 +477,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
         Text(
           'Habits',
           style: TextStyle(
-            color: TaqaUiColors.charcoal,
+            color: colors.textPrimary,
             fontFamily: TaqaUiFontFamilies.interTight,
             fontWeight: FontWeight.w700,
             fontSize: TaqaUiScale.sp(15),
@@ -504,7 +507,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                           Text(
                             habit.habit,
                             style: TextStyle(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.textPrimary,
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(15),
                               fontWeight: FontWeight.w700,
@@ -515,7 +518,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                           Text(
                             'Type: ${_habitTypeLabel(habit.habitType)}',
                             style: TextStyle(
-                              color: TaqaUiColors.charcoal,
+                              color: colors.textSecondary,
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontSize: TaqaUiScale.sp(15),
                               fontWeight: FontWeight.w400,
@@ -548,7 +551,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
                             child: Center(
                               child: Icon(
                                 Icons.close,
-                                color: TaqaUiColors.charcoal,
+                                color: colors.textPrimary,
                                 size: TaqaUiScale.w(8),
                               ),
                             ),
@@ -567,6 +570,7 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final showInitialLoading = _loading && !_hasCompletedInitialLoad;
     final body = showInitialLoading
         ? const Center(child: TaqaLoadingIndicator())
@@ -587,10 +591,10 @@ class _ExpertClientHabitsPageState extends State<ExpertClientHabitsPage> {
           );
 
     return Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: context.taqaColors.background,
-        titleColor: TaqaUiColors.unnamedColor1c1d17,
+        backgroundColor: colors.background,
+        titleColor: colors.textPrimary,
         title: 'Habits',
       ),
       body: body,
@@ -613,6 +617,7 @@ class _WeekChecklistRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final weekStart = habit.weekStart!;
     final today = habit.today!;
     return Row(
@@ -631,13 +636,13 @@ class _WeekChecklistRow extends StatelessWidget {
         Color foreground;
         if (isFuture) {
           background = Colors.transparent;
-          foreground = TaqaUiColors.charcoal.withValues(alpha: 0.24);
+          foreground = colors.textSecondary.withValues(alpha: 0.5);
         } else if (isChecked) {
-          background = const Color(0xFF3BE971).withValues(alpha: 0.18);
-          foreground = const Color(0xFF3BE971);
+          background = colors.success.withValues(alpha: 0.18);
+          foreground = colors.success;
         } else {
-          background = TaqaUiColors.charcoal.withValues(alpha: 0.05);
-          foreground = TaqaUiColors.charcoal.withValues(alpha: 0.38);
+          background = colors.surfaceElevated;
+          foreground = colors.textSecondary;
         }
 
         return Padding(
@@ -652,7 +657,7 @@ class _WeekChecklistRow extends StatelessWidget {
                   color: background,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isFuture ? Colors.white12 : foreground,
+                    color: isFuture ? colors.border : foreground,
                     width: TaqaUiScale.r(1),
                   ),
                 ),

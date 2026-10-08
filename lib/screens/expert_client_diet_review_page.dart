@@ -566,6 +566,7 @@ class _ExpertClientDietReviewPageState
         borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
       ),
       builder: (ctx) {
+        final colors = ctx.taqaColors;
         final viewInsets = MediaQuery.of(ctx).viewInsets;
         return Padding(
           padding: TaqaUiScale.insetsLTRB(16, 12, 17, 16 + viewInsets.bottom),
@@ -576,11 +577,11 @@ class _ExpertClientDietReviewPageState
                 children: [
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Edit Client Targets',
                           style: TextStyle(
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
@@ -588,10 +589,7 @@ class _ExpertClientDietReviewPageState
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
-                        icon: const Icon(
-                          Icons.close,
-                          color: TaqaUiColors.charcoal,
-                        ),
+                        icon: Icon(Icons.close, color: colors.textPrimary),
                       ),
                     ],
                   ),
@@ -600,26 +598,24 @@ class _ExpertClientDietReviewPageState
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
+                      color: colors.surface,
                       borderRadius: TaqaUiScale.radius(15),
-                      border: Border.all(
-                        color: TaqaUiColors.charcoal.withValues(alpha: 0.1),
-                      ),
+                      border: Border.all(color: colors.border),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Note: Client-visible calorie targets may appear higher than entered values for today because burned calories are added automatically.',
                       style: TextStyle(
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Rest day',
                     style: TextStyle(
-                      color: TaqaUiColors.charcoal,
+                      color: colors.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -631,7 +627,7 @@ class _ExpertClientDietReviewPageState
                           controller: restCalCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'Kcal'),
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: colors.textPrimary),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -640,7 +636,7 @@ class _ExpertClientDietReviewPageState
                           controller: restPCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'P (g)'),
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: colors.textPrimary),
                         ),
                       ),
                     ],
@@ -653,7 +649,7 @@ class _ExpertClientDietReviewPageState
                           controller: restCCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'C (g)'),
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: colors.textPrimary),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -662,17 +658,17 @@ class _ExpertClientDietReviewPageState
                           controller: restFCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(labelText: 'F (g)'),
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: colors.textPrimary),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
                   if (_trainingDayTargets().isNotEmpty) ...[
-                    const Text(
+                    Text(
                       'Training days',
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: colors.textSecondary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -682,9 +678,9 @@ class _ExpertClientDietReviewPageState
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.03),
+                          color: colors.surface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: colors.border),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,8 +689,8 @@ class _ExpertClientDietReviewPageState
                               (day['day_label'] ?? '').toString().trim().isEmpty
                                   ? 'Day ${_asInt(day['day_id'])}'
                                   : (day['day_label'] ?? '').toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: colors.textPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -711,7 +707,7 @@ class _ExpertClientDietReviewPageState
                                     decoration: const InputDecoration(
                                       labelText: 'Kcal',
                                     ),
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(color: colors.textPrimary),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -725,7 +721,7 @@ class _ExpertClientDietReviewPageState
                                     decoration: const InputDecoration(
                                       labelText: 'P (g)',
                                     ),
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(color: colors.textPrimary),
                                   ),
                                 ),
                               ],
@@ -743,7 +739,7 @@ class _ExpertClientDietReviewPageState
                                     decoration: const InputDecoration(
                                       labelText: 'C (g)',
                                     ),
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(color: colors.textPrimary),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -757,7 +753,7 @@ class _ExpertClientDietReviewPageState
                                     decoration: const InputDecoration(
                                       labelText: 'F (g)',
                                     ),
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(color: colors.textPrimary),
                                   ),
                                 ),
                               ],
@@ -1488,6 +1484,7 @@ class _ExpertClientDietReviewPageState
 
   Widget _buildMealsCard() {
     final meals = _loggedMealsFromLog(_dietLog);
+    final colors = context.taqaColors;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1498,7 +1495,7 @@ class _ExpertClientDietReviewPageState
               child: Text(
                 'Logged Meals',
                 style: TextStyle(
-                  color: TaqaUiColors.charcoal,
+                  color: colors.textPrimary,
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
@@ -1516,7 +1513,7 @@ class _ExpertClientDietReviewPageState
               icon: Icon(
                 Icons.tune,
                 size: TaqaUiScale.w(8),
-                color: TaqaUiColors.charcoal,
+                color: colors.textPrimary,
               ),
             ),
           ],
@@ -1574,7 +1571,7 @@ class _ExpertClientDietReviewPageState
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w700,
@@ -1624,6 +1621,7 @@ class _ExpertClientDietReviewPageState
   }
 
   Widget _buildGivenCommentsCard(List<CoachDietComment> comments) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1646,7 +1644,7 @@ class _ExpertClientDietReviewPageState
                         child: Text(
                           'Given Comments',
                           style: TextStyle(
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(15),
                             fontWeight: FontWeight.w700,
@@ -1661,8 +1659,8 @@ class _ExpertClientDietReviewPageState
                             : Icons.push_pin_outlined,
                         loading: isPinUpdating,
                         color: comment.isPinned
-                            ? TaqaUiColors.recordRed
-                            : TaqaUiColors.charcoal,
+                            ? colors.danger
+                            : colors.textPrimary,
                         onTap: isPinUpdating
                             ? null
                             : () => _toggleCommentPin(comment),
@@ -1673,7 +1671,7 @@ class _ExpertClientDietReviewPageState
                   Text(
                     _formatDateTime(comment.createdAt ?? comment.updatedAt),
                     style: TextStyle(
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+                      color: colors.textSecondary,
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(10),
                       fontWeight: FontWeight.w400,
@@ -1685,7 +1683,7 @@ class _ExpertClientDietReviewPageState
                     Text(
                       comment.commentText.trim(),
                       style: TextStyle(
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(15),
                         fontWeight: FontWeight.w400,
@@ -1710,7 +1708,7 @@ class _ExpertClientDietReviewPageState
                             ? Icons.pause
                             : Icons.play_arrow,
                         size: TaqaUiScale.w(10),
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ],
@@ -1721,13 +1719,13 @@ class _ExpertClientDietReviewPageState
                         Icon(
                           Icons.push_pin,
                           size: TaqaUiScale.w(12),
-                          color: TaqaUiColors.recordRed,
+                          color: colors.danger,
                         ),
                         SizedBox(width: TaqaUiScale.w(4)),
                         Text(
                           'Pinned for client',
                           style: TextStyle(
-                            color: TaqaUiColors.recordRed,
+                            color: colors.danger,
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(10),
                             fontWeight: FontWeight.w700,
@@ -1798,6 +1796,7 @@ class _ExpertClientDietReviewPageState
 
   // ignore: unused_element
   Widget _buildCommentsCard() {
+    final colors = context.taqaColors;
     final selectedDateToken = _dateToken(_selectedDate);
     final selectedMealId = _selectedMealId;
     final commentsForDate = _comments
@@ -1834,17 +1833,17 @@ class _ExpertClientDietReviewPageState
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal,
+        color: colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Coach Notes',
             style: TextStyle(
-              color: Colors.white,
+              color: colors.textPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 16,
             ),
@@ -1855,26 +1854,26 @@ class _ExpertClientDietReviewPageState
             minLines: 2,
             maxLines: 6,
             textInputAction: TextInputAction.send,
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: colors.textPrimary),
             onSubmitted: _handleCommentSubmitted,
             decoration: InputDecoration(
               hintText: selectedMealId == null
                   ? 'Select a logged meal first...'
                   : 'Write review notes for the client...',
-              hintStyle: const TextStyle(color: Colors.white38),
+              hintStyle: TextStyle(color: colors.textSecondary),
               filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.03),
+              fillColor: colors.surfaceElevated,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white24),
+                borderSide: BorderSide(color: colors.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Colors.white24),
+                borderSide: BorderSide(color: colors.border),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: TaqaUiColors.accent),
+                borderSide: BorderSide(color: colors.accent),
               ),
               isDense: true,
               contentPadding: const EdgeInsets.all(10),
@@ -1891,8 +1890,8 @@ class _ExpertClientDietReviewPageState
                     ? null
                     : _handlePrimarySend,
                 style: FilledButton.styleFrom(
-                  backgroundColor: TaqaUiColors.accent,
-                  foregroundColor: Colors.white,
+                  backgroundColor: colors.accent,
+                  foregroundColor: colors.onAccent,
                   minimumSize: const Size(0, 34),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -1905,12 +1904,12 @@ class _ExpertClientDietReviewPageState
                   ),
                 ),
                 icon: isAnySending
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: colors.onAccent,
                         ),
                       )
                     : const Icon(Icons.send, size: 14),
@@ -1923,8 +1922,8 @@ class _ExpertClientDietReviewPageState
                       ? null
                       : _stopVoiceNoteRecording,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    side: const BorderSide(color: Colors.redAccent),
+                    foregroundColor: colors.danger,
+                    side: BorderSide(color: colors.danger),
                     minimumSize: const Size(0, 34),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1958,12 +1957,12 @@ class _ExpertClientDietReviewPageState
                     ),
                   ),
                   icon: isPendingVoiceLoading
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 14,
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white70,
+                            color: colors.textSecondary,
                           ),
                         )
                       : Icon(
@@ -1990,8 +1989,8 @@ class _ExpertClientDietReviewPageState
                       ? null
                       : _startVoiceNoteRecording,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white24),
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
                     minimumSize: const Size(0, 34),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -2011,23 +2010,19 @@ class _ExpertClientDietReviewPageState
           if (isRecordingVoice) ...[
             const SizedBox(height: 8),
             Row(
-              children: const [
-                Icon(
-                  Icons.fiber_manual_record,
-                  size: 10,
-                  color: Colors.redAccent,
-                ),
+              children: [
+                Icon(Icons.fiber_manual_record, size: 10, color: colors.danger),
                 SizedBox(width: 6),
                 Text(
                   'Recording...',
                   style: TextStyle(
-                    color: Colors.redAccent,
+                    color: colors.danger,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 SizedBox(width: 8),
                 _AudioWaveBars(
-                  color: Colors.redAccent,
+                  color: colors.danger,
                   barCount: 6,
                   minHeight: 4,
                   maxHeight: 14,
@@ -2039,24 +2034,27 @@ class _ExpertClientDietReviewPageState
           ],
           const SizedBox(height: 12),
           if (_loadingComments)
-            const Center(
+            Center(
               child: SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.accent,
+                ),
               ),
             )
           else if (_commentsError != null)
-            Text(_commentsError!, style: const TextStyle(color: Colors.white70))
+            Text(_commentsError!, style: TextStyle(color: colors.textSecondary))
           else if (selectedMealId == null)
-            const Text(
+            Text(
               'Select a logged meal to view and add comments.',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: colors.textSecondary),
             )
           else if (commentsForDate.isEmpty)
             Text(
               'No comments for ${_selectedMealLabel()} yet.',
-              style: const TextStyle(color: Colors.white70),
+              style: TextStyle(color: colors.textSecondary),
             )
           else
             ...commentsForDate.map((comment) {
@@ -2078,9 +2076,9 @@ class _ExpertClientDietReviewPageState
                 margin: const EdgeInsets.only(bottom: 6),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white12),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2092,8 +2090,8 @@ class _ExpertClientDietReviewPageState
                             _formatDateTime(
                               comment.createdAt ?? comment.updatedAt,
                             ),
-                            style: const TextStyle(
-                              color: Colors.white54,
+                            style: TextStyle(
+                              color: colors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -2104,12 +2102,12 @@ class _ExpertClientDietReviewPageState
                               : () => _toggleCommentPin(comment),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: comment.isPinned
-                                ? Colors.orangeAccent
-                                : Colors.white70,
+                                ? colors.accent
+                                : colors.textSecondary,
                             side: BorderSide(
                               color: comment.isPinned
-                                  ? Colors.orangeAccent
-                                  : Colors.white24,
+                                  ? colors.accent
+                                  : colors.border,
                             ),
                             minimumSize: const Size(0, 26),
                             padding: const EdgeInsets.symmetric(
@@ -2123,12 +2121,12 @@ class _ExpertClientDietReviewPageState
                             ),
                           ),
                           icon: isPinUpdating
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 12,
                                   height: 12,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white70,
+                                    color: colors.textSecondary,
                                   ),
                                 )
                               : Icon(
@@ -2157,12 +2155,12 @@ class _ExpertClientDietReviewPageState
                             ),
                           ),
                           icon: isDeleting
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 12,
                                   height: 12,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white70,
+                                    color: colors.textSecondary,
                                   ),
                                 )
                               : const Icon(Icons.delete_outline, size: 12),
@@ -2176,18 +2174,18 @@ class _ExpertClientDietReviewPageState
                     if ((comment.mealTitle ?? '').trim().isNotEmpty)
                       Text(
                         comment.mealTitle!.trim(),
-                        style: const TextStyle(
-                          color: Colors.white60,
+                        style: TextStyle(
+                          color: colors.textSecondary,
                           fontSize: 12,
                         ),
                       ),
                     const SizedBox(height: 4),
                     if (text.isNotEmpty)
-                      Text(text, style: const TextStyle(color: Colors.white70))
+                      Text(text, style: TextStyle(color: colors.textPrimary))
                     else if (hasVoiceNote)
-                      const Text(
+                      Text(
                         'Voice note from coach.',
-                        style: TextStyle(color: Colors.white70),
+                        style: TextStyle(color: colors.textSecondary),
                       ),
                     const SizedBox(height: 4),
                     Row(
@@ -2196,8 +2194,8 @@ class _ExpertClientDietReviewPageState
                           seenByClient ? 'Seen' : 'Unseen',
                           style: TextStyle(
                             color: seenByClient
-                                ? Colors.greenAccent
-                                : Colors.orangeAccent,
+                                ? colors.success
+                                : colors.accent,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2223,12 +2221,12 @@ class _ExpertClientDietReviewPageState
                               ),
                             ),
                             icon: isVoiceLoading
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 14,
                                     height: 14,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white70,
+                                      color: colors.textSecondary,
                                     ),
                                   )
                                 : Icon(
@@ -2236,7 +2234,7 @@ class _ExpertClientDietReviewPageState
                                         ? Icons.pause_circle_filled
                                         : Icons.play_circle_fill,
                                     size: 16,
-                                    color: Colors.white70,
+                                    color: colors.textSecondary,
                                   ),
                             label: Text(
                               isVoicePlaying ? 'Pause voice' : 'Play voice',
@@ -2255,14 +2253,15 @@ class _ExpertClientDietReviewPageState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final today = _dayKey(DateTime.now());
     final canGoNext = _selectedDate.isBefore(today);
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: context.taqaColors.background,
-        titleColor: TaqaUiColors.charcoal,
+        backgroundColor: colors.background,
+        titleColor: colors.textPrimary,
         title: 'Diet Review',
         trailing: Transform.translate(
           offset: Offset(0, TaqaUiScale.h(8)),
@@ -2280,7 +2279,7 @@ class _ExpertClientDietReviewPageState
                   fontSize: TaqaUiScale.sp(8),
                   fontWeight: FontWeight.w400,
                   height: 10 / 8,
-                  color: TaqaUiColors.charcoal,
+                  color: colors.textPrimary,
                 ),
               ),
             ),
@@ -2334,13 +2333,13 @@ class _ExpertClientDietReviewPageState
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.charcoal,
+                  color: colors.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Text(
                   _logError!,
-                  style: const TextStyle(color: Colors.white70),
+                  style: TextStyle(color: colors.textSecondary),
                 ),
               )
             else ...[

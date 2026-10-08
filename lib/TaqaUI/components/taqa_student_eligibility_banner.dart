@@ -17,6 +17,7 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Semantics(
       container: true,
       label: '$title. $details',
@@ -24,7 +25,7 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
         width: double.infinity,
         padding: TaqaUiScale.insetsLTRB(12, 11, 12, 11),
         decoration: BoxDecoration(
-          color: TaqaUiColors.accent,
+          color: colors.accent,
           borderRadius: TaqaUiScale.radius(10),
         ),
         child: Row(
@@ -33,13 +34,13 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
               width: TaqaUiScale.w(34),
               height: TaqaUiScale.h(34),
               decoration: BoxDecoration(
-                color: TaqaUiColors.charcoal,
+                color: colors.surfaceInverse,
                 borderRadius: TaqaUiScale.radius(8),
               ),
               child: Icon(
                 Icons.school_rounded,
                 size: TaqaUiScale.w(19),
-                color: TaqaUiColors.accent,
+                color: colors.accent,
               ),
             ),
             SizedBox(width: TaqaUiScale.w(10)),
@@ -54,7 +55,7 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
                       fontSize: TaqaUiScale.sp(13),
                       fontWeight: FontWeight.w800,
                       height: 16 / 13,
-                      color: TaqaUiColors.charcoal,
+                      color: colors.onAccent,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(2)),
@@ -65,7 +66,7 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
                       fontSize: TaqaUiScale.sp(11),
                       fontWeight: FontWeight.w500,
                       height: 15 / 11,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.78),
+                      color: colors.onAccent.withValues(alpha: 0.78),
                     ),
                   ),
                 ],
@@ -75,7 +76,7 @@ class TaqaStudentEligibilityBanner extends StatelessWidget {
             Icon(
               Icons.verified_rounded,
               size: TaqaUiScale.w(20),
-              color: TaqaUiColors.charcoal,
+              color: colors.onAccent,
             ),
           ],
         ),

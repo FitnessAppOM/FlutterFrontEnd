@@ -135,10 +135,11 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: context.taqaColors.background,
+        backgroundColor: colors.background,
         appBar: TaqaPageAppBar(
           title: t.translate('referral_onboarding_title'),
           showBackButton: false,
@@ -153,12 +154,12 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
                   width: TaqaUiScale.w(54),
                   height: TaqaUiScale.w(54),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColorE4e93b,
+                    color: colors.accent,
                     borderRadius: TaqaUiScale.radius(14),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.card_giftcard_rounded,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.onAccent,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(20)),
@@ -168,7 +169,7 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(24),
                     fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(8)),
@@ -178,9 +179,7 @@ class _ReferralOnboardingPageState extends State<ReferralOnboardingPage> {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(14),
                     height: 1.4,
-                    color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                      alpha: 0.65,
-                    ),
+                    color: colors.textSecondary,
                   ),
                 ),
                 SizedBox(height: TaqaUiScale.h(28)),

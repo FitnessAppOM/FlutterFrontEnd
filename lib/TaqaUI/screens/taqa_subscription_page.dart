@@ -2169,6 +2169,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final selectedProduct = _selectedProductId == null
         ? null
         : _products[_selectedProductId];
@@ -2206,7 +2207,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     return PopScope(
       canPop: !widget.mandatory || widget.allowBackNavigation,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.lightGray,
+        backgroundColor: colors.background,
         appBar: TaqaPageAppBar(
           title: t.translate(
             widget.studentPlansOnly
@@ -2225,7 +2226,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                 : _logout,
             icon: Icon(
               widget.mandatory ? Icons.more_vert_rounded : Icons.logout_rounded,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
         ),
@@ -2249,7 +2250,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                         fontSize: TaqaUiScale.sp(25),
                         fontWeight: FontWeight.w700,
                         height: 1,
-                        color: TaqaUiColors.charcoal,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
@@ -2261,7 +2262,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                           : widget.mandatory
                           ? t.translate('subscription_ready_body')
                           : t.translate('subscription_membership_body'),
-                      style: _bodyStyle,
+                      style: _bodyStyle(context),
                     ),
                     if (_studentPlanAvailable && !_coachMembership) ...[
                       SizedBox(height: TaqaUiScale.h(14)),
@@ -2359,7 +2360,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                           : null,
                       child: Text(
                         t.translate('subscription_restore_purchases'),
-                        style: _linkStyle,
+                        style: _linkStyle(context),
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(8)),
@@ -2370,7 +2371,7 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
                             : 'Apple ID',
                         'store': _storeName(),
                       }),
-                      style: _bodyStyle,
+                      style: _bodyStyle(context),
                     ),
                   ],
                 ),
@@ -2508,19 +2509,19 @@ class _TaqaSubscriptionPageState extends State<TaqaSubscriptionPage> {
     );
   }
 
-  TextStyle get _bodyStyle => TextStyle(
+  TextStyle _bodyStyle(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(13),
     fontWeight: FontWeight.w400,
     height: 18 / 13,
-    color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+    color: context.taqaColors.textSecondary,
   );
 
-  TextStyle get _linkStyle => TextStyle(
+  TextStyle _linkStyle(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(13),
     fontWeight: FontWeight.w700,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 }
 
@@ -2544,12 +2545,14 @@ class _PremiumOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final price = selectedPrice;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal,
+        color: colors.surfaceInverse,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2562,7 +2565,7 @@ class _PremiumOverviewCard extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.white,
+              color: colors.textOnInverse,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(6)),
@@ -2575,7 +2578,7 @@ class _PremiumOverviewCard extends StatelessWidget {
               fontSize: TaqaUiScale.sp(13),
               fontWeight: FontWeight.w400,
               height: 18 / 13,
-              color: TaqaUiColors.white.withValues(alpha: 0.72),
+              color: colors.textOnInverse.withValues(alpha: 0.72),
             ),
           ),
           SizedBox(height: TaqaUiScale.h(14)),
@@ -2642,7 +2645,7 @@ class _PremiumOverviewCard extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(12),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.accent,
+                color: colors.accent,
               ),
             ),
             SizedBox(height: TaqaUiScale.h(8)),
@@ -2668,6 +2671,7 @@ class _PremiumFeatureBullet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
       child: Row(
@@ -2678,8 +2682,8 @@ class _PremiumFeatureBullet extends StatelessWidget {
             child: Container(
               width: TaqaUiScale.w(5),
               height: TaqaUiScale.h(5),
-              decoration: const BoxDecoration(
-                color: TaqaUiColors.accent,
+              decoration: BoxDecoration(
+                color: colors.accent,
                 shape: BoxShape.circle,
               ),
             ),
@@ -2693,7 +2697,7 @@ class _PremiumFeatureBullet extends StatelessWidget {
                 fontSize: TaqaUiScale.sp(13),
                 fontWeight: FontWeight.w400,
                 height: 18 / 13,
-                color: TaqaUiColors.white.withValues(alpha: 0.86),
+                color: colors.textOnInverse.withValues(alpha: 0.86),
               ),
             ),
           ),
@@ -2711,8 +2715,9 @@ class _PlanChoiceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
-      color: TaqaUiColors.accent,
+      color: colors.accent,
       borderRadius: TaqaUiScale.radius(7),
       child: InkWell(
         onTap: onTap,
@@ -2727,7 +2732,7 @@ class _PlanChoiceButton extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(11),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.charcoal,
+                color: colors.onAccent,
               ),
             ),
           ),
@@ -2751,6 +2756,7 @@ class _PlanPickerOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Stack(
       children: [
         Positioned.fill(
@@ -2758,9 +2764,7 @@ class _PlanPickerOverlay extends StatelessWidget {
             onTap: () => Navigator.of(context).pop(),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
-              child: ColoredBox(
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.28),
-              ),
+              child: ColoredBox(color: colors.scrim.withValues(alpha: 0.48)),
             ),
           ),
         ),
@@ -2771,15 +2775,13 @@ class _PlanPickerOverlay extends StatelessWidget {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 390),
                 child: Material(
-                  color: TaqaUiColors.lightGray,
+                  color: colors.surfaceElevated,
                   borderRadius: TaqaUiScale.radius(24),
                   child: Container(
                     padding: TaqaUiScale.insetsLTRB(16, 14, 16, 18),
                     decoration: BoxDecoration(
                       borderRadius: TaqaUiScale.radius(24),
-                      border: Border.all(
-                        color: TaqaUiColors.white.withValues(alpha: 0.55),
-                      ),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -2794,14 +2796,14 @@ class _PlanPickerOverlay extends StatelessWidget {
                                   fontFamily: TaqaUiFontFamilies.interTight,
                                   fontSize: TaqaUiScale.sp(21),
                                   fontWeight: FontWeight.w700,
-                                  color: TaqaUiColors.charcoal,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                             ),
                             IconButton(
                               onPressed: () => Navigator.of(context).pop(),
                               icon: const Icon(Icons.close_rounded),
-                              color: TaqaUiColors.charcoal,
+                              color: colors.textPrimary,
                               tooltip: t.translate('subscription_close'),
                             ),
                           ],
@@ -2813,7 +2815,7 @@ class _PlanPickerOverlay extends StatelessWidget {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(13),
                             fontWeight: FontWeight.w400,
-                            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+                            color: colors.textSecondary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(16)),
@@ -2864,8 +2866,9 @@ class _LegalLinks extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final buttonStyle = TextButton.styleFrom(
-      foregroundColor: TaqaUiColors.charcoal,
+      foregroundColor: colors.textPrimary,
       padding: TaqaUiScale.insetsLTRB(3, 5, 3, 5),
       minimumSize: Size.zero,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2887,7 +2890,7 @@ class _LegalLinks extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(11.5),
               height: 15 / 11.5,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.58),
+              color: colors.textSecondary,
             ),
           ),
           Wrap(
@@ -2903,12 +2906,7 @@ class _LegalLinks extends StatelessWidget {
                   style: linkStyle,
                 ),
               ),
-              Text(
-                '·',
-                style: TextStyle(
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.45),
-                ),
-              ),
+              Text('·', style: TextStyle(color: colors.textSecondary)),
               TextButton(
                 onPressed: () =>
                     onOpen(TaqaSubscriptionCatalog.privacyPolicyUrl),

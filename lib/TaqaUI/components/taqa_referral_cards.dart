@@ -13,6 +13,7 @@ class TaqaReferralSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Text(
       taqaUppercase(title),
       style: TextStyle(
@@ -21,7 +22,7 @@ class TaqaReferralSectionTitle extends StatelessWidget {
         fontWeight: FontWeight.w400,
         height: 12 / 9,
         letterSpacing: 0.2,
-        color: TaqaUiColors.charcoal.withValues(alpha: 0.62),
+        color: colors.textSecondary,
       ),
     );
   }
@@ -53,12 +54,14 @@ class TaqaReferralHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(16, 16, 16, 16),
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,14 +72,14 @@ class TaqaReferralHeroCard extends StatelessWidget {
               Container(
                 width: TaqaUiScale.w(42),
                 height: TaqaUiScale.h(42),
-                decoration: const BoxDecoration(
-                  color: TaqaUiColors.lime,
+                decoration: BoxDecoration(
+                  color: colors.accent,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.card_giftcard_rounded,
                   size: TaqaUiScale.w(20),
-                  color: TaqaUiColors.charcoal,
+                  color: colors.onAccent,
                 ),
               ),
               SizedBox(width: TaqaUiScale.w(12)),
@@ -91,7 +94,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                         fontSize: TaqaUiScale.sp(18),
                         fontWeight: FontWeight.w700,
                         height: 22 / 18,
-                        color: TaqaUiColors.white,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(4)),
@@ -102,7 +105,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                         fontSize: TaqaUiScale.sp(11),
                         fontWeight: FontWeight.w400,
                         height: 15 / 11,
-                        color: TaqaUiColors.white.withValues(alpha: 0.68),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
@@ -118,7 +121,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               letterSpacing: 0.3,
-              color: TaqaUiColors.white.withValues(alpha: 0.55),
+              color: colors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(7)),
@@ -127,11 +130,9 @@ class TaqaReferralHeroCard extends StatelessWidget {
             alignment: Alignment.center,
             padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
             decoration: BoxDecoration(
-              color: TaqaUiColors.graphite,
+              color: colors.surfaceElevated,
               borderRadius: TaqaUiScale.radius(8),
-              border: Border.all(
-                color: TaqaUiColors.white.withValues(alpha: 0.12),
-              ),
+              border: Border.all(color: colors.border),
             ),
             child: SelectableText(
               code,
@@ -141,7 +142,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                 fontSize: TaqaUiScale.sp(24),
                 fontWeight: FontWeight.w700,
                 letterSpacing: 2,
-                color: TaqaUiColors.lime,
+                color: colors.accent,
               ),
             ),
           ),
@@ -153,7 +154,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                   label: copyLabel,
                   icon: Icons.copy_rounded,
                   onTap: onCopy,
-                  backgroundColor: TaqaUiColors.white,
+                  backgroundColor: colors.surfaceElevated,
                 ),
               ),
               SizedBox(width: TaqaUiScale.w(10)),
@@ -162,7 +163,7 @@ class TaqaReferralHeroCard extends StatelessWidget {
                   label: shareLabel,
                   icon: Icons.ios_share_rounded,
                   onTap: onShare,
-                  backgroundColor: TaqaUiColors.lime,
+                  backgroundColor: colors.accent,
                   loading: shareLoading,
                 ),
               ),
@@ -190,12 +191,14 @@ class TaqaReferralStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
@@ -209,7 +212,7 @@ class TaqaReferralStatsCard extends StatelessWidget {
           Container(
             width: TaqaUiScale.w(1),
             height: TaqaUiScale.h(48),
-            color: TaqaUiColors.lightGray,
+            color: colors.divider,
           ),
           Expanded(
             child: _TaqaReferralStat(
@@ -242,27 +245,36 @@ class TaqaReferralProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final progress = target <= 0 ? 0.0 : (count / target).clamp(0.0, 1.0);
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(16, 14, 16, 15),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text(title, style: _TaqaReferralText.title)),
+              Expanded(
+                child: Text(title, style: _TaqaReferralText.title(context)),
+              ),
               Container(
                 padding: TaqaUiScale.insetsLTRB(9, 4, 9, 4),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.lime,
+                  color: colors.accent,
                   borderRadius: TaqaUiScale.radius(20),
                 ),
-                child: Text('$count / $target', style: _TaqaReferralText.tag),
+                child: Text(
+                  '$count / $target',
+                  style: _TaqaReferralText.tag(
+                    context,
+                  ).copyWith(color: colors.onAccent),
+                ),
               ),
             ],
           ),
@@ -272,16 +284,14 @@ class TaqaReferralProgressCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: TaqaUiScale.h(8),
-              backgroundColor: TaqaUiColors.lightGray,
-              valueColor: const AlwaysStoppedAnimation<Color>(
-                TaqaUiColors.charcoal,
-              ),
+              backgroundColor: colors.surfaceElevated,
+              valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
             ),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
-          Text(status, style: _TaqaReferralText.bodyStrong),
+          Text(status, style: _TaqaReferralText.bodyStrong(context)),
           SizedBox(height: TaqaUiScale.h(3)),
-          Text(milestones, style: _TaqaReferralText.caption),
+          Text(milestones, style: _TaqaReferralText.caption(context)),
         ],
       ),
     );
@@ -310,35 +320,39 @@ class TaqaReferralRewardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final statusBackground = switch (tone) {
-      TaqaReferralRewardTone.available => TaqaUiColors.lime,
-      TaqaReferralRewardTone.completed => TaqaUiColors.charcoal,
-      TaqaReferralRewardTone.unavailable => TaqaUiColors.lightGray,
+      TaqaReferralRewardTone.available => colors.accent,
+      TaqaReferralRewardTone.completed => colors.surfaceElevated,
+      TaqaReferralRewardTone.unavailable => colors.surfaceElevated,
     };
     final statusColor = tone == TaqaReferralRewardTone.completed
-        ? TaqaUiColors.white
-        : TaqaUiColors.charcoal;
+        ? colors.textPrimary
+        : tone == TaqaReferralRewardTone.available
+        ? colors.onAccent
+        : colors.textSecondary;
 
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(14, 13, 14, 13),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
           Container(
             width: TaqaUiScale.w(42),
             height: TaqaUiScale.h(42),
-            decoration: const BoxDecoration(
-              color: TaqaUiColors.charcoal,
+            decoration: BoxDecoration(
+              color: colors.surfaceElevated,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.card_giftcard_rounded,
               size: TaqaUiScale.w(19),
-              color: TaqaUiColors.lime,
+              color: colors.accent,
             ),
           ),
           SizedBox(width: TaqaUiScale.w(11)),
@@ -346,7 +360,7 @@ class TaqaReferralRewardCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: _TaqaReferralText.title),
+                Text(title, style: _TaqaReferralText.title(context)),
                 SizedBox(height: TaqaUiScale.h(5)),
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -358,7 +372,9 @@ class TaqaReferralRewardCard extends StatelessWidget {
                     ),
                     child: Text(
                       taqaUppercase(status),
-                      style: _TaqaReferralText.tag.copyWith(color: statusColor),
+                      style: _TaqaReferralText.tag(
+                        context,
+                      ).copyWith(color: statusColor),
                     ),
                   ),
                 ),
@@ -376,14 +392,16 @@ class TaqaReferralRewardCard extends StatelessWidget {
                 padding: TaqaUiScale.symmetric(horizontal: 12),
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.lime,
+                  color: colors.accent,
                   borderRadius: TaqaUiScale.radius(5),
                 ),
                 child: loading
                     ? const TaqaLoadingIndicator(size: 14)
                     : Text(
                         taqaUppercase(claimLabel),
-                        style: _TaqaReferralText.button,
+                        style: _TaqaReferralText.button(
+                          context,
+                        ).copyWith(color: colors.onAccent),
                       ),
               ),
             ),
@@ -408,33 +426,34 @@ class TaqaReferralNoticeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.recordRed.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: colors.danger.withValues(alpha: 0.55)),
       ),
       child: Row(
         children: [
           Container(
             width: TaqaUiScale.w(26),
             height: TaqaUiScale.h(26),
-            decoration: const BoxDecoration(
-              color: TaqaUiColors.recordRed,
+            decoration: BoxDecoration(
+              color: colors.danger,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.priority_high_rounded,
               size: TaqaUiScale.w(15),
-              color: TaqaUiColors.white,
+              color: colors.onDanger,
             ),
           ),
           SizedBox(width: TaqaUiScale.w(10)),
-          Expanded(child: Text(message, style: _TaqaReferralText.body)),
+          Expanded(
+            child: Text(message, style: _TaqaReferralText.body(context)),
+          ),
           SizedBox(width: TaqaUiScale.w(8)),
           TaqaPressable(
             onTap: onAction,
@@ -443,7 +462,7 @@ class TaqaReferralNoticeCard extends StatelessWidget {
               padding: TaqaUiScale.symmetric(horizontal: 5, vertical: 6),
               child: Text(
                 taqaUppercase(actionLabel),
-                style: _TaqaReferralText.button,
+                style: _TaqaReferralText.button(context),
               ),
             ),
           ),
@@ -470,6 +489,7 @@ class _TaqaReferralActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       semanticLabel: label,
@@ -488,7 +508,7 @@ class _TaqaReferralActionButton extends StatelessWidget {
                   Icon(
                     icon,
                     size: TaqaUiScale.w(16),
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                   ),
                   SizedBox(width: TaqaUiScale.w(7)),
                   Flexible(
@@ -496,7 +516,7 @@ class _TaqaReferralActionButton extends StatelessWidget {
                       taqaUppercase(label),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: _TaqaReferralText.button,
+                      style: _TaqaReferralText.button(context),
                     ),
                   ),
                 ],
@@ -519,17 +539,21 @@ class _TaqaReferralStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: TaqaUiScale.w(20), color: TaqaUiColors.charcoal),
+        Icon(icon, size: TaqaUiScale.w(20), color: colors.textPrimary),
         SizedBox(width: TaqaUiScale.w(9)),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: _TaqaReferralText.value),
+            Text(value, style: _TaqaReferralText.value(context)),
             SizedBox(height: TaqaUiScale.h(2)),
-            Text(taqaUppercase(label), style: _TaqaReferralText.caption),
+            Text(
+              taqaUppercase(label),
+              style: _TaqaReferralText.caption(context),
+            ),
           ],
         ),
       ],
@@ -540,53 +564,54 @@ class _TaqaReferralStat extends StatelessWidget {
 class _TaqaReferralText {
   const _TaqaReferralText._();
 
-  static TextStyle get title => TextStyle(
+  static TextStyle title(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(14),
     fontWeight: FontWeight.w700,
     height: 18 / 14,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 
-  static TextStyle get body => TextStyle(
+  static TextStyle body(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(11),
     fontWeight: FontWeight.w400,
     height: 15 / 11,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 
-  static TextStyle get bodyStrong => body.copyWith(fontWeight: FontWeight.w600);
+  static TextStyle bodyStrong(BuildContext context) =>
+      body(context).copyWith(fontWeight: FontWeight.w600);
 
-  static TextStyle get caption => TextStyle(
+  static TextStyle caption(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(9),
     fontWeight: FontWeight.w400,
     height: 12 / 9,
-    color: TaqaUiColors.charcoal.withValues(alpha: 0.58),
+    color: context.taqaColors.textSecondary,
   );
 
-  static TextStyle get tag => TextStyle(
+  static TextStyle tag(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
     fontSize: TaqaUiScale.sp(8),
     fontWeight: FontWeight.w400,
     height: 10 / 8,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 
-  static TextStyle get button => TextStyle(
+  static TextStyle button(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(10),
     fontWeight: FontWeight.w700,
     height: 12 / 10,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 
-  static TextStyle get value => TextStyle(
+  static TextStyle value(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(23),
     fontWeight: FontWeight.w700,
     height: 1,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.textPrimary,
   );
 }
