@@ -258,6 +258,7 @@
 				F6ABC1234567890ABCDEF012 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				9CA5D404B02C45B8225F70F4 /* [CP] Embed Pods Frameworks */,
+				F6D5A1002F00000000000001 /* Generate MapboxCommon dSYM */,
 				A4570CF16F65610405C504C6 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
@@ -435,6 +436,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		F6D5A1002F00000000000001 /* Generate MapboxCommon dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(FRAMEWORKS_FOLDER_PATH)/MapboxCommon.framework/MapboxCommon",
+			);
+			name = "Generate MapboxCommon dSYM";
+			outputPaths = (
+				"$(DWARF_DSYM_FOLDER_PATH)/MapboxCommon.framework.dSYM/Contents/Resources/DWARF/MapboxCommon",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/generate_mapbox_dsym.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		A4570CF16F65610405C504C6 /* [CP] Copy Pods Resources */ = {

@@ -239,11 +239,12 @@ class _ExpertConnectionRequestsPageState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
-        backgroundColor: context.taqaColors.background,
-        titleColor: context.taqaColors.textPrimary,
+        backgroundColor: colors.background,
+        titleColor: colors.textPrimary,
         title: 'Inbox',
         trailing: Padding(
           padding: EdgeInsets.only(right: TaqaUiScale.w(9)),
@@ -255,32 +256,28 @@ class _ExpertConnectionRequestsPageState
               onTap: _sendingBulkMessageToRed
                   ? null
                   : _sendBulkMessageToRedClients,
-              borderColor: TaqaUiColors.unnamedColorE93b3b,
-              textStyle: TaqaUiStyles.streakTag.copyWith(
-                color: TaqaUiColors.unnamedColorE93b3b,
-              ),
+              borderColor: colors.danger,
+              textStyle: TaqaUiStyles.streakTag.copyWith(color: colors.danger),
               icon: _sendingBulkMessageToRed
                   ? SizedBox(
                       width: TaqaUiScale.w(8),
                       height: TaqaUiScale.h(8),
-                      child: const CircularProgressIndicator(
+                      child: CircularProgressIndicator(
                         strokeWidth: 1.5,
-                        color: TaqaUiColors.unnamedColorE93b3b,
+                        color: colors.danger,
                       ),
                     )
                   : Icon(
                       Icons.campaign,
                       size: TaqaUiScale.w(8),
-                      color: TaqaUiColors.unnamedColorE93b3b,
+                      color: colors.danger,
                     ),
             ),
           ),
         ),
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: TaqaUiColors.lime),
-            )
+          ? Center(child: CircularProgressIndicator(color: colors.accent))
           : TaqaRefreshIndicator(
               onRefresh: _load,
               child: ListView(
@@ -295,7 +292,7 @@ class _ExpertConnectionRequestsPageState
                         fontWeight: FontWeight.w400,
                         height: 18 / 10,
                         letterSpacing: 0,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     )
                   else
@@ -305,20 +302,18 @@ class _ExpertConnectionRequestsPageState
                       );
                       final isDetachEvent = request.isDetachEvent;
                       final unseenAccent = isDetachEvent
-                          ? TaqaUiColors.recordRed
-                          : const Color(0xFF3BE971);
+                          ? colors.danger
+                          : colors.success;
                       return Container(
                         margin: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
                         padding: TaqaUiScale.insetsLTRB(14, 10, 14, 15),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.white,
+                          color: colors.surface,
                           borderRadius: TaqaUiScale.radius(15),
                           border: Border.all(
                             color: request.isNew
                                 ? unseenAccent.withValues(alpha: 0.55)
-                                : TaqaUiColors.unnamedColor1c1d17.withValues(
-                                    alpha: 0.10,
-                                  ),
+                                : colors.border,
                           ),
                         ),
                         child: Column(
@@ -332,7 +327,7 @@ class _ExpertConnectionRequestsPageState
                                         'Client #${request.clientUserId}',
                                     style: TextStyle(
                                       fontFamily: TaqaUiFontFamilies.interTight,
-                                      color: TaqaUiColors.unnamedColor1c1d17,
+                                      color: colors.textPrimary,
                                       fontSize: TaqaUiScale.sp(15),
                                       fontWeight: FontWeight.w700,
                                       height: 18 / 15,
@@ -349,8 +344,8 @@ class _ExpertConnectionRequestsPageState
                                     borderColor: unseenAccent,
                                     textStyle: TaqaUiStyles.streakTag.copyWith(
                                       color: isDetachEvent
-                                          ? TaqaUiColors.recordRed
-                                          : const Color(0xFF15803D),
+                                          ? colors.danger
+                                          : colors.success,
                                     ),
                                   ),
                               ],
@@ -361,8 +356,7 @@ class _ExpertConnectionRequestsPageState
                                   'user_id: ${request.clientUserId}',
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.70),
+                                color: colors.textSecondary,
                                 fontSize: TaqaUiScale.sp(12),
                               ),
                             ),
@@ -373,8 +367,7 @@ class _ExpertConnectionRequestsPageState
                                   : 'Requested: ${_formatDate(request.requestedAt)}',
                               style: TextStyle(
                                 fontFamily: TaqaUiFontFamilies.interTight,
-                                color: TaqaUiColors.unnamedColor1c1d17
-                                    .withValues(alpha: 0.54),
+                                color: colors.textSecondary,
                                 fontSize: TaqaUiScale.sp(12),
                               ),
                             ),
@@ -388,10 +381,8 @@ class _ExpertConnectionRequestsPageState
                                       : () => _ackDetach(request),
                                   style: ElevatedButton.styleFrom(
                                     elevation: 0,
-                                    backgroundColor:
-                                        TaqaUiColors.unnamedColorE4e93b,
-                                    foregroundColor:
-                                        TaqaUiColors.unnamedColor1c1d17,
+                                    backgroundColor: colors.accent,
+                                    foregroundColor: colors.onAccent,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: TaqaUiScale.radius(5),
                                     ),
@@ -400,12 +391,10 @@ class _ExpertConnectionRequestsPageState
                                       ? SizedBox(
                                           width: TaqaUiScale.w(16),
                                           height: TaqaUiScale.h(16),
-                                          child:
-                                              const CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: TaqaUiColors
-                                                    .unnamedColor1c1d17,
-                                              ),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: colors.onAccent,
+                                          ),
                                         )
                                       : Text(
                                           'OK',
@@ -428,12 +417,8 @@ class _ExpertConnectionRequestsPageState
                                           : () =>
                                                 _decide(request, accept: false),
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor:
-                                            TaqaUiColors.unnamedColorE93b3b,
-                                        side: const BorderSide(
-                                          color:
-                                              TaqaUiColors.unnamedColorE93b3b,
-                                        ),
+                                        foregroundColor: colors.danger,
+                                        side: BorderSide(color: colors.danger),
                                         shape: RoundedRectangleBorder(
                                           borderRadius: TaqaUiScale.radius(5),
                                         ),
@@ -458,10 +443,8 @@ class _ExpertConnectionRequestsPageState
                                                 _decide(request, accept: true),
                                       style: ElevatedButton.styleFrom(
                                         elevation: 0,
-                                        backgroundColor:
-                                            TaqaUiColors.unnamedColorE4e93b,
-                                        foregroundColor:
-                                            TaqaUiColors.unnamedColor1c1d17,
+                                        backgroundColor: colors.accent,
+                                        foregroundColor: colors.onAccent,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: TaqaUiScale.radius(5),
                                         ),
@@ -470,12 +453,10 @@ class _ExpertConnectionRequestsPageState
                                           ? SizedBox(
                                               width: TaqaUiScale.w(16),
                                               height: TaqaUiScale.h(16),
-                                              child:
-                                                  const CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                    color: TaqaUiColors
-                                                        .unnamedColor1c1d17,
-                                                  ),
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: colors.onAccent,
+                                              ),
                                             )
                                           : Text(
                                               'ACCEPT',

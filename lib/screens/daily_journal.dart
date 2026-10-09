@@ -412,6 +412,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t("journal_title"),
@@ -432,10 +433,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
+            return Center(
+              child: CircularProgressIndicator(color: colors.accent),
             );
           }
           if (snapshot.hasError) {
@@ -480,8 +479,8 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
               (entry != null && _isSameDay(entry.entryDate, _selectedDate));
 
           return RefreshIndicator(
-            color: TaqaUiColors.unnamedColor1c1d17,
-            backgroundColor: TaqaUiColors.white,
+            color: colors.accent,
+            backgroundColor: colors.surface,
             onRefresh: _refresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -872,6 +871,7 @@ class _JournalDateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final dateLabel = DateFormat('EEEE, MMM d', locale).format(selectedDate);
     final today = DateTime.now();
@@ -888,8 +888,9 @@ class _JournalDateCard extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
@@ -898,10 +899,7 @@ class _JournalDateCard extends StatelessWidget {
             onTap: onPrev,
             child: Padding(
               padding: TaqaUiScale.insetsLTRB(6, 6, 6, 6),
-              child: Icon(
-                Icons.chevron_left,
-                color: TaqaUiColors.unnamedColor1c1d17,
-              ),
+              child: Icon(Icons.chevron_left, color: colors.textPrimary),
             ),
           ),
           Expanded(
@@ -910,7 +908,7 @@ class _JournalDateCard extends StatelessWidget {
                 Container(
                   padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
                   decoration: BoxDecoration(
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.surfaceInverse,
                     borderRadius: TaqaUiScale.radius(12),
                   ),
                   child: Column(
@@ -922,7 +920,7 @@ class _JournalDateCard extends StatelessWidget {
                           fontSize: TaqaUiScale.sp(18),
                           fontWeight: FontWeight.w700,
                           height: 1,
-                          color: TaqaUiColors.white,
+                          color: colors.textOnInverse,
                         ),
                       ),
                       SizedBox(height: TaqaUiScale.h(2)),
@@ -936,7 +934,7 @@ class _JournalDateCard extends StatelessWidget {
                           fontSize: TaqaUiScale.sp(8),
                           fontWeight: FontWeight.w400,
                           letterSpacing: 0.4,
-                          color: TaqaUiColors.unnamedColorE4e93b,
+                          color: colors.accent,
                         ),
                       ),
                     ],
@@ -956,9 +954,7 @@ class _JournalDateCard extends StatelessWidget {
                           fontSize: TaqaUiScale.sp(8),
                           fontWeight: FontWeight.w400,
                           letterSpacing: 0,
-                          color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                            alpha: 0.5,
-                          ),
+                          color: colors.textSecondary,
                         ),
                       ),
                       SizedBox(height: TaqaUiScale.h(4)),
@@ -970,16 +966,14 @@ class _JournalDateCard extends StatelessWidget {
                           fontFamily: TaqaUiFontFamilies.interTight,
                           fontSize: TaqaUiScale.sp(13),
                           fontWeight: FontWeight.w700,
-                          color: TaqaUiColors.unnamedColor1c1d17,
+                          color: colors.textPrimary,
                         ),
                       ),
                       SizedBox(height: TaqaUiScale.h(4)),
                       Container(
                         padding: TaqaUiScale.insetsLTRB(8, 3, 8, 3),
                         decoration: BoxDecoration(
-                          color: TaqaUiColors.unnamedColorE4e93b.withValues(
-                            alpha: 0.25,
-                          ),
+                          color: colors.accent.withValues(alpha: 0.25),
                           borderRadius: TaqaUiScale.radius(30),
                         ),
                         child: Text(
@@ -988,7 +982,7 @@ class _JournalDateCard extends StatelessWidget {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(8),
                             fontWeight: FontWeight.w600,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: colors.textPrimary,
                           ),
                         ),
                       ),
@@ -1006,8 +1000,8 @@ class _JournalDateCard extends StatelessWidget {
               child: Icon(
                 Icons.chevron_right,
                 color: canGoNext
-                    ? TaqaUiColors.unnamedColor1c1d17
-                    : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.25),
+                    ? colors.textPrimary
+                    : colors.textSecondary.withValues(alpha: 0.45),
               ),
             ),
           ),
@@ -1033,22 +1027,20 @@ class _JournalSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
-                size: TaqaUiScale.w(18),
-              ),
+              Icon(icon, color: colors.textSecondary, size: TaqaUiScale.w(18)),
               SizedBox(width: TaqaUiScale.w(8)),
               Text(
                 title,
@@ -1056,7 +1048,7 @@ class _JournalSection extends StatelessWidget {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(13),
                   fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.textPrimary,
                 ),
               ),
             ],
@@ -1080,6 +1072,7 @@ class _JournalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1090,7 +1083,7 @@ class _JournalRow extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(12),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+              color: colors.textSecondary,
             ),
           ),
         ),
@@ -1100,7 +1093,7 @@ class _JournalRow extends StatelessWidget {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(12),
             fontWeight: FontWeight.w700,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary,
           ),
         ),
       ],
@@ -1116,12 +1109,14 @@ class _InlineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1132,7 +1127,7 @@ class _InlineBanner extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(4)),
@@ -1142,7 +1137,7 @@ class _InlineBanner extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(11),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+              color: colors.textSecondary,
             ),
           ),
         ],
@@ -1269,11 +1264,13 @@ class _InputCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1287,7 +1284,7 @@ class _InputCard extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -1308,6 +1305,7 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(6)),
       child: Text(
@@ -1316,7 +1314,7 @@ class _FieldLabel extends StatelessWidget {
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(12),
           fontWeight: FontWeight.w400,
-          color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+          color: colors.textSecondary,
         ),
       ),
     );
@@ -1336,14 +1334,16 @@ class _NumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FieldLabel(label: label),
         Container(
           decoration: BoxDecoration(
-            color: TaqaUiColors.unnamedColorE3e3e3,
+            color: colors.surfaceElevated,
             borderRadius: TaqaUiScale.radius(10),
+            border: Border.all(color: colors.border),
           ),
           padding: TaqaUiScale.insetsLTRB(12, 4, 12, 4),
           child: TextField(
@@ -1355,7 +1355,7 @@ class _NumberField extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
               fontWeight: FontWeight.w600,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
             decoration: InputDecoration(
               isDense: true,
@@ -1365,7 +1365,7 @@ class _NumberField extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(13),
                 fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+                color: colors.textSecondary,
               ),
             ),
           ),
@@ -1383,12 +1383,14 @@ class _CompactNumberField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return SizedBox(
       width: TaqaUiScale.w(90),
       child: Container(
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: colors.surfaceElevated,
           borderRadius: TaqaUiScale.radius(10),
+          border: Border.all(color: colors.border),
         ),
         padding: TaqaUiScale.insetsLTRB(10, 4, 10, 4),
         child: TextField(
@@ -1400,7 +1402,7 @@ class _CompactNumberField extends StatelessWidget {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(13),
             fontWeight: FontWeight.w600,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary,
           ),
           decoration: InputDecoration(
             isDense: true,
@@ -1410,7 +1412,7 @@ class _CompactNumberField extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(11),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35),
+              color: colors.textSecondary,
             ),
           ),
         ),
@@ -1432,6 +1434,7 @@ class _ScorePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1450,10 +1453,9 @@ class _ScorePicker extends StatelessWidget {
                     height: TaqaUiScale.h(34),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: selected
-                          ? TaqaUiColors.unnamedColor1c1d17
-                          : TaqaUiColors.unnamedColorE3e3e3,
+                      color: selected ? colors.accent : colors.surfaceElevated,
                       borderRadius: TaqaUiScale.radius(8),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Text(
                       "$option",
@@ -1461,9 +1463,7 @@ class _ScorePicker extends StatelessWidget {
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w700,
-                        color: selected
-                            ? TaqaUiColors.white
-                            : TaqaUiColors.unnamedColor1c1d17,
+                        color: selected ? colors.onAccent : colors.textPrimary,
                       ),
                     ),
                   ),
@@ -1545,8 +1545,9 @@ class _SaveButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Material(
-      color: TaqaUiColors.unnamedColorE4e93b,
+      color: colors.accent,
       borderRadius: TaqaUiScale.radius(5),
       child: InkWell(
         borderRadius: TaqaUiScale.radius(5),
@@ -1559,9 +1560,9 @@ class _SaveButton extends StatelessWidget {
                 ? SizedBox(
                     width: TaqaUiScale.w(18),
                     height: TaqaUiScale.h(18),
-                    child: const CircularProgressIndicator(
+                    child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   )
                 : Text(
@@ -1572,7 +1573,7 @@ class _SaveButton extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0,
                       height: 12 / 10,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.onAccent,
                     ),
                   ),
           ),

@@ -99,22 +99,23 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final titleStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(26),
       fontWeight: FontWeight.w700,
       height: 1.05,
-      color: TaqaUiColors.charcoal,
+      color: colors.textPrimary,
     );
     final bodyStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(15),
       fontWeight: FontWeight.w300,
       height: 1.25,
-      color: TaqaUiColors.charcoal,
+      color: colors.textSecondary,
     );
     final pageDecoration = PageDecoration(
-      pageColor: TaqaUiColors.lightGray,
+      pageColor: colors.background,
       titleTextStyle: titleStyle,
       bodyTextStyle: bodyStyle,
       imageFlex: 9,
@@ -141,9 +142,9 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: TaqaUiColors.lightGray,
+        backgroundColor: colors.background,
         body: IntroductionScreen(
-          globalBackgroundColor: TaqaUiColors.lightGray,
+          globalBackgroundColor: colors.background,
           pages: slides
               .map((slide) => _buildPage(slide, pageDecoration, t))
               .toList(growable: false),
@@ -170,7 +171,7 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
             vertical: TaqaUiScale.h(5),
           ),
           baseBtnStyle: TextButton.styleFrom(
-            foregroundColor: TaqaUiColors.charcoal,
+            foregroundColor: colors.textPrimary,
             padding: EdgeInsets.symmetric(
               horizontal: TaqaUiScale.w(8),
               vertical: TaqaUiScale.h(10),
@@ -178,8 +179,8 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
             shape: RoundedRectangleBorder(borderRadius: TaqaUiScale.radius(5)),
           ),
           doneStyle: TextButton.styleFrom(
-            foregroundColor: TaqaUiColors.charcoal,
-            backgroundColor: TaqaUiColors.lime,
+            foregroundColor: colors.onAccent,
+            backgroundColor: colors.accent,
             padding: EdgeInsets.symmetric(
               horizontal: TaqaUiScale.w(10),
               vertical: TaqaUiScale.h(12),
@@ -188,29 +189,29 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
           ),
           skip: Text(
             t.translate('post_purchase_intro_skip').toUpperCase(),
-            style: _controlTextStyle,
+            style: _controlTextStyle(context),
           ),
           next: Icon(Icons.arrow_forward_rounded, size: TaqaUiScale.w(24)),
           done: _finishing
               ? SizedBox(
                   width: TaqaUiScale.w(18),
                   height: TaqaUiScale.h(18),
-                  child: const CircularProgressIndicator(
+                  child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: TaqaUiColors.charcoal,
+                    color: colors.onAccent,
                   ),
                 )
               : Text(
                   t.translate('post_purchase_intro_done').toUpperCase(),
                   textAlign: TextAlign.center,
-                  style: _controlTextStyle,
+                  style: _controlTextStyle(context),
                 ),
           dotsDecorator: DotsDecorator(
             size: Size(TaqaUiScale.w(5), TaqaUiScale.h(5)),
             activeSize: Size(TaqaUiScale.w(18), TaqaUiScale.h(5)),
             spacing: EdgeInsets.symmetric(horizontal: TaqaUiScale.w(2)),
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.22),
-            activeColor: TaqaUiColors.charcoal,
+            color: colors.textSecondary.withValues(alpha: 0.35),
+            activeColor: colors.accent,
             activeShape: RoundedRectangleBorder(
               borderRadius: TaqaUiScale.radius(5),
             ),
@@ -245,11 +246,11 @@ class _TaqaPostPurchaseIntroPageState extends State<TaqaPostPurchaseIntroPage> {
     );
   }
 
-  TextStyle get _controlTextStyle => TextStyle(
+  TextStyle _controlTextStyle(BuildContext context) => TextStyle(
     fontFamily: TaqaUiFontFamilies.interTight,
     fontSize: TaqaUiScale.sp(11),
     fontWeight: FontWeight.w700,
-    color: TaqaUiColors.charcoal,
+    color: context.taqaColors.onAccent,
   );
 }
 
@@ -275,18 +276,16 @@ class _TaqaIntroScreenshot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       constraints: BoxConstraints(maxWidth: TaqaUiScale.w(286)),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(14),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.12),
-          width: 1,
-        ),
+        border: Border.all(color: colors.border, width: 1),
         boxShadow: [
           BoxShadow(
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.14),
+            color: colors.scrim.withValues(alpha: colors.isDark ? 0.28 : 0.14),
             blurRadius: TaqaUiScale.w(16),
             offset: Offset(0, TaqaUiScale.h(7)),
           ),
@@ -317,6 +316,7 @@ class _TaqaIntroTextPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       constraints: BoxConstraints(
         maxWidth: TaqaUiScale.w(330),
@@ -327,8 +327,9 @@ class _TaqaIntroTextPanel extends StatelessWidget {
         vertical: TaqaUiScale.h(36),
       ),
       decoration: BoxDecoration(
-        color: TaqaUiColors.charcoal,
+        color: colors.surfaceInverse,
         borderRadius: TaqaUiScale.radius(24),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -337,16 +338,13 @@ class _TaqaIntroTextPanel extends StatelessWidget {
             width: TaqaUiScale.w(64),
             height: TaqaUiScale.w(64),
             padding: EdgeInsets.all(TaqaUiScale.w(17)),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: TaqaUiColors.lime,
+              color: colors.accent,
             ),
             child: SvgPicture.asset(
               module.iconAssetPath,
-              colorFilter: const ColorFilter.mode(
-                TaqaUiColors.charcoal,
-                BlendMode.srcIn,
-              ),
+              colorFilter: ColorFilter.mode(colors.onAccent, BlendMode.srcIn),
             ),
           ),
           SizedBox(height: TaqaUiScale.h(30)),
@@ -358,7 +356,7 @@ class _TaqaIntroTextPanel extends StatelessWidget {
               fontSize: TaqaUiScale.sp(42),
               fontWeight: FontWeight.w700,
               height: 0.98,
-              color: TaqaUiColors.white,
+              color: colors.textOnInverse,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(18)),
@@ -370,7 +368,7 @@ class _TaqaIntroTextPanel extends StatelessWidget {
               fontSize: TaqaUiScale.sp(17),
               fontWeight: FontWeight.w300,
               height: 1.3,
-              color: TaqaUiColors.lightGray,
+              color: colors.textOnInverse.withValues(alpha: 0.76),
             ),
           ),
         ],

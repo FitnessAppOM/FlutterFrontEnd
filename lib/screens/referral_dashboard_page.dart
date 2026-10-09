@@ -189,7 +189,7 @@ class _ReferralDashboardPageState extends State<ReferralDashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
+      backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(title: _t('referral_dashboard_title')),
       body: _loading
           ? const Center(child: TaqaLoadingIndicator())

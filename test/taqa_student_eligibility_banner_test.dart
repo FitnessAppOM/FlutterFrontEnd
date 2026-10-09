@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_student_eligibility_banner.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_subscription_plan_card.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
+import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import 'package:taqaproject/auth/email_verification_page.dart';
 import 'package:taqaproject/localization/app_localizations.dart';
+import 'package:taqaproject/theme/app_theme.dart';
 
 void main() {
   testWidgets('student eligibility banner clearly confirms access', (
@@ -22,8 +24,9 @@ void main() {
       ScreenUtilInit(
         designSize: TaqaUiScale.designSize,
         minTextAdapt: true,
-        builder: (_, _) => const MaterialApp(
-          home: Scaffold(
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          home: const Scaffold(
             body: Padding(
               padding: EdgeInsets.all(16),
               child: TaqaStudentEligibilityBanner(
@@ -46,6 +49,10 @@ void main() {
     );
     expect(find.byIcon(Icons.school_rounded), findsOneWidget);
     expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('STUDENT PLAN ELIGIBLE')).style?.color,
+      TaqaUiPalette.dark.onAccent,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -64,6 +71,7 @@ void main() {
         designSize: TaqaUiScale.designSize,
         minTextAdapt: true,
         builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
           home: Scaffold(
             body: TaqaSubscriptionPlanCard(
               title: 'Taqa Fitness Student Monthly',
@@ -99,11 +107,12 @@ void main() {
       ScreenUtilInit(
         designSize: TaqaUiScale.designSize,
         minTextAdapt: true,
-        builder: (_, _) => const MaterialApp(
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
           locale: Locale('en'),
-          localizationsDelegates: [AppLocalizationsDelegate()],
-          supportedLocales: [Locale('en'), Locale('ar')],
-          home: EmailVerificationPage(studentPlanVerification: true),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: const EmailVerificationPage(studentPlanVerification: true),
         ),
       ),
     );

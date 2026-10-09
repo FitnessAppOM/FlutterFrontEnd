@@ -215,10 +215,11 @@ class _TaqaHabitReminderSettingsPageState
   @override
   Widget build(BuildContext context) {
     final controlsDisabled = _loading || _saving;
-    final labelColor = TaqaUiColors.unnamedColor1c1d17;
+    final colors = context.taqaColors;
+    final labelColor = colors.textPrimary;
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(title: _tr('habit_reminder_title')),
       body: SafeArea(
         top: false,
@@ -227,9 +228,9 @@ class _TaqaHabitReminderSettingsPageState
           children: [
             Container(
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
+                color: colors.surface,
                 borderRadius: TaqaUiScale.radius(15),
-                border: Border.all(color: labelColor.withValues(alpha: 0.10)),
+                border: Border.all(color: colors.border),
               ),
               padding: TaqaUiScale.insetsLTRB(14, 14, 14, 16),
               child: Column(
@@ -304,7 +305,7 @@ class _TaqaHabitReminderSettingsPageState
                         fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w400,
                         height: 18 / 13,
-                        color: labelColor.withValues(alpha: 0.6),
+                        color: colors.textSecondary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(12)),
@@ -341,7 +342,7 @@ class _TaqaHabitReminderSettingsPageState
                       style: TextStyle(
                         fontFamily: TaqaUiFontFamilies.interTight,
                         fontSize: TaqaUiScale.sp(12),
-                        color: labelColor.withValues(alpha: 0.6),
+                        color: colors.textSecondary,
                       ),
                     ),
                   ],
@@ -368,12 +369,14 @@ class _HabitReminderSelectField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: TaqaUiColors.unnamedColorE3e3e3,
+          color: colors.surfaceElevated,
           borderRadius: TaqaUiScale.radius(10),
+          border: Border.all(color: colors.border),
         ),
         padding: TaqaUiScale.insetsLTRB(12, 8, 12, 8),
         child: Row(
@@ -388,9 +391,7 @@ class _HabitReminderSelectField extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(11),
                       fontWeight: FontWeight.w400,
-                      color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                        alpha: 0.5,
-                      ),
+                      color: colors.textSecondary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(2)),
@@ -400,7 +401,7 @@ class _HabitReminderSelectField extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(13),
                       fontWeight: FontWeight.w600,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ],
@@ -409,7 +410,7 @@ class _HabitReminderSelectField extends StatelessWidget {
             Icon(
               Icons.keyboard_arrow_down_rounded,
               size: TaqaUiScale.w(18),
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.5),
+              color: colors.textSecondary,
             ),
           ],
         ),
