@@ -389,6 +389,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
 
   Future<String?> _showReasonDialog(String newExerciseName) async {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final reasonController = TextEditingController();
     String? selectedQuickReason;
 
@@ -396,13 +397,13 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(13),
       fontWeight: FontWeight.w400,
-      color: TaqaUiColors.unnamedColor1c1d17,
+      color: colors.textPrimary,
     );
 
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
-      barrierColor: const Color(0x66000000),
+      barrierColor: colors.scrim,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           return Align(
@@ -422,8 +423,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                     ),
                     padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                     decoration: BoxDecoration(
-                      color: TaqaUiColors.white,
+                      color: colors.surface,
                       borderRadius: TaqaUiScale.radius(15),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -439,7 +441,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                             fontWeight: FontWeight.w700,
                             height: 25 / 15,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: colors.textPrimary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(8)),
@@ -453,9 +455,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                             fontWeight: FontWeight.w400,
                             height: 18 / 13,
                             letterSpacing: 0,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.6,
-                            ),
+                            color: colors.textSecondary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(16)),
@@ -489,16 +489,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                                         decoration: BoxDecoration(
                                           borderRadius: TaqaUiScale.radius(15),
                                           color: selected
-                                              ? TaqaUiColors.unnamedColorE4e93b
-                                                    .withValues(alpha: 0.2)
-                                              : null,
+                                              ? colors.accent.withValues(
+                                                  alpha: 0.2,
+                                                )
+                                              : colors.surfaceElevated,
                                           border: Border.all(
                                             color: selected
-                                                ? TaqaUiColors
-                                                      .unnamedColorE4e93b
-                                                : TaqaUiColors
-                                                      .unnamedColor1c1d17
-                                                      .withValues(alpha: 0.10),
+                                                ? colors.accent
+                                                : colors.border,
                                             width: selected ? 1.5 : 1,
                                           ),
                                         ),
@@ -511,11 +509,8 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                                                         .radio_button_unchecked,
                                               size: TaqaUiScale.w(18),
                                               color: selected
-                                                  ? TaqaUiColors
-                                                        .unnamedColor1c1d17
-                                                  : TaqaUiColors
-                                                        .unnamedColor1c1d17
-                                                        .withValues(alpha: 0.4),
+                                                  ? colors.accent
+                                                  : colors.textSecondary,
                                             ),
                                             SizedBox(width: TaqaUiScale.w(8)),
                                             Expanded(
@@ -543,31 +538,29 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                                         t.translate("replace_reason_hint") ??
                                         "e.g., I don't have the equipment",
                                     labelStyle: textStyle.copyWith(
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.6),
+                                      color: colors.textSecondary,
                                     ),
                                     hintStyle: textStyle.copyWith(
-                                      color: TaqaUiColors.unnamedColor1c1d17
-                                          .withValues(alpha: 0.3),
+                                      color: colors.textSecondary.withValues(
+                                        alpha: 0.65,
+                                      ),
                                     ),
                                     border: OutlineInputBorder(
                                       borderRadius: TaqaUiScale.radius(10),
                                       borderSide: BorderSide(
-                                        color: TaqaUiColors.unnamedColor1c1d17
-                                            .withValues(alpha: 0.10),
+                                        color: colors.border,
                                       ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: TaqaUiScale.radius(10),
                                       borderSide: BorderSide(
-                                        color: TaqaUiColors.unnamedColor1c1d17
-                                            .withValues(alpha: 0.10),
+                                        color: colors.border,
                                       ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: TaqaUiScale.radius(10),
                                       borderSide: BorderSide(
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: colors.accent,
                                       ),
                                     ),
                                   ),
@@ -603,14 +596,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                                         fontWeight: FontWeight.w600,
                                         height: 12 / 10,
                                         letterSpacing: 0,
-                                        color: TaqaUiColors.unnamedColor1c1d17,
+                                        color: colors.textPrimary,
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                               Material(
-                                color: TaqaUiColors.unnamedColorE4e93b,
+                                color: colors.accent,
                                 borderRadius: TaqaUiScale.radius(5),
                                 child: InkWell(
                                   borderRadius: TaqaUiScale.radius(5),
@@ -646,8 +639,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                                           fontWeight: FontWeight.w700,
                                           height: 12 / 10,
                                           letterSpacing: 0,
-                                          color:
-                                              TaqaUiColors.unnamedColor1c1d17,
+                                          color: colors.onAccent,
                                         ),
                                       ),
                                     ),
@@ -693,12 +685,13 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final tabIndex = _tab.index;
     final topInset = MediaQueryData.fromView(View.of(context)).padding.top;
 
     return SizedBox.expand(
       child: Container(
-        color: const Color(0xFF1C1D17),
+        color: colors.background,
         padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 0),
         child: Column(
           children: [
@@ -706,9 +699,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
               children: [
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
+                    color: colors.textPrimary,
                   ),
                 ),
                 Expanded(
@@ -721,7 +714,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: Colors.white,
+                      color: colors.textPrimary,
                     ),
                   ),
                 ),
@@ -732,16 +725,17 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
             Container(
               height: 58,
               decoration: BoxDecoration(
-                color: const Color(0xFF45474A),
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colors.border),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 14),
               alignment: Alignment.center,
               child: TextField(
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'InterTight',
                   fontSize: 14,
-                  color: Colors.white,
+                  color: colors.textPrimary,
                 ),
                 decoration: InputDecoration(
                   border: InputBorder.none,
@@ -750,14 +744,14 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                   disabledBorder: InputBorder.none,
                   contentPadding: EdgeInsets.zero,
                   hintText: t.translate("training_replace_search"),
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     fontFamily: 'InterTight',
                     fontSize: 14,
-                    color: Color(0xFFB9B9B9),
+                    color: colors.textSecondary,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search,
-                    color: Color(0xFFB9B9B9),
+                    color: colors.textSecondary,
                     size: 20,
                   ),
                   prefixIconConstraints: const BoxConstraints(minWidth: 26),
@@ -950,7 +944,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w600,
-                color: TaqaUiColors.white,
+                color: context.taqaColors.textPrimary,
               ),
             ),
             if (actionLabel != null && onAction != null) ...[
@@ -990,6 +984,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
     required bool enabled,
     required VoidCallback? onTap,
   }) {
+    final colors = context.taqaColors;
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final previewWidth = TaqaUiScale.w(70);
     final previewHeight = TaqaUiScale.h(70);
@@ -1012,8 +1007,9 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
           onTap: enabled ? onTap : null,
           child: Ink(
             decoration: BoxDecoration(
-              color: TaqaUiColors.graphite,
+              color: colors.surface,
               borderRadius: TaqaUiScale.radius(15),
+              border: Border.all(color: colors.border),
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -1030,7 +1026,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                       child: Container(
                         width: previewWidth,
                         height: previewHeight,
-                        color: Colors.white,
+                        color: colors.surfaceElevated,
                         child: imageProvider == null
                             ? const SizedBox.shrink()
                             : Image(image: imageProvider, fit: BoxFit.cover),
@@ -1050,7 +1046,7 @@ class _ReplaceExerciseSheetState extends State<ReplaceExerciseSheet>
                             style: TextStyle(
                               fontFamily: TaqaUiFontFamilies.interTight,
                               fontWeight: FontWeight.w700,
-                              color: TaqaUiColors.white,
+                              color: colors.textPrimary,
                               fontSize: TaqaUiScale.sp(15),
                               height: 25 / 15,
                               letterSpacing: 0,

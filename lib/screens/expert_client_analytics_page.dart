@@ -401,7 +401,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
               padding: EdgeInsets.only(top: TaqaUiScale.h(6)),
               child: TaqaClientDashboardBodyText(
                 'Not enough weight history yet.',
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                color: context.taqaColors.textSecondary,
               ),
             )
           else ...[
@@ -475,7 +475,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                color: context.taqaColors.textSecondary,
                 size: TaqaUiScale.w(20),
               ),
             ],
@@ -484,7 +484,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
           if (rows.isEmpty)
             TaqaClientDashboardBodyText(
               'No daily metrics available.',
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+              color: context.taqaColors.textSecondary,
             )
           else ...[
             TaqaClientDashboardInfoRow(
@@ -512,7 +512,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
             SizedBox(height: TaqaUiScale.h(4)),
             TaqaClientDashboardBodyText(
               'Tap to open weekly charts',
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+              color: context.taqaColors.textSecondary,
             ),
           ],
         ],
@@ -604,7 +604,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                color: context.taqaColors.textSecondary,
                 size: TaqaUiScale.w(20),
               ),
             ],
@@ -642,7 +642,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
           SizedBox(height: TaqaUiScale.h(4)),
           TaqaClientDashboardBodyText(
             'Tap to open weekly charts',
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+            color: context.taqaColors.textSecondary,
           ),
           SizedBox(height: TaqaUiScale.h(10)),
           TaqaFilledButton(
@@ -693,7 +693,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
               if (hasAnyWearable)
                 Icon(
                   Icons.chevron_right,
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+                  color: context.taqaColors.textSecondary,
                   size: TaqaUiScale.w(20),
                 ),
             ],
@@ -720,7 +720,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
             hasAnyWearable
                 ? 'Tap to open weekly wearable charts'
                 : 'No wearable connection detected.',
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.54),
+            color: context.taqaColors.textSecondary,
           ),
         ],
       ),
@@ -729,6 +729,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final hasLoadedContent = _data.isNotEmpty || _error != null;
     final body = _loading && !hasLoadedContent
         ? const Center(child: TaqaLoadingIndicator())
@@ -742,7 +743,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
                   TaqaClientDashboardCard(
                     child: TaqaClientDashboardBodyText(
                       _error!,
-                      color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                      color: colors.textSecondary,
                     ),
                   ),
                 if (hasLoadedContent) ...[
@@ -764,7 +765,7 @@ class _ExpertClientAnalyticsPageState extends State<ExpertClientAnalyticsPage> {
           );
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.lightGray,
+      backgroundColor: colors.background,
       appBar: const TaqaPageAppBar(title: 'Client Analytics'),
       body: body,
     );

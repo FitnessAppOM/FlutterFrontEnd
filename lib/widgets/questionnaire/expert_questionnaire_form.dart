@@ -403,6 +403,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Form(
       key: _formKey,
       child: AbsorbPointer(
@@ -417,7 +418,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(12),
                   fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                  color: colors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(24)),
@@ -460,7 +461,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(8)),
@@ -479,7 +480,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(15),
                   fontWeight: FontWeight.w700,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: colors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(8)),
@@ -690,9 +691,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(11),
                   fontWeight: FontWeight.w400,
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.55,
-                  ),
+                  color: colors.textSecondary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(4)),
@@ -1227,7 +1226,7 @@ class _ExpertQuestionnaireFormState extends State<ExpertQuestionnaireForm> {
           fontFamily: TaqaUiFontFamilies.interTight,
           fontSize: TaqaUiScale.sp(13),
           fontWeight: FontWeight.w600,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: context.taqaColors.textPrimary,
         ),
       ),
     );
@@ -1356,8 +1355,9 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       appBar: const TaqaPageAppBar(title: "Affiliation"),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -1421,7 +1421,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(12),
                     fontWeight: FontWeight.w600,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -1448,7 +1448,7 @@ class _AffiliationSelectionPageState extends State<_AffiliationSelectionPage> {
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(12),
-                  color: TaqaUiColors.unnamedColorE93b3b,
+                  color: colors.danger,
                 ),
               ),
             ],
@@ -1549,8 +1549,9 @@ class _CertificateSelectionPageState extends State<_CertificateSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+      backgroundColor: colors.background,
       appBar: const TaqaPageAppBar(title: "Certification"),
       body: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),

@@ -22,15 +22,18 @@ class TaqaSegmentedToggleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return TaqaPressable(
       onTap: onTap,
       child: Container(
         height: TaqaUiScale.h(45),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? TaqaUiColors.charcoal : null,
+          color: selected ? colors.accent : colors.surface,
           borderRadius: TaqaUiScale.radius(5),
-          border: selected ? null : Border.all(color: TaqaUiColors.charcoal),
+          border: Border.all(
+            color: selected ? colors.accent : colors.border,
+          ),
         ),
         child: Text(
           taqaUppercase(label),
@@ -41,7 +44,7 @@ class TaqaSegmentedToggleButton extends StatelessWidget {
             fontWeight: FontWeight.w600,
             height: 12 / 10,
             letterSpacing: 0,
-            color: selected ? TaqaUiColors.white : TaqaUiColors.charcoal,
+            color: selected ? colors.onAccent : colors.textPrimary,
           ),
         ),
       ),

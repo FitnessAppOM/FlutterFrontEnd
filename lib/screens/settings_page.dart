@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:http/http.dart' as http;
-import '../theme/app_theme.dart';
 import '../localization/app_localizations.dart';
 import '../core/locale_controller.dart';
 import '../core/theme_controller.dart';
@@ -166,8 +165,9 @@ class _SettingsPageState extends State<SettingsPage>
     await showDialog<void>(
       context: context,
       builder: (ctx) {
+        final colors = ctx.taqaColors;
         return Dialog(
-          backgroundColor: AppColors.cardDark,
+          backgroundColor: colors.surfaceElevated,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -179,8 +179,8 @@ class _SettingsPageState extends State<SettingsPage>
               children: [
                 Text(
                   t.translate("jwt_token_title"),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.textPrimary,
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                   ),
@@ -188,10 +188,7 @@ class _SettingsPageState extends State<SettingsPage>
                 const SizedBox(height: 8),
                 SelectableText(
                   display,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
                 ),
                 const SizedBox(height: 14),
                 Row(
@@ -200,10 +197,8 @@ class _SettingsPageState extends State<SettingsPage>
                       child: OutlinedButton(
                         onPressed: () => Navigator.pop(ctx),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white70,
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.2),
-                          ),
+                          foregroundColor: colors.textPrimary,
+                          side: BorderSide(color: colors.border),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -229,8 +224,8 @@ class _SettingsPageState extends State<SettingsPage>
                                 );
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.black,
+                          backgroundColor: colors.accent,
+                          foregroundColor: colors.onAccent,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

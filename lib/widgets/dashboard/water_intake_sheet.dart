@@ -9,6 +9,7 @@ import '../../services/metrics/daily_metrics_api.dart';
 import '../../theme/app_theme.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class WaterIntakeSheet extends StatefulWidget {
   final DateTime? targetDate;
@@ -117,17 +118,26 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
     final goal = double.tryParse(_goalCtrl.text.trim());
     final intake = double.tryParse(_intakeCtrl.text.trim());
     if (goal == null && intake == null) {
-      AppToast.show(context, t("water_enter_goal_or_intake"), type: AppToastType.info);
+      AppToast.show(
+        context,
+        t("water_enter_goal_or_intake"),
+        type: AppToastType.info,
+      );
       return;
     }
-    if ((goal != null && goal > 999999) || (intake != null && intake > 999999)) {
+    if ((goal != null && goal > 999999) ||
+        (intake != null && intake > 999999)) {
       AppToast.show(context, t("value_max_exceeded"), type: AppToastType.error);
       return;
     }
     final userId = await AccountStorage.getUserId();
     if (!mounted) return;
     if (userId == null) {
-      AppToast.show(context, t("error_not_authenticated"), type: AppToastType.error);
+      AppToast.show(
+        context,
+        t("error_not_authenticated"),
+        type: AppToastType.error,
+      );
       return;
     }
     setState(() => _saving = true);
@@ -167,7 +177,11 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       }
     } catch (e) {
       if (!mounted) return;
-      AppToast.show(context, t("water_failed_to_save").replaceAll("{error}", "$e"), type: AppToastType.error);
+      AppToast.show(
+        context,
+        t("water_failed_to_save").replaceAll("{error}", "$e"),
+        type: AppToastType.error,
+      );
       setState(() => _saving = false);
       return;
     }
@@ -178,6 +192,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final viewInset = MediaQuery.of(context).viewInsets.bottom;
     final t = AppLocalizations.of(context).translate;
@@ -192,13 +207,13 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
       child: Container(
         padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1D1F27), Color(0xFF13151C)],
+          gradient: LinearGradient(
+            colors: [colors.surfaceElevated, colors.surface],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: AppColors.dividerDark),
+          border: Border.all(color: colors.border),
         ),
         child: DraggableScrollableSheet(
           expand: false,
@@ -216,7 +231,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                     height: 5,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: colors.divider,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -225,12 +240,12 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                       Text(
                         t("water_title"),
                         style: AppTextStyles.subtitle.copyWith(
-                          color: Colors.white,
+                          color: colors.textPrimary,
                         ),
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        icon: Icon(Icons.close, color: colors.textSecondary),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
@@ -253,14 +268,16 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                     child: ElevatedButton(
                       onPressed: _saving ? null : _save,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Text(_saving ? t("common_saving") : t("common_save")),
+                      child: Text(
+                        _saving ? t("common_saving") : t("common_save"),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -269,7 +286,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                     child: Text(
                       t("common_history"),
                       style: AppTextStyles.small.copyWith(
-                        color: Colors.white70,
+                        color: colors.textSecondary,
                       ),
                     ),
                   ),
@@ -280,7 +297,7 @@ class _WaterIntakeSheetState extends State<WaterIntakeSheet> {
                       child: Text(
                         t("water_no_logs_yet"),
                         style: AppTextStyles.small.copyWith(
-                          color: AppColors.textDim,
+                          color: colors.textSecondary,
                         ),
                       ),
                     )
@@ -317,16 +334,17 @@ class _FieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.dividerDark),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.accent),
+          Icon(icon, color: colors.accent),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -339,10 +357,10 @@ class _FieldRow extends StatelessWidget {
                   RegExp(r'^\d{0,6}(\.\d{0,2})?$'),
                 ),
               ],
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: colors.textPrimary),
               decoration: InputDecoration(
                 hintText: label,
-                hintStyle: const TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: colors.textSecondary),
                 border: InputBorder.none,
               ),
             ),
@@ -360,17 +378,18 @@ class _WaterHistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final date = DateFormat('MMM d, y').format(entry.date);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.dividerDark),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.water_drop, color: Colors.white70, size: 18),
+          Icon(Icons.water_drop, color: colors.accent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -378,12 +397,16 @@ class _WaterHistoryTile extends StatelessWidget {
               children: [
                 Text(
                   "${entry.liters.toStringAsFixed(1)} L",
-                  style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+                  style: AppTextStyles.subtitle.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   date,
-                  style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                  style: AppTextStyles.small.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),

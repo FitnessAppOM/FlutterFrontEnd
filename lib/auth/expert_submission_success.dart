@@ -13,13 +13,14 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     return Scaffold(
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(
         title: t.translate("expert_submission_title"),
-        backgroundColor: TaqaUiColors.white,
+        backgroundColor: colors.background,
         leading: IconButton(
-          icon: Icon(Icons.close, color: TaqaUiColors.unnamedColor1c1d17),
+          icon: Icon(Icons.close, color: colors.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -39,7 +40,7 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       height: 12 / 10,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(25)),
@@ -51,7 +52,7 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       height: 25 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textPrimary,
                     ),
                   ),
                   SizedBox(height: TaqaUiScale.h(11)),
@@ -65,7 +66,7 @@ class ExpertSubmissionSuccessPage extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       height: 20 / 15,
                       letterSpacing: 0,
-                      color: TaqaUiColors.unnamedColor1c1d17,
+                      color: colors.textSecondary,
                     ),
                   ),
                 ],

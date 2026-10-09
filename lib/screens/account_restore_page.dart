@@ -583,12 +583,14 @@ class _RestoreIntroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       width: double.infinity,
       padding: TaqaUiScale.insetsLTRB(18, 18, 18, 20),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,13 +600,13 @@ class _RestoreIntroCard extends StatelessWidget {
               Container(
                 width: TaqaUiScale.w(38),
                 height: TaqaUiScale.h(38),
-                decoration: const BoxDecoration(
-                  color: TaqaUiColors.charcoal,
+                decoration: BoxDecoration(
+                  color: colors.surfaceInverse,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   icon,
-                  color: TaqaUiColors.lime,
+                  color: colors.accent,
                   size: TaqaUiScale.w(20),
                 ),
               ),
@@ -620,7 +622,7 @@ class _RestoreIntroCard extends StatelessWidget {
               fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
               height: 1,
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(10)),
@@ -631,7 +633,7 @@ class _RestoreIntroCard extends StatelessWidget {
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w300,
               height: 18 / 15,
-              color: TaqaUiColors.charcoal,
+              color: colors.textSecondary,
             ),
           ),
         ],
@@ -653,6 +655,7 @@ class _RestoreDeleteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final enabled = onTap != null && !loading;
     return TaqaPressable(
       semanticLabel: label,
@@ -663,24 +666,19 @@ class _RestoreDeleteButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           border: Border.all(
-            color: TaqaUiColors.recordRed.withValues(alpha: enabled ? 1 : 0.35),
+            color: colors.danger.withValues(alpha: enabled ? 1 : 0.35),
           ),
           borderRadius: TaqaUiScale.radius(5),
         ),
         child: loading
-            ? const TaqaLoadingIndicator(
-                size: 16,
-                color: TaqaUiColors.recordRed,
-              )
+            ? TaqaLoadingIndicator(size: 16, color: colors.danger)
             : Text(
                 taqaUppercase(label),
                 style: TextStyle(
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(10),
                   fontWeight: FontWeight.w600,
-                  color: TaqaUiColors.recordRed.withValues(
-                    alpha: enabled ? 1 : 0.35,
-                  ),
+                  color: colors.danger.withValues(alpha: enabled ? 1 : 0.35),
                 ),
               ),
       ),

@@ -28,15 +28,16 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: t.translate("questionnaire_title"),
-        backgroundColor: TaqaUiColors.white,
+        backgroundColor: colors.background,
         showBackButton: !_started,
         leading: TaqaBackButton(onPressed: _handleBack),
       ),
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: colors.background,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started
@@ -56,6 +57,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
 
   Widget _buildIntro(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
 
     return SingleChildScrollView(
       padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
@@ -70,7 +72,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               fontWeight: FontWeight.w400,
               height: 18 / 13,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(24)),
@@ -82,7 +84,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               fontWeight: FontWeight.w700,
               height: 26 / 20,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(20)),
@@ -119,7 +121,7 @@ class _QuestionnairePageState extends State<QuestionnairePage> {
               fontWeight: FontWeight.w400,
               height: 16 / 11,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.55),
+              color: colors.textSecondary,
             ),
           ),
         ],
@@ -232,6 +234,7 @@ class _QuestionnaireSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -243,7 +246,7 @@ class _QuestionnaireSection extends StatelessWidget {
             fontWeight: FontWeight.w700,
             height: 20 / 15,
             letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(4)),
@@ -255,7 +258,7 @@ class _QuestionnaireSection extends StatelessWidget {
             fontWeight: FontWeight.w400,
             height: 18 / 13,
             letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+            color: colors.textSecondary,
           ),
         ),
       ],

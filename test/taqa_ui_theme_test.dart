@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_news_carousel.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_page_app_bar.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_progress_widget_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_refresh_indicator.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_log_entry_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_linear_metric_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_metric_detail_list.dart';
@@ -13,6 +15,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_toast.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_feed_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_loading_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_cardio_stat_panel.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_date_carousel_switcher.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_group_picker_sheet.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_community_option_picker_sheet.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_edit_mode_bubble.dart';
@@ -34,12 +37,18 @@ import 'package:taqaproject/services/screenings/screening_service.dart';
 import 'package:taqaproject/theme/app_theme.dart';
 import 'package:taqaproject/widgets/dashboard/progress_meter.dart';
 import 'package:taqaproject/widgets/charts/ranged_bar_chart.dart';
+import 'package:taqaproject/widgets/common/date_header.dart';
+import 'package:taqaproject/widgets/common/date_switcher.dart';
 import 'package:taqaproject/widgets/profile/profile_goals_section.dart';
 import 'package:taqaproject/widgets/profile/profile_header.dart';
 import 'package:taqaproject/widgets/training/exercise_card.dart';
 import 'package:taqaproject/widgets/screening/screening_form_sheet.dart';
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('en');
+  });
+
   testWidgets('light and dark themes expose their centralized Taqa palettes', (
     tester,
   ) async {
@@ -1250,6 +1259,81 @@ void main() {
         (decoration) => decoration.color == TaqaUiPalette.dark.surface,
       ),
       isTrue,
+    );
+  });
+
+  testWidgets('shared date controls and refresh spinner use dark semantics', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        builder: (_, _) => MaterialApp(
+          theme: buildDarkTheme(),
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizationsDelegate()],
+          supportedLocales: const [Locale('en'), Locale('ar')],
+          home: Scaffold(
+            body: Column(
+              children: [
+                DateHeader(
+                  selectedDate: DateTime(2026, 10, 9),
+                  onPrev: () {},
+                  onNext: () {},
+                  canGoNext: true,
+                  label: 'Entry for',
+                ),
+                DateSwitcher(
+                  label: 'TODAY',
+                  onPrev: () {},
+                  onNext: () {},
+                  canGoNext: true,
+                ),
+                TaqaDateCarouselSwitcher(
+                  previousDate: DateTime(2026, 10, 8),
+                  selectedDate: DateTime(2026, 10, 9),
+                  nextDate: DateTime(2026, 10, 10),
+                  onPrevious: () {},
+                  onSelected: () {},
+                  onNext: () {},
+                ),
+                const TaqaRefreshSpinner(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.text('TODAY')).style?.color,
+      TaqaUiPalette.dark.textSecondary,
+    );
+    expect(
+      tester.widget<Text>(find.text('09 OCT')).style?.color,
+      TaqaUiPalette.dark.textPrimary,
+    );
+    final spinner = tester.widget<RefreshProgressIndicator>(
+      find.byType(RefreshProgressIndicator),
+    );
+    expect(spinner.color, TaqaUiPalette.dark.accent);
+    expect(spinner.backgroundColor, TaqaUiPalette.dark.surface);
+    final dateHeaderDecorations = tester
+        .widgetList<Container>(find.byType(Container))
+        .map((container) => container.decoration)
+        .whereType<BoxDecoration>();
+    expect(
+      dateHeaderDecorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceElevated,
+      ),
+      isTrue,
+    );
+    expect(
+      dateHeaderDecorations.any(
+        (decoration) => decoration.color == TaqaUiPalette.dark.surfaceInverse,
+      ),
+      isFalse,
     );
   });
 }

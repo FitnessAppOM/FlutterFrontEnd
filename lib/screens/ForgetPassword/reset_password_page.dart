@@ -131,6 +131,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   }
 
   Widget _buildPasswordRequirements(AppLocalizations t) {
+    final colors = context.taqaColors;
     final value = pwCtrl.text;
     final rules = <MapEntry<String, bool>>[
       MapEntry('signup_password_rule_length', _hasMinLength(value)),
@@ -145,8 +146,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       margin: EdgeInsets.only(top: TaqaUiScale.h(12)),
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +160,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               letterSpacing: 0.4,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+              color: colors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(8)),
@@ -172,18 +174,17 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   }
 
   Widget _buildRuleRow(String label, bool satisfied) {
+    final colors = context.taqaColors;
     final color = satisfied
-        ? TaqaUiColors.unnamedColor1c1d17
-        : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.35);
+        ? colors.textPrimary
+        : colors.textSecondary.withValues(alpha: 0.55);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
           satisfied ? Icons.check_circle : Icons.radio_button_unchecked,
           size: TaqaUiScale.w(16),
-          color: satisfied
-              ? TaqaUiColors.unnamedColorE4e93b
-              : TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.25),
+          color: satisfied ? colors.accent : colors.border,
         ),
         SizedBox(width: TaqaUiScale.w(8)),
         Expanded(
@@ -204,11 +205,12 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final canSubmit =
         !loading && pwCtrl.text.isNotEmpty && retypeCtrl.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: context.taqaColors.background,
+      backgroundColor: colors.background,
       appBar: TaqaPageAppBar(title: t.translate('reset_password')),
       body: Column(
         children: [
@@ -229,9 +231,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             fontSize: TaqaUiScale.sp(14),
                             fontWeight: FontWeight.w400,
                             height: 20 / 14,
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.65,
-                            ),
+                            color: colors.textSecondary,
                           ),
                         ),
                         SizedBox(height: TaqaUiScale.h(24)),

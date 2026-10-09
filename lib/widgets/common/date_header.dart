@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../localization/app_localizations.dart';
-import '../../theme/app_theme.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class DateHeader extends StatelessWidget {
   final DateTime selectedDate;
@@ -24,6 +24,7 @@ class DateHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final t = AppLocalizations.of(context).translate;
     final locale = AppLocalizations.of(context).locale.languageCode;
     final dateLabel = DateFormat('EEEE, MMM d', locale).format(selectedDate);
@@ -40,21 +41,21 @@ class DateHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1D1F27), Color(0xFF13151C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(AppRadii.tile),
-        border: Border.all(color: AppColors.dividerDark),
-        boxShadow: const [
-          BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 4)),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.border),
+        boxShadow: [
+          BoxShadow(
+            color: colors.scrim.withValues(alpha: 0.18),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left, color: Colors.white),
+            icon: Icon(Icons.chevron_left, color: colors.textPrimary),
             onPressed: onPrev,
           ),
           Expanded(
@@ -63,15 +64,17 @@ class DateHeader extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.06),
+                    color: colors.surfaceElevated,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     children: [
                       Text(
                         DateFormat('d', locale).format(selectedDate),
-                        style: AppTextStyles.title.copyWith(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
@@ -79,8 +82,9 @@ class DateHeader extends StatelessWidget {
                           'MMM',
                           locale,
                         ).format(selectedDate).toUpperCase(),
-                        style: AppTextStyles.small.copyWith(
-                          color: AppColors.textDim,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
                           letterSpacing: 0.8,
                         ),
                       ),
@@ -93,12 +97,20 @@ class DateHeader extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: AppTextStyles.small.copyWith(
-                        color: AppColors.textDim,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(dateLabel, style: AppTextStyles.subtitle),
+                    Text(
+                      dateLabel,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -106,16 +118,17 @@ class DateHeader extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.12),
+                        color: colors.accent.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(30),
                         border: Border.all(
-                          color: AppColors.accent.withValues(alpha: 0.25),
+                          color: colors.accent.withValues(alpha: 0.4),
                         ),
                       ),
                       child: Text(
                         relative,
-                        style: AppTextStyles.small.copyWith(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -126,7 +139,12 @@ class DateHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.chevron_right, color: Colors.white),
+            icon: Icon(
+              Icons.chevron_right,
+              color: canGoNext
+                  ? colors.textPrimary
+                  : colors.textSecondary.withValues(alpha: 0.45),
+            ),
             onPressed: canGoNext ? onNext : null,
           ),
         ],

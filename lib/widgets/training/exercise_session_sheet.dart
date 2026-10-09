@@ -1640,6 +1640,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
 
   Future<void> _openSetEditDialog(Map<String, dynamic> row) async {
     final t = AppLocalizations.of(context);
+    final colors = context.taqaColors;
     final isTimer = _isTimerBased();
     bool done = _toBool(row['completed']);
     final setIndex = _toInt(row['set_index']);
@@ -1669,7 +1670,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                     fontWeight: FontWeight.w400,
                     height: 1,
                     letterSpacing: 0,
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.textPrimary,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -1777,6 +1778,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     required TextEditingController controller,
     required TextInputType keyboardType,
   }) {
+    final colors = context.taqaColors;
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1789,7 +1791,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               fontWeight: FontWeight.w400,
               height: 10 / 8,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(8)),
@@ -1805,7 +1807,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                 fontWeight: FontWeight.w400,
                 height: 1,
                 letterSpacing: 0,
-                color: TaqaUiColors.unnamedColor1c1d17,
+                color: colors.textPrimary,
               ),
               decoration: const InputDecoration(
                 isDense: true,
@@ -1831,6 +1833,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     void Function(void Function()) setLocalState,
     void Function(bool) onChanged,
   ) {
+    final colors = context.taqaColors;
     return GestureDetector(
       onTap: () => setLocalState(() => onChanged(!value)),
       child: Row(
@@ -1840,20 +1843,15 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
             width: TaqaUiScale.w(14),
             height: TaqaUiScale.h(14),
             decoration: BoxDecoration(
-              color: value
-                  ? TaqaUiColors.unnamedColorE4e93b
-                  : Colors.transparent,
-              border: Border.all(
-                color: TaqaUiColors.unnamedColor1c1d17,
-                width: 0.5,
-              ),
+              color: value ? colors.accent : Colors.transparent,
+              border: Border.all(color: colors.border, width: 0.5),
               borderRadius: TaqaUiScale.radius(3),
             ),
             child: value
                 ? Icon(
                     Icons.check,
                     size: TaqaUiScale.sp(10),
-                    color: TaqaUiColors.unnamedColor1c1d17,
+                    color: colors.onAccent,
                   )
                 : null,
           ),
@@ -1866,7 +1864,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
               fontWeight: FontWeight.w600,
               height: 12 / 10,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
         ],
@@ -1882,9 +1880,10 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     )
     contentBuilder,
   }) {
+    final colors = context.taqaColors;
     return showDialog<bool>(
       context: context,
-      barrierColor: const Color(0x66000000),
+      barrierColor: colors.scrim,
       builder: (ctx) {
         return MediaQuery.removeViewInsets(
           context: ctx,
@@ -1902,8 +1901,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                       constraints: BoxConstraints(maxWidth: TaqaUiScale.w(356)),
                       padding: TaqaUiScale.insetsLTRB(17, 15, 17, 15),
                       decoration: BoxDecoration(
-                        color: TaqaUiColors.white,
+                        color: colors.surface,
                         borderRadius: TaqaUiScale.radius(15),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1917,7 +1917,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                               fontSize: TaqaUiScale.sp(15),
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0,
-                              color: TaqaUiColors.unnamedColor1c1d17,
+                              color: colors.textPrimary,
                             ),
                           ),
                           SizedBox(height: TaqaUiScale.h(33)),
@@ -1941,15 +1941,14 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                           fontWeight: FontWeight.w600,
                                           height: 12 / 10,
                                           letterSpacing: 0,
-                                          color:
-                                              TaqaUiColors.unnamedColor1c1d17,
+                                          color: colors.textPrimary,
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
                                 Material(
-                                  color: TaqaUiColors.unnamedColorE4e93b,
+                                  color: colors.accent,
                                   borderRadius: TaqaUiScale.radius(5),
                                   child: InkWell(
                                     borderRadius: TaqaUiScale.radius(5),
@@ -1967,8 +1966,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                                             fontWeight: FontWeight.w700,
                                             height: 12 / 10,
                                             letterSpacing: 0,
-                                            color:
-                                                TaqaUiColors.unnamedColor1c1d17,
+                                            color: colors.onAccent,
                                           ),
                                         ),
                                       ),

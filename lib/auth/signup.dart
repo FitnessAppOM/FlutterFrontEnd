@@ -573,8 +573,9 @@ class _SignupPageState extends State<SignupPage> {
       margin: EdgeInsets.only(top: TaqaUiScale.h(12)),
       padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(15),
+        border: Border.all(color: context.taqaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -586,7 +587,7 @@ class _SignupPageState extends State<SignupPage> {
               fontSize: TaqaUiScale.sp(8),
               fontWeight: FontWeight.w400,
               letterSpacing: 0.4,
-              color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+              color: context.taqaColors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(8)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class DateSwitcher extends StatelessWidget {
   const DateSwitcher({
@@ -10,7 +11,7 @@ class DateSwitcher extends StatelessWidget {
     required this.onNext,
     required this.canGoNext,
     this.labelStyle,
-    this.iconColor = Colors.white70,
+    this.iconColor,
     this.labelWidth,
   });
 
@@ -19,17 +20,20 @@ class DateSwitcher extends StatelessWidget {
   final VoidCallback? onNext;
   final bool canGoNext;
   final TextStyle? labelStyle;
-  final Color iconColor;
+  final Color? iconColor;
   final double? labelWidth;
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
+    final resolvedIconColor = iconColor ?? colors.textPrimary;
     final effectiveLabelWidth = labelWidth ?? TaqaUiScale.w(62);
     final text = Text(
       label,
       textAlign: TextAlign.center,
-      style: labelStyle ??
-          const TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+      style:
+          labelStyle ??
+          TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w700),
     );
 
     return Row(
@@ -45,10 +49,13 @@ class DateSwitcher extends StatelessWidget {
               vertical: TaqaUiScale.h(8),
             ),
             child: SizedBox(
-              width: TaqaUiScale.w(2),
-              height: TaqaUiScale.h(2),
+              width: TaqaUiScale.w(7),
+              height: TaqaUiScale.h(11),
               child: CustomPaint(
-                painter: _TinyArrowPainter(color: iconColor, pointRight: false),
+                painter: _TinyArrowPainter(
+                  color: resolvedIconColor,
+                  pointRight: false,
+                ),
               ),
             ),
           ),
@@ -65,13 +72,13 @@ class DateSwitcher extends StatelessWidget {
               vertical: TaqaUiScale.h(8),
             ),
             child: SizedBox(
-              width: TaqaUiScale.w(2),
-              height: TaqaUiScale.h(2),
+              width: TaqaUiScale.w(7),
+              height: TaqaUiScale.h(11),
               child: CustomPaint(
                 painter: _TinyArrowPainter(
                   color: canGoNext
-                      ? iconColor
-                      : iconColor.withValues(alpha: 0.3),
+                      ? resolvedIconColor
+                      : resolvedIconColor.withValues(alpha: 0.3),
                   pointRight: true,
                 ),
               ),
@@ -93,20 +100,20 @@ class _TinyArrowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.5
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..color = color;
 
     final path = pointRight
         ? (Path()
-          ..moveTo(0, 0)
-          ..lineTo(size.width, size.height / 2)
-          ..lineTo(0, size.height))
+            ..moveTo(0, 0)
+            ..lineTo(size.width, size.height / 2)
+            ..lineTo(0, size.height))
         : (Path()
-          ..moveTo(size.width, 0)
-          ..lineTo(0, size.height / 2)
-          ..lineTo(size.width, size.height));
+            ..moveTo(size.width, 0)
+            ..lineTo(0, size.height / 2)
+            ..lineTo(size.width, size.height));
 
     canvas.drawPath(path, paint);
   }

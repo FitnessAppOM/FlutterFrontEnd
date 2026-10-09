@@ -672,6 +672,7 @@ class _ExpertTrainingPlanReviewPageState
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final dirty = _isDirty();
     final blockedReason = _confirmBlockedReason();
     final needsVerification = _needsVerification();
@@ -687,7 +688,7 @@ class _ExpertTrainingPlanReviewPageState
         Navigator.of(context).pop(_navigationResult());
       },
       child: Scaffold(
-        backgroundColor: TaqaUiColors.lightGray,
+        backgroundColor: colors.background,
         appBar: TaqaPageAppBar(
           title: 'Client Training Plan',
           leading: TaqaBackButton(onPressed: _closePage),
@@ -755,8 +756,7 @@ class _ExpertTrainingPlanReviewPageState
                                             TaqaClientDashboardBodyText(
                                               widget.trainingPlanError ??
                                                   'No active training plan yet.',
-                                              color: TaqaUiColors.charcoal
-                                                  .withValues(alpha: 0.6),
+                                              color: colors.textSecondary,
                                             ),
                                           ],
                                         ],
@@ -789,13 +789,9 @@ class _ExpertTrainingPlanReviewPageState
                         Container(
                           padding: TaqaUiScale.insetsLTRB(16, 10, 17, 16),
                           decoration: BoxDecoration(
-                            color: TaqaUiColors.lightGray,
+                            color: colors.background,
                             border: Border(
-                              top: BorderSide(
-                                color: TaqaUiColors.charcoal.withValues(
-                                  alpha: 0.12,
-                                ),
-                              ),
+                              top: BorderSide(color: colors.divider),
                             ),
                           ),
                           child: Column(

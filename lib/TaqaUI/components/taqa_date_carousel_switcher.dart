@@ -16,7 +16,7 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
     required this.onSelected,
     required this.onNext,
     this.loading = false,
-    this.textColor = TaqaUiColors.charcoal,
+    this.textColor,
   });
 
   final DateTime previousDate;
@@ -26,10 +26,11 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
   final VoidCallback? onSelected;
   final VoidCallback? onNext;
   final bool loading;
-  final Color textColor;
+  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
+    final resolvedTextColor = textColor ?? context.taqaColors.textPrimary;
     Widget dateButton({
       required DateTime date,
       required VoidCallback? onTap,
@@ -49,7 +50,7 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
                   DateFormat('dd MMM').format(date).toUpperCase(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: textColor,
+                    color: resolvedTextColor,
                     fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                     fontSize: TaqaUiScale.sp(8),
                     fontWeight: FontWeight.w400,
@@ -90,7 +91,7 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: textColor,
+                          color: resolvedTextColor,
                         ),
                       ),
                     ),

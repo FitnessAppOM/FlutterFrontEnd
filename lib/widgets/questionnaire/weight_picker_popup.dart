@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/taqa_ui_colors.dart';
+
 Future<int?> showWeightPickerPopup(
-    BuildContext context, {
-      required int initialWeight,
-    }) {
+  BuildContext context, {
+  required int initialWeight,
+}) {
   const int minWeight = 30;
   const int maxWeight = 200;
   int currentWeight = initialWeight;
@@ -13,11 +15,12 @@ Future<int?> showWeightPickerPopup(
   final sheet = showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.grey,
+    backgroundColor: context.taqaColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
     builder: (context) {
+      final colors = context.taqaColors;
       return StatefulBuilder(
         builder: (context, setState) {
           void updateFromSlider(double v) {
@@ -37,7 +40,9 @@ Future<int?> showWeightPickerPopup(
               children: [
                 Text(
                   "Select Your Weight",
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 15),
 
@@ -52,10 +57,13 @@ Future<int?> showWeightPickerPopup(
                   ),
                   builder: (_, value, __) {
                     // Map weight 50–150 → scale 0.90–2.0
-                    double normalized =
-                    ((value - 50) / (150 - 50)).clamp(0.0, 1.0);
+                    double normalized = ((value - 50) / (150 - 50)).clamp(
+                      0.0,
+                      1.0,
+                    );
                     final centerScale =
-                        0.90 + (normalized * (2.0 - 0.90)); // smooth middle stretch
+                        0.90 +
+                        (normalized * (2.0 - 0.90)); // smooth middle stretch
 
                     return SizedBox(
                       height: 250,
@@ -114,16 +122,21 @@ Future<int?> showWeightPickerPopup(
 
                 Text(
                   "$currentWeight kg",
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
                 Row(
                   children: [
                     IconButton(
                       onPressed: () {
-                        final next = (currentWeight - 1).clamp(minWeight, maxWeight);
+                        final next = (currentWeight - 1).clamp(
+                          minWeight,
+                          maxWeight,
+                        );
                         setState(() => currentWeight = next);
                       },
-                      icon: const Icon(Icons.remove),
+                      icon: Icon(Icons.remove, color: colors.textPrimary),
                     ),
                     Expanded(
                       child: Slider(
@@ -136,10 +149,13 @@ Future<int?> showWeightPickerPopup(
                     ),
                     IconButton(
                       onPressed: () {
-                        final next = (currentWeight + 1).clamp(minWeight, maxWeight);
+                        final next = (currentWeight + 1).clamp(
+                          minWeight,
+                          maxWeight,
+                        );
                         setState(() => currentWeight = next);
                       },
-                      icon: const Icon(Icons.add),
+                      icon: Icon(Icons.add, color: colors.textPrimary),
                     ),
                   ],
                 ),
@@ -149,8 +165,8 @@ Future<int?> showWeightPickerPopup(
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, currentWeight),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onAccent,
                     minimumSize: const Size.fromHeight(45),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

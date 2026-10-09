@@ -12,6 +12,7 @@ import '../../services/diet/diet_targets_storage.dart';
 import '../../theme/app_theme.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class BodyMeasurementsSheet extends StatefulWidget {
   final double? initialHeightCm;
@@ -58,7 +59,9 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null) return;
-      final url = Uri.parse("${ApiConfig.baseUrl}/questionnaire/$userId/history?limit=60");
+      final url = Uri.parse(
+        "${ApiConfig.baseUrl}/questionnaire/$userId/history?limit=60",
+      );
       final headers = await AccountStorage.getAuthHeaders();
       final res = await http.get(url, headers: headers);
       if (res.statusCode != 200) return;
@@ -93,7 +96,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final height = double.tryParse(_heightCtrl.text.trim());
     final weight = double.tryParse(_weightCtrl.text.trim());
     if (height == null && weight == null) {
-      AppToast.show(context, t("body_enter_height_or_weight"), type: AppToastType.info);
+      AppToast.show(
+        context,
+        t("body_enter_height_or_weight"),
+        type: AppToastType.info,
+      );
       return;
     }
 
@@ -101,7 +108,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final userId = await AccountStorage.getUserId();
     if (userId == null) {
       if (mounted) {
-        AppToast.show(context, t("error_not_authenticated"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          t("error_not_authenticated"),
+          type: AppToastType.error,
+        );
         setState(() => _saving = false);
       }
       return;
@@ -109,7 +120,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     final latest = await _fetchLatestQuestionnaire(userId);
     if (latest == null) {
       if (mounted) {
-        AppToast.show(context, t("body_profile_unavailable"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          t("body_profile_unavailable"),
+          type: AppToastType.error,
+        );
         setState(() => _saving = false);
       }
       return;
@@ -136,7 +151,8 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     if (weightChanged) payload["weight_kg"] = nextWeight;
     try {
       final response = await ProfileApi.updateProfile(payload);
-      final dietPending = response['diet_pending'] == true ||
+      final dietPending =
+          response['diet_pending'] == true ||
           response['diet_needs_regeneration'] == true;
       if (dietPending) {
         DietRegenerationFlag.setRegenerating();
@@ -144,7 +160,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       }
     } catch (e) {
       if (mounted) {
-        AppToast.show(context, t("body_update_failed").replaceAll("{error}", "$e"), type: AppToastType.error);
+        AppToast.show(
+          context,
+          t("body_update_failed").replaceAll("{error}", "$e"),
+          type: AppToastType.error,
+        );
         setState(() => _saving = false);
       }
       return;
@@ -171,7 +191,10 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     }
   }
 
-  Map<String, dynamic> _buildProfilePayload(Map<String, dynamic> latest, int userId) {
+  Map<String, dynamic> _buildProfilePayload(
+    Map<String, dynamic> latest,
+    int userId,
+  ) {
     String? _normalizeStringField(dynamic v) {
       if (v == null) return null;
       if (v is String) {
@@ -197,7 +220,11 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
     // diet_type: API accepts array (recommended) or string; pass list through
     final dietRaw = latest["diet_type"];
     final dynamic dietPayload = dietRaw is List
-        ? (dietRaw as List).map((e) => e?.toString().trim()).whereType<String>().where((s) => s.isNotEmpty).toList()
+        ? (dietRaw as List)
+              .map((e) => e?.toString().trim())
+              .whereType<String>()
+              .where((s) => s.isNotEmpty)
+              .toList()
         : _normalizeStringField(dietRaw);
 
     return <String, dynamic>{
@@ -206,15 +233,21 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       "sex": latest["sex"],
       "height_cm": latest["height_cm"],
       "weight_kg": latest["weight_kg"],
-      "main_goal": _normalizeStringField(latest["main_goal"] ?? latest["fitness_goal"]),
+      "main_goal": _normalizeStringField(
+        latest["main_goal"] ?? latest["fitness_goal"],
+      ),
       "training_days": _normalizeStringField(latest["training_days"]),
       "fitness_experience": _normalizeStringField(latest["fitness_experience"]),
-      "daily_activity": _normalizeStringField(latest["daily_activity"] ?? latest["occupation"]),
+      "daily_activity": _normalizeStringField(
+        latest["daily_activity"] ?? latest["occupation"],
+      ),
       "diet_type": dietPayload,
       "past_injuries": _normalizeStringField(latest["past_injuries"]),
       "chronic_conditions": _normalizeStringField(latest["chronic_conditions"]),
       "affiliation_id": latest["affiliation_id"],
-      "affiliation_other_text": _normalizeStringField(latest["affiliation_other_text"]),
+      "affiliation_other_text": _normalizeStringField(
+        latest["affiliation_other_text"],
+      ),
       "is_university_student": latest["is_university_student"],
       "university_id": latest["university_id"],
     };
@@ -222,6 +255,7 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final viewInset = MediaQuery.of(context).viewInsets.bottom;
     return AnimatedPadding(
@@ -231,13 +265,13 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
       child: Container(
         padding: EdgeInsets.fromLTRB(20, 16, 20, 16 + bottomInset),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1D1F27), Color(0xFF13151C)],
+          gradient: LinearGradient(
+            colors: [colors.surfaceElevated, colors.surface],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: AppColors.dividerDark),
+          border: Border.all(color: colors.border),
         ),
         child: DraggableScrollableSheet(
           expand: false,
@@ -256,17 +290,21 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                     height: 5,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: Colors.white24,
+                      color: colors.divider,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   Row(
                     children: [
-                      Text(t("body_measurements_title"),
-                          style: AppTextStyles.subtitle.copyWith(color: Colors.white)),
+                      Text(
+                        t("body_measurements_title"),
+                        style: AppTextStyles.subtitle.copyWith(
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        icon: Icon(Icons.close, color: colors.textSecondary),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
@@ -289,14 +327,16 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                     child: ElevatedButton(
                       onPressed: _saving ? null : _saveLog,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.white,
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      child: Text(_saving ? t("common_saving") : t("common_save")),
+                      child: Text(
+                        _saving ? t("common_saving") : t("common_save"),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -304,7 +344,9 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       t("common_history"),
-                      style: AppTextStyles.small.copyWith(color: Colors.white70),
+                      style: AppTextStyles.small.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -313,7 +355,9 @@ class _BodyMeasurementsSheetState extends State<BodyMeasurementsSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Text(
                         t("body_no_measurements_yet"),
-                        style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                        style: AppTextStyles.small.copyWith(
+                          color: colors.textSecondary,
+                        ),
                       ),
                     )
                   else
@@ -350,25 +394,28 @@ class _MeasurementField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.dividerDark),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.accent),
+          Icon(icon, color: colors.accent),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: const TextStyle(color: Colors.white),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: TextStyle(color: colors.textPrimary),
               decoration: InputDecoration(
                 hintText: label,
-                hintStyle: const TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: colors.textSecondary),
                 border: InputBorder.none,
               ),
             ),
@@ -386,22 +433,25 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final date = DateFormat('MMM d, y • h:mm a').format(entry.timestamp);
-    final heightLabel =
-        entry.heightCm == null ? "—" : "${entry.heightCm!.toStringAsFixed(0)} cm";
-    final weightLabel =
-        entry.weightKg == null ? "—" : "${entry.weightKg!.toStringAsFixed(0)} kg";
+    final heightLabel = entry.heightCm == null
+        ? "—"
+        : "${entry.heightCm!.toStringAsFixed(0)} cm";
+    final weightLabel = entry.weightKg == null
+        ? "—"
+        : "${entry.weightKg!.toStringAsFixed(0)} kg";
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.dividerDark),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          const Icon(Icons.fitness_center, color: Colors.white70, size: 18),
+          Icon(Icons.fitness_center, color: colors.accent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -409,12 +459,16 @@ class _HistoryTile extends StatelessWidget {
               children: [
                 Text(
                   "$heightLabel • $weightLabel",
-                  style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+                  style: AppTextStyles.subtitle.copyWith(
+                    color: colors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   date,
-                  style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                  style: AppTextStyles.small.copyWith(
+                    color: colors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -437,11 +491,7 @@ class _BodyLogEntry {
   final double? heightCm;
   final double? weightKg;
 
-  _BodyLogEntry({
-    required this.timestamp,
-    this.heightCm,
-    this.weightKg,
-  });
+  _BodyLogEntry({required this.timestamp, this.heightCm, this.weightKg});
 
   static _BodyLogEntry? fromDbJson(dynamic json) {
     if (json is! Map<String, dynamic>) return null;

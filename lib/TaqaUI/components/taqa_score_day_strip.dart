@@ -54,7 +54,7 @@ class TaqaScoreDayStrip extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
                     fontSize: TaqaUiScale.sp(9),
                     fontWeight: FontWeight.w400,
-                    color: TaqaUiColors.charcoal,
+                    color: context.taqaColors.textPrimary,
                     letterSpacing: 0,
                   ),
                 ),

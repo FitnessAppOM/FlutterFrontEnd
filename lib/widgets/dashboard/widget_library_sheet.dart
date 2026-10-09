@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../localization/app_localizations.dart';
+import '../../TaqaUI/taqa_ui_colors.dart';
 
 class WidgetLibraryOption {
   final String keyName;
@@ -35,6 +36,7 @@ class WidgetLibrarySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final t = AppLocalizations.of(context).translate;
     final width = min(MediaQuery.of(context).size.width * 0.82, 360.0);
     final topInset = MediaQuery.of(context).padding.top;
@@ -49,8 +51,8 @@ class WidgetLibrarySheet extends StatelessWidget {
           height: double.infinity,
           padding: EdgeInsets.fromLTRB(16, 16 + topInset, 16, 20 + bottomInset),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1D1F27), Color(0xFF13151C)],
+            gradient: LinearGradient(
+              colors: [colors.surfaceElevated, colors.surface],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -58,10 +60,10 @@ class WidgetLibrarySheet extends StatelessWidget {
               topLeft: Radius.circular(26),
               bottomLeft: Radius.circular(26),
             ),
-            border: Border.all(color: AppColors.dividerDark),
-            boxShadow: const [
+            border: Border.all(color: colors.border),
+            boxShadow: [
               BoxShadow(
-                color: Colors.black54,
+                color: colors.scrim.withValues(alpha: 0.35),
                 blurRadius: 16,
                 offset: Offset(-4, 0),
               ),
@@ -74,18 +76,22 @@ class WidgetLibrarySheet extends StatelessWidget {
                 children: [
                   Text(
                     t("widget_library_title"),
-                    style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: colors.textPrimary,
+                    ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white70),
+                    icon: Icon(Icons.close, color: colors.textSecondary),
                     onPressed: onClose,
                   ),
                 ],
               ),
               Text(
                 t("widget_library_available"),
-                style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                style: AppTextStyles.small.copyWith(
+                  color: colors.textSecondary,
+                ),
               ),
               const SizedBox(height: 12),
               if (options.isEmpty)
@@ -94,7 +100,9 @@ class WidgetLibrarySheet extends StatelessWidget {
                     child: Text(
                       t("widget_library_all_added"),
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                      style: AppTextStyles.small.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                 )
@@ -124,13 +132,11 @@ class _WidgetLibraryTile extends StatelessWidget {
   final WidgetLibraryOption option;
   final VoidCallback? onTap;
 
-  const _WidgetLibraryTile({
-    required this.option,
-    this.onTap,
-  });
+  const _WidgetLibraryTile({required this.option, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -162,12 +168,16 @@ class _WidgetLibraryTile extends StatelessWidget {
                 children: [
                   Text(
                     option.title,
-                    style: AppTextStyles.subtitle.copyWith(color: Colors.white),
+                    style: AppTextStyles.subtitle.copyWith(
+                      color: colors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     option.subtitle,
-                    style: AppTextStyles.small.copyWith(color: AppColors.textDim),
+                    style: AppTextStyles.small.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                 ],
               ),

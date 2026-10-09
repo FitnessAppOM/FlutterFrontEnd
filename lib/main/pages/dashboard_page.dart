@@ -204,7 +204,6 @@ class DashboardPageState extends State<DashboardPage>
   String _newsLanguageCode = 'en';
   String _dailyOutlookLanguageCode = 'en';
   int _newsRequestId = 0;
-  bool _loading = true;
   String? _error;
   final _mockSteps = [8200, 9100, 10400, 7600, 8800, 9900, 11200];
   final _mockSleepHours = [6.5, 7.0, 7.2, 6.8, 7.5, 7.8, 8.0];
@@ -2097,9 +2096,6 @@ class DashboardPageState extends State<DashboardPage>
     bool refreshStrava = true,
     bool refreshTaqaScore = true,
   }) async {
-    setState(() {
-      _loading = true;
-    });
     DailyMetricsApi.clearCache();
     TaqaScoreApi.clearCache();
     DailyOutlookApi.clearCache();
@@ -5251,7 +5247,6 @@ class DashboardPageState extends State<DashboardPage>
       if (!mounted || requestId != _newsRequestId) return;
       setState(() {
         _news = items;
-        _loading = false;
         _error = null;
       });
     } catch (e) {
@@ -5263,7 +5258,6 @@ class DashboardPageState extends State<DashboardPage>
         if (!mounted || requestId != _newsRequestId) return;
         setState(() {
           _news = cached;
-          _loading = false;
           _error = null; // Don't show error if we have cached data
         });
       } catch (_) {
@@ -5271,7 +5265,6 @@ class DashboardPageState extends State<DashboardPage>
         if (!mounted || requestId != _newsRequestId) return;
         setState(() {
           _error = null; // Don't show error, just show empty state
-          _loading = false;
         });
       }
     }
@@ -5402,12 +5395,6 @@ class DashboardPageState extends State<DashboardPage>
           streakDays: _streakCount,
         ),
         const SizedBox(height: 16),
-        if (_loading)
-          LinearProgressIndicator(
-            color: TaqaUiColors.lime,
-            backgroundColor: context.taqaColors.border,
-            minHeight: 2,
-          ),
         if (noEntriesForSelectedDate)
           TaqaEmptyCard(
             title: t("no_entries"),

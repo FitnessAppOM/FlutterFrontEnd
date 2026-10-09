@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
+import '../TaqaUI/taqa_ui_colors.dart';
 
 Future<bool?> showConfirmDialog({
   required BuildContext context,
@@ -12,8 +12,9 @@ Future<bool?> showConfirmDialog({
   return showDialog<bool>(
     context: context,
     builder: (ctx) {
+      final colors = ctx.taqaColors;
       return Dialog(
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: colors.surfaceElevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
           side: borderColor == null
@@ -31,8 +32,8 @@ Future<bool?> showConfirmDialog({
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -40,7 +41,7 @@ Future<bool?> showConfirmDialog({
               const SizedBox(height: 8),
               Text(
                 message,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
               ),
               const SizedBox(height: 16),
               Row(
@@ -49,8 +50,8 @@ Future<bool?> showConfirmDialog({
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(ctx, false),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                        foregroundColor: colors.textPrimary,
+                        side: BorderSide(color: colors.border),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -64,8 +65,8 @@ Future<bool?> showConfirmDialog({
                     child: ElevatedButton(
                       onPressed: () => Navigator.pop(ctx, true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accent,
-                        foregroundColor: Colors.black,
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.onAccent,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

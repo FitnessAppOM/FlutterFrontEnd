@@ -25,10 +25,10 @@ class FitbitMockupPreviewPage extends StatelessWidget {
     final today = DateTime.now();
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
-      appBar: const TaqaPageAppBar(
+      backgroundColor: context.taqaColors.background,
+      appBar: TaqaPageAppBar(
         title: 'Fitbit Design Preview',
-        backgroundColor: TaqaUiColors.unnamedColorE3e3e3,
+        backgroundColor: context.taqaColors.background,
       ),
       body: SafeArea(
         child: ListView(
@@ -121,18 +121,17 @@ class FitbitMockupPreviewPage extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: TaqaUiScale.h(12)),
       child: Material(
-        color: TaqaUiColors.white,
+        color: context.taqaColors.surface,
         borderRadius: TaqaUiScale.radius(15),
         child: InkWell(
           borderRadius: TaqaUiScale.radius(15),
-          onTap: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: builder)),
+          onTap: () =>
+              Navigator.of(context).push(MaterialPageRoute(builder: builder)),
           child: Padding(
             padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
             child: Row(
               children: [
-                Icon(icon, color: TaqaUiColors.charcoal),
+                Icon(icon, color: context.taqaColors.textPrimary),
                 SizedBox(width: TaqaUiScale.w(12)),
                 Expanded(
                   child: Text(
@@ -141,13 +140,13 @@ class FitbitMockupPreviewPage extends StatelessWidget {
                       fontFamily: TaqaUiFontFamilies.interTight,
                       fontSize: TaqaUiScale.sp(15),
                       fontWeight: FontWeight.w700,
-                      color: TaqaUiColors.charcoal,
+                      color: context.taqaColors.textPrimary,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: TaqaUiColors.charcoal.withValues(alpha: 0.5),
+                  color: context.taqaColors.textSecondary,
                 ),
               ],
             ),

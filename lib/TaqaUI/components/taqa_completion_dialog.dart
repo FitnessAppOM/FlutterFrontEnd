@@ -53,6 +53,7 @@ class _TaqaCompletionDialogContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final eyebrowText = eyebrow?.trim() ?? '';
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -65,7 +66,7 @@ class _TaqaCompletionDialogContent extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
               fontSize: TaqaUiScale.sp(10),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.55),
+              color: colors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(18)),
@@ -74,13 +75,13 @@ class _TaqaCompletionDialogContent extends StatelessWidget {
           width: TaqaUiScale.w(68),
           height: TaqaUiScale.w(68),
           decoration: BoxDecoration(
-            color: TaqaUiColors.accent,
+            color: colors.accent,
             borderRadius: TaqaUiScale.radius(15),
           ),
           child: Icon(
             Icons.check_rounded,
             size: TaqaUiScale.w(40),
-            color: TaqaUiColors.charcoal,
+            color: colors.onAccent,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(20)),
@@ -92,7 +93,7 @@ class _TaqaCompletionDialogContent extends StatelessWidget {
             fontSize: TaqaUiScale.sp(24),
             fontWeight: FontWeight.w700,
             height: 1.1,
-            color: TaqaUiColors.charcoal,
+            color: colors.textPrimary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(10)),
@@ -104,7 +105,7 @@ class _TaqaCompletionDialogContent extends StatelessWidget {
             fontSize: TaqaUiScale.sp(13),
             fontWeight: FontWeight.w400,
             height: 18 / 13,
-            color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+            color: colors.textSecondary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(24)),

@@ -22,14 +22,15 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: context.taqaColors.background,
       appBar: TaqaPageAppBar(
         title: dayLabel,
         backgroundColor: context.taqaColors.background,
-        titleColor: TaqaUiColors.charcoal,
-        leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
+        titleColor: colors.textPrimary,
+        leading: TaqaBackButton(color: colors.textPrimary),
       ),
       body: ListView(
         padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
@@ -42,7 +43,7 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(15),
               fontWeight: FontWeight.w400,
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.6),
+              color: colors.textSecondary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(16)),
@@ -52,7 +53,7 @@ class TrainingHistoryDayDetailPage extends StatelessWidget {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                color: colors.textSecondary,
               ),
             )
           else
@@ -90,11 +91,12 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final isRtl = Directionality.of(context) == TextDirection.rtl;
     final title = (exercise['exercise_name'] ?? '').toString();
 
     return Material(
-      color: TaqaUiColors.white,
+      color: colors.surface,
       borderRadius: TaqaUiScale.radius(15),
       child: InkWell(
         onTap: onTap,
@@ -103,9 +105,7 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
           padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
           decoration: BoxDecoration(
             borderRadius: TaqaUiScale.radius(15),
-            border: Border.all(
-              color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-            ),
+            border: Border.all(color: colors.border),
           ),
           child: Row(
             children: [
@@ -113,13 +113,13 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
                 width: TaqaUiScale.w(36),
                 height: TaqaUiScale.w(36),
                 decoration: BoxDecoration(
-                  color: TaqaUiColors.lime,
+                  color: colors.accent,
                   borderRadius: TaqaUiScale.radius(10),
                 ),
                 child: Icon(
                   Icons.check,
                   size: TaqaUiScale.sp(18),
-                  color: TaqaUiColors.charcoal,
+                  color: colors.onAccent,
                 ),
               ),
               SizedBox(width: TaqaUiScale.w(12)),
@@ -132,7 +132,7 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),
@@ -142,7 +142,7 @@ class TaqaTrainingHistoryExerciseCard extends StatelessWidget {
                     ? Icons.arrow_back_ios_new_rounded
                     : Icons.arrow_forward_ios_rounded,
                 size: TaqaUiScale.sp(16),
-                color: TaqaUiColors.charcoal,
+                color: colors.textPrimary,
               ),
             ],
           ),
@@ -203,6 +203,7 @@ class TrainingHistoryExerciseSetPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final t = AppLocalizations.of(context);
     final title = (exercise['exercise_name'] ?? '').toString();
     final rows = _setRows();
@@ -212,8 +213,8 @@ class TrainingHistoryExerciseSetPage extends StatelessWidget {
       appBar: TaqaPageAppBar(
         title: title,
         backgroundColor: context.taqaColors.background,
-        titleColor: TaqaUiColors.charcoal,
-        leading: const TaqaBackButton(color: TaqaUiColors.charcoal),
+        titleColor: colors.textPrimary,
+        leading: TaqaBackButton(color: colors.textPrimary),
       ),
       body: ListView(
         padding: TaqaUiScale.insetsLTRB(16, 12, 16, 24),
@@ -224,7 +225,7 @@ class TrainingHistoryExerciseSetPage extends StatelessWidget {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(25),
               fontWeight: FontWeight.w700,
-              color: TaqaUiColors.charcoal,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(16)),
@@ -234,7 +235,7 @@ class TrainingHistoryExerciseSetPage extends StatelessWidget {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
-                color: TaqaUiColors.charcoal.withValues(alpha: 0.7),
+                color: colors.textSecondary,
               ),
             )
           else
@@ -282,6 +283,7 @@ class _TrainingHistorySetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     final t = AppLocalizations.of(context);
     final details = <String>[
       if (reps != null) '$reps ${t.translate('training_reps')}',
@@ -297,11 +299,9 @@ class _TrainingHistorySetCard extends StatelessWidget {
     return Container(
       padding: TaqaUiScale.insetsLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: TaqaUiColors.white,
+        color: colors.surface,
         borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(
-          color: TaqaUiColors.charcoal.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,7 +311,7 @@ class _TrainingHistorySetCard extends StatelessWidget {
             height: TaqaUiScale.w(36),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: TaqaUiColors.lime,
+              color: colors.accent,
               borderRadius: TaqaUiScale.radius(10),
             ),
             child: Text(
@@ -320,7 +320,7 @@ class _TrainingHistorySetCard extends StatelessWidget {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(15),
                 fontWeight: FontWeight.w700,
-                color: TaqaUiColors.charcoal,
+                color: colors.onAccent,
               ),
             ),
           ),
@@ -335,7 +335,7 @@ class _TrainingHistorySetCard extends StatelessWidget {
                     fontFamily: TaqaUiFontFamilies.interTight,
                     fontSize: TaqaUiScale.sp(15),
                     fontWeight: FontWeight.w700,
-                    color: TaqaUiColors.charcoal,
+                    color: colors.textPrimary,
                   ),
                 ),
                 if (details.isNotEmpty) ...[

@@ -367,7 +367,7 @@ class _WhoopCycleDetailPageState extends State<WhoopCycleDetailPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: TaqaUiColors.white,
+          color: context.taqaColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: (up ? const Color(0xFF4CD964) : const Color(0xFFFF8A00))

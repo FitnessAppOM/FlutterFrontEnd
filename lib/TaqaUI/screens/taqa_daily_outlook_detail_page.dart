@@ -17,21 +17,24 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context).translate;
+    final colors = context.taqaColors;
     final generatedTag = outlook.readinessState.trim().isNotEmpty
         ? localizedDailyOutlookReadiness(t, outlook.readinessState)
         : t('dash_daily_outlook_title');
-    final bodyStyle = TaqaUiStyles.dailyOutlookDescription;
+    final bodyStyle = TaqaUiStyles.dailyOutlookDescription.copyWith(
+      color: colors.textSecondary,
+    );
     final headlineStyle = TextStyle(
       fontFamily: TaqaUiFontFamilies.interTight,
       fontSize: TaqaUiScale.sp(25),
       fontWeight: FontWeight.w700,
-      color: TaqaUiColors.charcoal,
+      color: colors.textPrimary,
       letterSpacing: 0,
       height: 1,
     );
 
     return Scaffold(
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -54,7 +57,7 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                           style: TaqaUiStyles.pageTitle.copyWith(
-                            color: TaqaUiColors.charcoal,
+                            color: colors.textPrimary,
                           ),
                         ),
                       ],
@@ -64,7 +67,9 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
                   Text(
                     generatedTag.toUpperCase(),
                     textAlign: TextAlign.start,
-                    style: TaqaUiStyles.dailyOutlookTag,
+                    style: TaqaUiStyles.dailyOutlookTag.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                   SizedBox(height: TaqaUiScale.h(21)),
                   Text(
@@ -116,8 +121,8 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
                   onPressed: () => Navigator.of(context).pop(),
                   style: ElevatedButton.styleFrom(
                     elevation: 0,
-                    backgroundColor: TaqaUiColors.lime,
-                    foregroundColor: TaqaUiColors.charcoal,
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onAccent,
                     shape: RoundedRectangleBorder(
                       borderRadius: TaqaUiStyles.actionButtonRadius,
                     ),
@@ -125,7 +130,9 @@ class TaqaDailyOutlookDetailPage extends StatelessWidget {
                   child: Text(
                     t('okay'),
                     textAlign: TextAlign.center,
-                    style: TaqaUiStyles.dailyOutlookButton,
+                    style: TaqaUiStyles.dailyOutlookButton.copyWith(
+                      color: colors.onAccent,
+                    ),
                   ),
                 ),
               ),

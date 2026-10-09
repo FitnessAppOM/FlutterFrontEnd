@@ -44,14 +44,14 @@ class TaqaDashboardDateSwitcherBubble extends StatelessWidget {
               Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: TaqaUiColors.lime,
+                decoration: BoxDecoration(
+                  color: colors.accent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.calendar_today,
                   size: 12,
-                  color: TaqaUiColors.charcoal,
+                  color: colors.onAccent,
                 ),
               ),
               const SizedBox(width: 8),

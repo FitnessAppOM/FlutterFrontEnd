@@ -11,9 +11,10 @@ class TaqaRefreshSpinner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return RefreshProgressIndicator(
-      color: TaqaUiColors.charcoal,
-      backgroundColor: TaqaUiColors.white,
+      color: colors.accent,
+      backgroundColor: colors.surface,
       strokeWidth: TaqaUiScale.w(2),
     );
   }
@@ -36,8 +37,8 @@ class TaqaRefreshIndicator extends StatefulWidget {
     required this.child,
     this.cooldown = const Duration(seconds: 8),
     this.showCooldownToast = true,
-    this.color = TaqaUiColors.charcoal,
-    this.backgroundColor = TaqaUiColors.white,
+    this.color,
+    this.backgroundColor,
     this.notificationPredicate,
   });
 
@@ -51,8 +52,8 @@ class TaqaRefreshIndicator extends StatefulWidget {
   /// Whether to surface a toast when a pull is swallowed by the cooldown.
   final bool showCooldownToast;
 
-  final Color color;
-  final Color backgroundColor;
+  final Color? color;
+  final Color? backgroundColor;
 
   /// Passed straight through to [RefreshIndicator.notificationPredicate]
   /// (e.g. only allow the pull gesture while viewing "today").
@@ -80,9 +81,10 @@ class _TaqaRefreshIndicatorState extends State<TaqaRefreshIndicator> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return RefreshIndicator(
-      color: widget.color,
-      backgroundColor: widget.backgroundColor,
+      color: widget.color ?? colors.accent,
+      backgroundColor: widget.backgroundColor ?? colors.surface,
       strokeWidth: TaqaUiScale.w(2),
       notificationPredicate:
           widget.notificationPredicate ?? defaultScrollNotificationPredicate,

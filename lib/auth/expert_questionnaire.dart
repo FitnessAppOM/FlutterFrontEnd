@@ -28,14 +28,15 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Scaffold(
       appBar: TaqaPageAppBar(
         title: _t("expert_questionnaire_title"),
-        backgroundColor: TaqaUiColors.white,
+        backgroundColor: colors.background,
         showBackButton: !_started,
         leading: TaqaBackButton(onPressed: _handleBack),
       ),
-      backgroundColor: TaqaUiColors.white,
+      backgroundColor: colors.background,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: _started
@@ -58,6 +59,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
   }
 
   Widget _buildIntro() {
+    final colors = context.taqaColors;
     return SingleChildScrollView(
       padding: TaqaUiScale.insetsLTRB(16, 20, 16, 20),
       child: Column(
@@ -71,7 +73,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
               fontWeight: FontWeight.w400,
               height: 18 / 13,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(24)),
@@ -83,7 +85,7 @@ class _ExpertQuestionnairePageState extends State<ExpertQuestionnairePage> {
               fontWeight: FontWeight.w700,
               height: 26 / 20,
               letterSpacing: 0,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: colors.textPrimary,
             ),
           ),
           SizedBox(height: TaqaUiScale.h(20)),
@@ -197,6 +199,7 @@ class _ExpertSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -208,7 +211,7 @@ class _ExpertSection extends StatelessWidget {
             fontWeight: FontWeight.w700,
             height: 12 / 10,
             letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textPrimary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(2)),
@@ -220,7 +223,7 @@ class _ExpertSection extends StatelessWidget {
             fontWeight: FontWeight.w400,
             height: 12 / 10,
             letterSpacing: 0,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: colors.textSecondary,
           ),
         ),
       ],

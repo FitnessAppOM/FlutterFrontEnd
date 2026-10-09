@@ -622,6 +622,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     // Layout: the question fields scroll inside Expanded, while the Back/Next
     // bar is pinned at the bottom (outside the scroll view). This guarantees the
     // navigation buttons stay reachable on every screen size, font/display scale,
@@ -651,7 +652,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                         fontSize: TaqaUiScale.sp(20),
                         fontWeight: FontWeight.w700,
                         height: 26 / 20,
-                        color: TaqaUiColors.unnamedColor1c1d17,
+                        color: colors.textPrimary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(4)),
@@ -662,9 +663,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                         fontSize: TaqaUiScale.sp(13),
                         fontWeight: FontWeight.w400,
                         height: 18 / 13,
-                        color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                          alpha: 0.6,
-                        ),
+                        color: colors.textSecondary,
                       ),
                     ),
                     SizedBox(height: TaqaUiScale.h(20)),
@@ -896,7 +895,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
           fontSize: TaqaUiScale.sp(13),
           fontWeight: FontWeight.w500,
           height: 18 / 13,
-          color: TaqaUiColors.unnamedColor1c1d17,
+          color: context.taqaColors.textPrimary,
         ),
       ),
       const SizedBox(height: 8),
@@ -1087,12 +1086,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               width: double.infinity,
               padding: TaqaUiScale.insetsLTRB(12, 12, 12, 12),
               decoration: BoxDecoration(
-                color: TaqaUiColors.white,
-                border: Border.all(
-                  color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                    alpha: 0.14,
-                  ),
-                ),
+                color: context.taqaColors.surface,
+                border: Border.all(color: context.taqaColors.border),
                 borderRadius: TaqaUiScale.radius(5),
               ),
               child: Row(
@@ -1102,8 +1097,8 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                         ? Icons.verified_rounded
                         : Icons.school_outlined,
                     color: _studentEmailVerified
-                        ? Colors.green.shade700
-                        : TaqaUiColors.unnamedColor1c1d17,
+                        ? context.taqaColors.success
+                        : context.taqaColors.textPrimary,
                   ),
                   SizedBox(width: TaqaUiScale.w(10)),
                   Expanded(
@@ -1115,9 +1110,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                           style: TextStyle(
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(11),
-                            color: TaqaUiColors.unnamedColor1c1d17.withValues(
-                              alpha: 0.55,
-                            ),
+                            color: context.taqaColors.textSecondary,
                           ),
                         ),
                         Text(
@@ -1126,7 +1119,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                             fontFamily: TaqaUiFontFamilies.interTight,
                             fontSize: TaqaUiScale.sp(14),
                             fontWeight: FontWeight.w700,
-                            color: TaqaUiColors.unnamedColor1c1d17,
+                            color: context.taqaColors.textPrimary,
                           ),
                         ),
                       ],
@@ -1148,7 +1141,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(12),
                   fontWeight: FontWeight.w700,
-                  color: Colors.green.shade700,
+                  color: context.taqaColors.success,
                 ),
               ),
           ],
@@ -1159,7 +1152,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(11),
-                color: TaqaUiColors.unnamedColorE93b3b,
+                color: context.taqaColors.danger,
               ),
             ),
           ],
@@ -1172,7 +1165,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
             fontFamily: TaqaUiFontFamilies.interTight,
             fontSize: TaqaUiScale.sp(15),
             fontWeight: FontWeight.w700,
-            color: TaqaUiColors.unnamedColor1c1d17,
+            color: context.taqaColors.textPrimary,
           ),
         ),
         SizedBox(height: TaqaUiScale.h(8)),
@@ -1271,7 +1264,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(12),
-                color: TaqaUiColors.unnamedColorE93b3b,
+                color: context.taqaColors.danger,
               ),
             ),
           ],
@@ -1297,7 +1290,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               style: TextStyle(
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(11),
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                color: context.taqaColors.textSecondary,
               ),
             ),
           ],
@@ -1444,7 +1437,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
               fontFamily: TaqaUiFontFamilies.interTight,
               fontSize: TaqaUiScale.sp(13),
               fontWeight: FontWeight.w600,
-              color: TaqaUiColors.unnamedColor1c1d17,
+              color: context.taqaColors.textPrimary,
             ),
           ),
           if (subtitle != null) ...[
@@ -1455,7 +1448,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                 fontFamily: TaqaUiFontFamilies.interTight,
                 fontSize: TaqaUiScale.sp(11),
                 fontWeight: FontWeight.w400,
-                color: TaqaUiColors.unnamedColor1c1d17.withValues(alpha: 0.6),
+                color: context.taqaColors.textSecondary,
               ),
             ),
           ],
@@ -1618,7 +1611,7 @@ class _QuestionnaireFormState extends State<QuestionnaireForm> {
                   fontFamily: TaqaUiFontFamilies.interTight,
                   fontSize: TaqaUiScale.sp(13),
                   fontWeight: FontWeight.w600,
-                  color: TaqaUiColors.unnamedColor1c1d17,
+                  color: context.taqaColors.textPrimary,
                 ),
               ),
               SizedBox(height: TaqaUiScale.h(8)),
@@ -1679,6 +1672,7 @@ class _StepProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.taqaColors;
     return Row(
       children: List.generate(total, (i) {
         final filled = i <= current;
@@ -1691,9 +1685,7 @@ class _StepProgressBar extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               height: TaqaUiScale.h(4),
               decoration: BoxDecoration(
-                color: filled
-                    ? TaqaUiColors.unnamedColorE4e93b
-                    : TaqaUiColors.unnamedColorE3e3e3,
+                color: filled ? colors.accent : colors.surfaceElevated,
                 borderRadius: TaqaUiScale.radius(2),
               ),
             ),

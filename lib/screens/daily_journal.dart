@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../TaqaUI/components/taqa_empty_card.dart';
@@ -21,6 +20,7 @@ import '../services/whoop/whoop_sleep_service.dart';
 import '../services/fitbit/fitbit_sleep_service.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/screening/screening_form_sheet.dart';
+import '../widgets/common/date_header.dart';
 import '../localization/app_localizations.dart';
 
 class DailyJournalPage extends StatefulWidget {
@@ -491,7 +491,7 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _JournalDateCard(
+                      DateHeader(
                         selectedDate: _selectedDate,
                         onPrev: () => _changeDay(-1),
                         onNext: () => _changeDay(1),
@@ -851,167 +851,6 @@ class _DailyJournalPageState extends State<DailyJournalPage> {
       ),
     );
   }
-}
-
-class _JournalDateCard extends StatelessWidget {
-  const _JournalDateCard({
-    required this.selectedDate,
-    required this.onPrev,
-    required this.onNext,
-    required this.canGoNext,
-    required this.label,
-  });
-
-  final DateTime selectedDate;
-  final VoidCallback onPrev;
-  final VoidCallback onNext;
-  final bool canGoNext;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context).translate;
-    final colors = context.taqaColors;
-    final locale = AppLocalizations.of(context).locale.languageCode;
-    final dateLabel = DateFormat('EEEE, MMM d', locale).format(selectedDate);
-    final today = DateTime.now();
-    final reference = DateTime(today.year, today.month, today.day);
-    final isToday = _dateOnly(selectedDate) == reference;
-    final isYesterday =
-        _dateOnly(selectedDate) == reference.subtract(const Duration(days: 1));
-    final relative = isToday
-        ? t("date_today")
-        : isYesterday
-        ? t("date_yesterday")
-        : DateFormat('MMM d, y', locale).format(selectedDate);
-
-    return Container(
-      padding: TaqaUiScale.insetsLTRB(10, 10, 10, 10),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: TaqaUiScale.radius(15),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onPrev,
-            child: Padding(
-              padding: TaqaUiScale.insetsLTRB(6, 6, 6, 6),
-              child: Icon(Icons.chevron_left, color: colors.textPrimary),
-            ),
-          ),
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  padding: TaqaUiScale.insetsLTRB(10, 8, 10, 8),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceInverse,
-                    borderRadius: TaqaUiScale.radius(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        DateFormat('d', locale).format(selectedDate),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(18),
-                          fontWeight: FontWeight.w700,
-                          height: 1,
-                          color: colors.textOnInverse,
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(2)),
-                      Text(
-                        DateFormat(
-                          'MMM',
-                          locale,
-                        ).format(selectedDate).toUpperCase(),
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                          fontSize: TaqaUiScale.sp(8),
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.4,
-                          color: colors.accent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(width: TaqaUiScale.w(12)),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.iaWriterMonoS,
-                          fontSize: TaqaUiScale.sp(8),
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0,
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(4)),
-                      Text(
-                        dateLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontFamily: TaqaUiFontFamilies.interTight,
-                          fontSize: TaqaUiScale.sp(13),
-                          fontWeight: FontWeight.w700,
-                          color: colors.textPrimary,
-                        ),
-                      ),
-                      SizedBox(height: TaqaUiScale.h(4)),
-                      Container(
-                        padding: TaqaUiScale.insetsLTRB(8, 3, 8, 3),
-                        decoration: BoxDecoration(
-                          color: colors.accent.withValues(alpha: 0.25),
-                          borderRadius: TaqaUiScale.radius(30),
-                        ),
-                        child: Text(
-                          relative,
-                          style: TextStyle(
-                            fontFamily: TaqaUiFontFamilies.interTight,
-                            fontSize: TaqaUiScale.sp(8),
-                            fontWeight: FontWeight.w600,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: canGoNext ? onNext : null,
-            child: Padding(
-              padding: TaqaUiScale.insetsLTRB(6, 6, 6, 6),
-              child: Icon(
-                Icons.chevron_right,
-                color: canGoNext
-                    ? colors.textPrimary
-                    : colors.textSecondary.withValues(alpha: 0.45),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  DateTime _dateOnly(DateTime date) =>
-      DateTime(date.year, date.month, date.day);
 }
 
 class _JournalSection extends StatelessWidget {

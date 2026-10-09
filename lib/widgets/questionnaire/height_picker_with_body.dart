@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../TaqaUI/taqa_ui_colors.dart';
+
 Future<int?> showHeightPickerPopup(
-    BuildContext context, {
-      required int initialHeight,
-    }) {
+  BuildContext context, {
+  required int initialHeight,
+}) {
   const int minHeight = 120;
   const int maxHeight = 240;
   int currentHeight = initialHeight;
@@ -13,11 +15,12 @@ Future<int?> showHeightPickerPopup(
   final sheet = showModalBottomSheet<int>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.grey,
+    backgroundColor: context.taqaColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
     ),
     builder: (context) {
+      final colors = context.taqaColors;
       return StatefulBuilder(
         builder: (context, setState) {
           void updateFromSlider(double v) {
@@ -37,14 +40,19 @@ Future<int?> showHeightPickerPopup(
               children: [
                 Text(
                   "Select Your Height",
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: 10),
 
                 // --- BODY IMAGE WITH ANIMATION ---
                 TweenAnimationBuilder<double>(
                   duration: const Duration(milliseconds: 250),
-                  tween: Tween(begin: currentHeight.toDouble(), end: currentHeight.toDouble()),
+                  tween: Tween(
+                    begin: currentHeight.toDouble(),
+                    end: currentHeight.toDouble(),
+                  ),
                   builder: (context, value, _) {
                     return Image.asset(
                       "assets/images/BodyHeight.png",
@@ -58,16 +66,21 @@ Future<int?> showHeightPickerPopup(
 
                 Text(
                   "$currentHeight cm",
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleMedium?.copyWith(color: colors.textPrimary),
                 ),
                 Row(
                   children: [
                     IconButton(
                       onPressed: () {
-                        final next = (currentHeight - 1).clamp(minHeight, maxHeight);
+                        final next = (currentHeight - 1).clamp(
+                          minHeight,
+                          maxHeight,
+                        );
                         setState(() => currentHeight = next);
                       },
-                      icon: const Icon(Icons.remove),
+                      icon: Icon(Icons.remove, color: colors.textPrimary),
                     ),
                     Expanded(
                       child: Slider(
@@ -80,10 +93,13 @@ Future<int?> showHeightPickerPopup(
                     ),
                     IconButton(
                       onPressed: () {
-                        final next = (currentHeight + 1).clamp(minHeight, maxHeight);
+                        final next = (currentHeight + 1).clamp(
+                          minHeight,
+                          maxHeight,
+                        );
                         setState(() => currentHeight = next);
                       },
-                      icon: const Icon(Icons.add),
+                      icon: Icon(Icons.add, color: colors.textPrimary),
                     ),
                   ],
                 ),
@@ -94,8 +110,8 @@ Future<int?> showHeightPickerPopup(
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, currentHeight),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
+                    backgroundColor: colors.accent,
+                    foregroundColor: colors.onAccent,
                     minimumSize: const Size.fromHeight(45),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
