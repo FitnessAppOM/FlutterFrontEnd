@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -73,6 +75,8 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
 
   void _onAccountChanged() {
     TaqaScoreApi.clearCache();
+    _scorePreviewCache.clear();
+    _previewLoadingKeys.clear();
     _reloadForActiveAccount();
   }
 
@@ -140,29 +144,42 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     _scorePreviewController.jumpToPage(target);
   }
 
-  Future<void> _loadScore(int userId) async {
+  Future<void> _loadScore(int userId, {bool forceRefresh = false}) async {
     final reqId = ++_scoreReqId;
     final selectedDate = _dateOnly(_selectedDate);
     final selectedKey = _dayKey(selectedDate);
+    final hasPreviewCache = _scorePreviewCache.containsKey(selectedKey);
+    var cached = hasPreviewCache ? _scorePreviewCache[selectedKey] : null;
     setState(() {
-      _loading = true;
-      if (_scorePreviewCache.containsKey(selectedKey)) {
-        _score = _scorePreviewCache[selectedKey];
-      }
+      _score = hasPreviewCache ? cached : null;
+      _loading = !hasPreviewCache;
     });
-    final isLiveDate = selectedDate == _maxSelectableDate();
+
+    if (!hasPreviewCache) {
+      cached = await TaqaScoreApi.readCachedDaily(
+        userId: userId,
+        date: selectedDate,
+      );
+      if (!mounted || reqId != _scoreReqId) return;
+      if (_dateOnly(_selectedDate) != selectedDate) return;
+      if (cached != null) {
+        setState(() {
+          _score = cached;
+          _loading = false;
+          _scorePreviewCache[selectedKey] = cached;
+        });
+      }
+    }
+
     var result = await TaqaScoreApi.fetchDaily(
       userId: userId,
       date: selectedDate,
-      forceRefresh: isLiveDate,
+      forceRefresh: forceRefresh,
     );
-    if (!isLiveDate && result?.taqaValueScore == null) {
-      result = await TaqaScoreApi.fetchDaily(
-        userId: userId,
-        date: selectedDate,
-        forceRefresh: true,
-      );
-    }
+    result ??= await TaqaScoreApi.readCachedDaily(
+      userId: userId,
+      date: selectedDate,
+    );
     if (!mounted) return;
     if (reqId != _scoreReqId) return;
     if (_dateOnly(_selectedDate) != selectedDate) return;
@@ -174,13 +191,16 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       _loading = false;
       _scorePreviewCache[_dayKey(selectedDate)] = result;
     });
-    _prefetchAdjacentScores(userId);
+    unawaited(_prefetchAdjacentScores(userId, selectedDate));
   }
 
-  Future<void> _prefetchAdjacentScores(int userId) async {
-    final prev = _selectedDate.subtract(const Duration(days: 1));
+  Future<void> _prefetchAdjacentScores(
+    int userId,
+    DateTime selectedDate,
+  ) async {
+    final prev = selectedDate.subtract(const Duration(days: 1));
     await _prefetchScoreForDate(userId, prev);
-    final next = _selectedDate.add(const Duration(days: 1));
+    final next = selectedDate.add(const Duration(days: 1));
     if (!next.isAfter(_maxSelectableDate())) {
       await _prefetchScoreForDate(userId, next);
     }
@@ -196,19 +216,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
     }
     _previewLoadingKeys.add(key);
     try {
-      final isLiveDate = day == _maxSelectableDate();
-      var result = await TaqaScoreApi.fetchDaily(
-        userId: userId,
-        date: day,
-        forceRefresh: isLiveDate,
-      );
-      if (!isLiveDate && result?.taqaValueScore == null) {
-        result = await TaqaScoreApi.fetchDaily(
-          userId: userId,
-          date: day,
-          forceRefresh: true,
-        );
-      }
+      final result = await TaqaScoreApi.fetchDaily(userId: userId, date: day);
       if (!mounted) return;
       setState(() {
         _scorePreviewCache[key] = result;
@@ -261,7 +269,7 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
                 onRefresh: () async {
                   final uid = _userId;
                   if (uid == null) return;
-                  await _loadScore(uid);
+                  await _loadScore(uid, forceRefresh: true);
                 },
                 child: ListView(
                   padding: const EdgeInsets.symmetric(
@@ -288,19 +296,19 @@ class _TaqaScoreDetailPageState extends State<TaqaScoreDetailPage> {
       height: 220,
       child: PageView.builder(
         controller: _scorePreviewController,
-        onPageChanged: (index) async {
+        onPageChanged: (index) {
           final day = _previewDateForIndex(index);
           if (_sameDay(day, _selectedDate)) return;
           final key = _dayKey(day);
+          final hasCached = _scorePreviewCache.containsKey(key);
           setState(() {
             _selectedDate = day;
-            if (_scorePreviewCache.containsKey(key)) {
-              _score = _scorePreviewCache[key];
-            }
+            _score = hasCached ? _scorePreviewCache[key] : null;
+            _loading = !hasCached;
           });
           final uid = _userId;
           if (uid != null) {
-            await _loadScore(uid);
+            unawaited(_loadScore(uid));
           }
         },
         itemCount: _previewItemCount(),

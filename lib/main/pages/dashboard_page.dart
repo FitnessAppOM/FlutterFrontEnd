@@ -1841,7 +1841,7 @@ class DashboardPageState extends State<DashboardPage>
     final liveDate = _taqaTodayByResetClock().subtract(const Duration(days: 1));
     final isLiveDate = scoreDate == liveDate;
     final hasCached = _hasTaqaScoreCache(scoreDate);
-    final cached = _readTaqaScoreCache(scoreDate);
+    var cached = _readTaqaScoreCache(scoreDate);
     if (hasCached && !forceLiveRefresh) {
       setState(() {
         _taqaScore = cached;
@@ -1850,12 +1850,26 @@ class DashboardPageState extends State<DashboardPage>
       return;
     }
     final reqId = ++_taqaScoreReqId;
+    if (cached == null) {
+      cached = await TaqaScoreApi.readCachedDaily(
+        userId: userId,
+        date: scoreDate,
+      );
+      if (!mounted || reqId != _taqaScoreReqId) return;
+      if (_taqaScoreDateForSelection() != scoreDate) return;
+      if (cached != null) {
+        setState(() {
+          _taqaScore = cached;
+          _taqaScoreLoading = false;
+        });
+      }
+    }
     if (mounted) {
       setState(() {
-        if (hasCached) {
+        if (cached != null) {
           _taqaScore = cached;
         }
-        _taqaScoreLoading = forceLiveRefresh || !hasCached;
+        _taqaScoreLoading = cached == null;
       });
     }
     TaqaDailyScore? result = await TaqaScoreApi.fetchDaily(
@@ -1863,13 +1877,10 @@ class DashboardPageState extends State<DashboardPage>
       date: scoreDate,
       forceRefresh: isLiveDate && forceLiveRefresh,
     );
-    if (!isLiveDate && result?.taqaValueScore == null) {
-      result = await TaqaScoreApi.fetchDaily(
-        userId: userId,
-        date: scoreDate,
-        forceRefresh: true,
-      );
-    }
+    result ??= await TaqaScoreApi.readCachedDaily(
+      userId: userId,
+      date: scoreDate,
+    );
     if (!mounted) return;
     if (reqId != _taqaScoreReqId) return;
     if (_taqaScoreDateForSelection() != scoreDate) return;
@@ -5462,15 +5473,13 @@ class DashboardPageState extends State<DashboardPage>
               );
               if (!mounted) return;
 
-              // The detail screen force-refreshes the live score. Discard the
-              // dashboard's separate cached copy when returning so both views
-              // cannot show different values for the same score day.
+              // Re-read the shared cache after the detail page. Keep its fresh
+              // score instead of forcing another network request on return.
               final scoreDate = _taqaScoreDateForSelection();
               final scoreKey = _dayKey(scoreDate);
               _taqaScoreCache.remove(scoreKey);
               _taqaScoreCacheAt.remove(scoreKey);
-              TaqaScoreApi.clearCache();
-              await _loadTaqaScore(forceLiveRefresh: true);
+              await _loadTaqaScore();
             },
           ),
         ],

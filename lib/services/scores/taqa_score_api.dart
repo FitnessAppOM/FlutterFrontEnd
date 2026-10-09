@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
@@ -21,6 +23,12 @@ class TaqaSubScore {
       ..remove('path');
     return TaqaSubScore(score: score, path: path, details: details);
   }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    ...details,
+    'score': score,
+    'path': path,
+  };
 }
 
 class TaqaPromScores {
@@ -57,6 +65,15 @@ class TaqaPromScores {
       screeningCreatedAt: json['screening_created_at'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'eq5d_score': eq5dScore,
+    'phq2_score': phq2Score,
+    'phq2_total': phq2Total,
+    'flags': flags,
+    'path': path,
+    'screening_created_at': screeningCreatedAt,
+  };
 }
 
 class TaqaDailyScore {
@@ -122,6 +139,25 @@ class TaqaDailyScore {
       readiness.score != null && readiness.path != 'no_wearable';
 
   bool get hasLifestyleBalance => lifestyleBalance.score != null;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+    'user_id': userId,
+    'entry_date':
+        '${entryDate.year.toString().padLeft(4, '0')}-'
+        '${entryDate.month.toString().padLeft(2, '0')}-'
+        '${entryDate.day.toString().padLeft(2, '0')}',
+    'provider': provider,
+    'scoring_path': scoringPath,
+    'taqa_value_score': taqaValueScore,
+    'sleep': sleep.toJson(),
+    'recovery': recovery.toJson(),
+    'stress': stress.toJson(),
+    'training_load': trainingLoad.toJson(),
+    'nutrition': nutrition.toJson(),
+    'readiness': readiness.toJson(),
+    'lifestyle_balance': lifestyleBalance.toJson(),
+    'proms': proms.toJson(),
+  };
 }
 
 double? _toDouble(dynamic v) {
@@ -134,12 +170,25 @@ class TaqaScoreApi {
   static final Map<String, TaqaDailyScore?> _cache = {};
   static final Map<String, DateTime> _cacheAt = {};
   static final Map<String, Future<TaqaDailyScore?>> _inFlight = {};
+  static final Map<String, DateTime> _networkFailureAt = {};
+  static final Set<String> _hydratedKeys = <String>{};
+  static final Map<String, Future<void>> _hydrateInFlight =
+      <String, Future<void>>{};
   static const Duration _liveDayTtl = Duration(seconds: 60);
+  static const Duration _negativeCacheTtl = Duration(minutes: 5);
+  static const Duration _networkTimeout = Duration(seconds: 8);
+  static const Duration _networkFailureBackoff = Duration(seconds: 30);
+  static const String _persistentPrefix = 'taqa_score_cache_v1_';
+  static const String _persistentIndexKey = 'taqa_score_cache_v1_index';
+  static const int _persistentEntryLimit = 180;
 
   static void clearCache() {
     _cache.clear();
     _cacheAt.clear();
     _inFlight.clear();
+    _networkFailureAt.clear();
+    _hydratedKeys.clear();
+    _hydrateInFlight.clear();
   }
 
   static String _dayKey(int userId, DateTime date) =>
@@ -161,10 +210,111 @@ class TaqaScoreApi {
 
   static bool _isCacheFresh(String key, DateTime date) {
     if (!_cache.containsKey(key)) return false;
-    if (!_isLiveDate(date)) return true;
     final cachedAt = _cacheAt[key];
     if (cachedAt == null) return false;
+    if (_cache[key] == null) {
+      return DateTime.now().difference(cachedAt) <= _negativeCacheTtl;
+    }
+    if (!_isLiveDate(date)) return true;
     return DateTime.now().difference(cachedAt) <= _liveDayTtl;
+  }
+
+  static String _persistentKey(int userId, DateTime date) =>
+      '$_persistentPrefix${userId}_${_fmtDate(date)}';
+
+  static Future<void> _ensureHydrated(int userId, DateTime date) async {
+    final cacheKey = _dayKey(userId, date);
+    if (_hydratedKeys.contains(cacheKey) || _cache.containsKey(cacheKey)) {
+      return;
+    }
+    final active = _hydrateInFlight[cacheKey];
+    if (active != null) {
+      await active;
+      return;
+    }
+    final future = _hydratePersistentEntry(userId, date, cacheKey);
+    _hydrateInFlight[cacheKey] = future;
+    try {
+      await future;
+    } finally {
+      _hydrateInFlight.remove(cacheKey);
+      _hydratedKeys.add(cacheKey);
+    }
+  }
+
+  static Future<void> _hydratePersistentEntry(
+    int userId,
+    DateTime date,
+    String cacheKey,
+  ) async {
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final raw = preferences.getString(_persistentKey(userId, date));
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final record = Map<String, dynamic>.from(decoded);
+      final cachedAtMs = record['cached_at_ms'];
+      final cachedAt = cachedAtMs is num
+          ? DateTime.fromMillisecondsSinceEpoch(cachedAtMs.toInt())
+          : null;
+      if (cachedAt == null) return;
+      final rawScore = record['score'];
+      TaqaDailyScore? score;
+      if (rawScore is Map) {
+        score = TaqaDailyScore.fromJson(Map<String, dynamic>.from(rawScore));
+        if (score.userId != userId) return;
+      }
+      _cache[cacheKey] = score;
+      _cacheAt[cacheKey] = cachedAt;
+    } catch (_) {
+      // A malformed or unavailable disk cache must never block a network load.
+    }
+  }
+
+  static Future<void> _writeCacheEntry({
+    required int userId,
+    required DateTime date,
+    required String cacheKey,
+    required TaqaDailyScore? score,
+  }) async {
+    final cachedAt = DateTime.now();
+    _cache[cacheKey] = score;
+    _cacheAt[cacheKey] = cachedAt;
+    _hydratedKeys.add(cacheKey);
+    try {
+      final preferences = await SharedPreferences.getInstance();
+      final storageKey = _persistentKey(userId, date);
+      await preferences.setString(
+        storageKey,
+        jsonEncode(<String, dynamic>{
+          'cached_at_ms': cachedAt.millisecondsSinceEpoch,
+          'score': score?.toJson(),
+        }),
+      );
+      final index =
+          preferences.getStringList(_persistentIndexKey)?.toList() ??
+          <String>[];
+      index.remove(storageKey);
+      index.add(storageKey);
+      while (index.length > _persistentEntryLimit) {
+        final oldest = index.removeAt(0);
+        await preferences.remove(oldest);
+      }
+      await preferences.setStringList(_persistentIndexKey, index);
+    } catch (_) {
+      // Memory caching remains available if persistence fails.
+    }
+  }
+
+  /// Returns the last stored score immediately, even when its live-day TTL has
+  /// expired. Callers can paint it first and revalidate in the background.
+  static Future<TaqaDailyScore?> readCachedDaily({
+    required int userId,
+    required DateTime date,
+  }) async {
+    await _ensureHydrated(userId, date);
+    return _cache[_dayKey(userId, date)];
   }
 
   static Future<TaqaDailyScore?> fetchDaily({
@@ -173,7 +323,14 @@ class TaqaScoreApi {
     bool forceRefresh = false,
   }) async {
     final key = _dayKey(userId, date);
+    await _ensureHydrated(userId, date);
     if (!forceRefresh && _isCacheFresh(key, date)) return _cache[key];
+    final failedAt = _networkFailureAt[key];
+    if (!forceRefresh &&
+        failedAt != null &&
+        DateTime.now().difference(failedAt) <= _networkFailureBackoff) {
+      return _cache[key];
+    }
     if (_inFlight.containsKey(key)) return _inFlight[key];
 
     final future = _doFetchDaily(userId, date, key, forceRefresh);
@@ -191,8 +348,13 @@ class TaqaScoreApi {
     String cacheKey,
     bool forceRefresh,
   ) async {
+    final hasFallback = _cache.containsKey(cacheKey);
+    final fallback = _cache[cacheKey];
     final headers = await AccountStorage.getAuthHeaders();
-    if (headers.isEmpty) return null;
+    if (headers.isEmpty) {
+      _networkFailureAt[cacheKey] = DateTime.now();
+      return hasFallback ? fallback : null;
+    }
 
     final dateStr = _fmtDate(date);
     final refreshQuery = forceRefresh ? "&refresh=true" : "";
@@ -201,7 +363,9 @@ class TaqaScoreApi {
     );
 
     try {
-      final resp = await http.get(url, headers: headers);
+      final resp = await http
+          .get(url, headers: headers)
+          .timeout(_networkTimeout);
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         await AccountStorage.handleAuthStatus(
           resp.statusCode,
@@ -210,20 +374,37 @@ class TaqaScoreApi {
         return null;
       }
       if (resp.statusCode == 404) {
-        _cache[cacheKey] = null;
-        _cacheAt[cacheKey] = DateTime.now();
+        _networkFailureAt.remove(cacheKey);
+        await _writeCacheEntry(
+          userId: userId,
+          date: date,
+          cacheKey: cacheKey,
+          score: null,
+        );
         return null;
       }
-      if (resp.statusCode != 200) return null;
+      if (resp.statusCode != 200) {
+        _networkFailureAt[cacheKey] = DateTime.now();
+        return hasFallback ? fallback : null;
+      }
 
       final json = jsonDecode(resp.body);
-      if (json is! Map<String, dynamic>) return null;
+      if (json is! Map<String, dynamic>) {
+        _networkFailureAt[cacheKey] = DateTime.now();
+        return hasFallback ? fallback : null;
+      }
       final score = TaqaDailyScore.fromJson(json);
-      _cache[cacheKey] = score;
-      _cacheAt[cacheKey] = DateTime.now();
+      _networkFailureAt.remove(cacheKey);
+      await _writeCacheEntry(
+        userId: userId,
+        date: date,
+        cacheKey: cacheKey,
+        score: score,
+      );
       return score;
     } catch (_) {
-      return null;
+      _networkFailureAt[cacheKey] = DateTime.now();
+      return hasFallback ? fallback : null;
     }
   }
 
@@ -242,7 +423,9 @@ class TaqaScoreApi {
     );
 
     try {
-      final resp = await http.get(url, headers: headers);
+      final resp = await http
+          .get(url, headers: headers)
+          .timeout(_networkTimeout);
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         await AccountStorage.handleAuthStatus(
           resp.statusCode,
@@ -254,10 +437,19 @@ class TaqaScoreApi {
 
       final json = jsonDecode(resp.body);
       if (json is! List) return const [];
-      return json
+      final scores = json
           .whereType<Map<String, dynamic>>()
           .map(TaqaDailyScore.fromJson)
           .toList();
+      for (final score in scores) {
+        await _writeCacheEntry(
+          userId: userId,
+          date: score.entryDate,
+          cacheKey: _dayKey(userId, score.entryDate),
+          score: score,
+        );
+      }
+      return scores;
     } catch (_) {
       return const [];
     }
