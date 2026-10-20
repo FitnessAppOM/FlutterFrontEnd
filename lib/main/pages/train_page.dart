@@ -34,6 +34,7 @@ import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
+import '../../screens/training/training_calendar_page.dart';
 import '../../screens/cardio/cardio_history_page.dart';
 import '../../TaqaUI/components/taqa_completion_dialog.dart';
 import '../../TaqaUI/components/taqa_exercise_picker_sheet.dart';
@@ -5716,6 +5717,34 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _openTrainingCalendar(List days) async {
+    final currentProgram = program;
+    if (currentProgram == null) return;
+    final dayIndex = await Navigator.of(context).push<int>(
+      MaterialPageRoute(
+        builder: (_) => TrainingCalendarPage(program: currentProgram),
+      ),
+    );
+    if (!mounted ||
+        dayIndex == null ||
+        dayIndex < 0 ||
+        dayIndex >= days.length) {
+      return;
+    }
+    final rawDay = days[dayIndex];
+    final day = rawDay is Map
+        ? Map<String, dynamic>.from(rawDay)
+        : <String, dynamic>{};
+    final rawLabel = (day['day_label'] ?? day['label'] ?? 'Day ${dayIndex + 1}')
+        .toString();
+    setState(() => selectedDay = dayIndex);
+    await _openTrainingDayExercisesPage(
+      days: days,
+      dayIndex: dayIndex,
+      dayLabel: _localizedTrainingDayLabel(rawLabel),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
@@ -5871,6 +5900,12 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
+                                TaqaTagButton(
+                                  onTap: () => _openTrainingCalendar(days),
+                                  icon: Icons.calendar_month_outlined,
+                                  label: t.translate("training_calendar"),
+                                ),
+                                SizedBox(width: TaqaUiScale.w(6)),
                                 TaqaTagButton(
                                   onTap: () async {
                                     final currentProgram = program;
