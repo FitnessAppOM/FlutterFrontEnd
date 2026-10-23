@@ -34,7 +34,7 @@ import '../../TaqaUI/components/taqa_refresh_indicator.dart';
 import '../../services/training/exercise_action_queue.dart';
 import '../../consents/consent_manager.dart';
 import '../../screens/training/training_history_page.dart';
-import '../../screens/training/training_calendar_page.dart';
+import '../../screens/calendar/calendar_page.dart';
 import '../../screens/cardio/cardio_history_page.dart';
 import '../../TaqaUI/components/taqa_completion_dialog.dart';
 import '../../TaqaUI/components/taqa_exercise_picker_sheet.dart';
@@ -5763,9 +5763,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final currentProgram = program;
     if (currentProgram == null) return;
     final dayIndex = await Navigator.of(context).push<int>(
-      MaterialPageRoute(
-        builder: (_) => TrainingCalendarPage(program: currentProgram),
-      ),
+      MaterialPageRoute(builder: (_) => CalendarPage(program: currentProgram)),
     );
     if (!mounted ||
         dayIndex == null ||

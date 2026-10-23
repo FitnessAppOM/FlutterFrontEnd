@@ -23,6 +23,14 @@ class TaqaUiColors {
   static const Color successGreen = Color(0xFF2ECC71);
   static const Color accent = lime;
 
+  // Calendar and timeline data categories. Keep these roles centralized so
+  // month indicators, legends and detailed timeline cards remain consistent.
+  static const Color calendarStrength = Color(0xFF53C88C);
+  static const Color calendarCardio = Color(0xFF2D8CFF);
+  static const Color calendarMeal = Color(0xFFFF9F43);
+  static const Color calendarSleep = Color(0xFF8E7CFF);
+  static const Color calendarActivity = Color(0xFF20C7B5);
+
   // Weekday status colors
   static const Color weekdayPast = Color(0xFF908D8B);
   static const Color weekdayFuture = Color(0xFFE3E3E3);

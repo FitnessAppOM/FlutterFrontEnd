@@ -11,24 +11,29 @@ import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
+import '../../services/diet/diet_calendar_service.dart';
+import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../services/training/training_service.dart';
+import 'day_timeline_page.dart';
 
-class TrainingCalendarPage extends StatefulWidget {
-  const TrainingCalendarPage({super.key, required this.program});
+class CalendarPage extends StatefulWidget {
+  const CalendarPage({super.key, required this.program});
 
   final Map<String, dynamic> program;
 
   @override
-  State<TrainingCalendarPage> createState() => _TrainingCalendarPageState();
+  State<CalendarPage> createState() => _CalendarPageState();
 }
 
-class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
+class _CalendarPageState extends State<CalendarPage> {
   late DateTime _visibleMonth;
   late DateTime _selectedDate;
   Map<DateTime, TrainingScheduleEntry> _entries = const {};
   Map<DateTime, List<Map<String, dynamic>>> _strengthHistory = const {};
   Map<DateTime, List<Map<String, dynamic>>> _cardioHistory = const {};
+  Map<DateTime, DietCalendarDaySummary> _mealSummaries = const {};
+  Map<DateTime, DailyMetricsEntry> _dailyMetrics = const {};
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -107,6 +112,38 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
     }
   }
 
+  Future<Map<DateTime, DietCalendarDaySummary>> _safeMealSummaries(
+    int userId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    try {
+      return await DietCalendarService.fetchRange(
+        userId: userId,
+        start: start,
+        end: end,
+      );
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<Map<DateTime, DailyMetricsEntry>> _safeDailyMetrics(
+    int userId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    try {
+      return await DailyMetricsApi.fetchRange(
+        userId: userId,
+        start: start,
+        end: end,
+      );
+    } catch (_) {
+      return const {};
+    }
+  }
+
   Future<void> _loadMonth() async {
     final request = ++_loadRequest;
     if (mounted) {
@@ -140,6 +177,8 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
         ),
         _safeStrengthHistory(userId, historyDays),
         _safeCardioHistory(userId),
+        _safeMealSummaries(userId, start, end),
+        _safeDailyMetrics(userId, start, end),
       ]);
       if (!mounted || request != _loadRequest) return;
 
@@ -164,6 +203,8 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
         _entries = entries;
         _strengthHistory = strength;
         _cardioHistory = cardio;
+        _mealSummaries = results[3] as Map<DateTime, DietCalendarDaySummary>;
+        _dailyMetrics = results[4] as Map<DateTime, DailyMetricsEntry>;
         _loading = false;
       });
     } catch (_) {
@@ -195,6 +236,25 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       _selectedDate = today;
     });
     if (monthChanged) unawaited(_loadMonth());
+  }
+
+  Future<void> _openDayTimeline(DateTime date) async {
+    setState(() => _selectedDate = date);
+    final today = _day(DateTime.now());
+    final canEditPlan =
+        !date.isBefore(today) && !(_strengthHistory[date]?.isNotEmpty ?? false);
+    final editPlan = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) =>
+            DayTimelinePage(date: date, canEditTrainingPlan: canEditPlan),
+      ),
+    );
+    if (!mounted) return;
+    if (editPlan == true) {
+      await _showPlanPicker();
+    } else {
+      unawaited(_loadMonth());
+    }
   }
 
   Future<void> _showPlanPicker() async {
@@ -325,14 +385,6 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: TaqaUiScale.insetsLTRB(20, 12, 20, 28),
             children: [
-              Text(
-                t.translate('training_calendar_subtitle'),
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: TaqaUiScale.sp(13),
-                ),
-              ),
-              SizedBox(height: TaqaUiScale.h(18)),
               _buildMonthHeader(context),
               SizedBox(height: TaqaUiScale.h(12)),
               _buildCalendar(context),
@@ -480,11 +532,18 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
     final entry = _entries[date];
     final hasStrength = _strengthHistory[date]?.isNotEmpty ?? false;
     final hasCardio = _cardioHistory[date]?.isNotEmpty ?? false;
+    final hasMeals = _mealSummaries.containsKey(date);
+    final metrics = _dailyMetrics[date];
+    final hasSleep = _sleepMinutes(metrics) > 0;
+    final hasDailyActivity = _hasDailyActivity(metrics);
     final dots = <Color>[
-      if (hasStrength) colors.success,
-      if (hasCardio) const Color(0xFF2D8CFF),
+      if (hasStrength) TaqaUiColors.calendarStrength,
+      if (hasCardio) TaqaUiColors.calendarCardio,
       if (!hasStrength && entry?.isTraining == true) colors.accent,
       if (entry?.isRest == true) colors.textSecondary,
+      if (hasMeals) TaqaUiColors.calendarMeal,
+      if (hasSleep) TaqaUiColors.calendarSleep,
+      if (hasDailyActivity) TaqaUiColors.calendarActivity,
     ];
     return InkWell(
       borderRadius: TaqaUiScale.radius(12),
@@ -531,12 +590,12 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: dots
-                    .take(3)
+                    .take(6)
                     .map(
                       (color) => Container(
-                        width: TaqaUiScale.w(4),
-                        height: TaqaUiScale.w(4),
-                        margin: const EdgeInsets.symmetric(horizontal: 1),
+                        width: TaqaUiScale.w(3.5),
+                        height: TaqaUiScale.w(3.5),
+                        margin: const EdgeInsets.symmetric(horizontal: 0.7),
                         decoration: BoxDecoration(
                           color: selected ? colors.onAccent : color,
                           shape: BoxShape.circle,
@@ -560,11 +619,11 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       runSpacing: TaqaUiScale.h(8),
       children: [
         _LegendItem(
-          color: colors.success,
+          color: TaqaUiColors.calendarStrength,
           label: t.translate('training_completed'),
         ),
         _LegendItem(
-          color: const Color(0xFF2D8CFF),
+          color: TaqaUiColors.calendarCardio,
           label: t.translate('training_calendar_cardio'),
         ),
         _LegendItem(
@@ -574,6 +633,18 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
         _LegendItem(
           color: colors.textSecondary,
           label: t.translate('training_calendar_rest_day'),
+        ),
+        _LegendItem(
+          color: TaqaUiColors.calendarMeal,
+          label: t.translate('training_calendar_meals'),
+        ),
+        _LegendItem(
+          color: TaqaUiColors.calendarSleep,
+          label: t.translate('training_calendar_sleep'),
+        ),
+        _LegendItem(
+          color: TaqaUiColors.calendarActivity,
+          label: t.translate('training_calendar_daily_activity'),
         ),
       ],
     );
@@ -585,6 +656,8 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
     final entry = _entries[_selectedDate];
     final strength = _strengthHistory[_selectedDate] ?? const [];
     final cardio = _cardioHistory[_selectedDate] ?? const [];
+    final meals = _mealSummaries[_selectedDate];
+    final metrics = _dailyMetrics[_selectedDate];
     final programDay = _programDayFor(entry);
     final today = _day(DateTime.now());
     final isPast = _selectedDate.isBefore(today);
@@ -593,7 +666,7 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       items.add(
         _DaySummaryItem(
           icon: Icons.fitness_center,
-          color: colors.success,
+          color: TaqaUiColors.calendarStrength,
           title: row['label']?.toString() ?? t.translate('training_workout'),
           subtitle:
               '${row['completed_count'] ?? 0}/${row['total_count'] ?? 0} ${t.translate('training_calendar_exercises')}',
@@ -607,7 +680,7 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
       items.add(
         _DaySummaryItem(
           icon: Icons.directions_run,
-          color: const Color(0xFF2D8CFF),
+          color: TaqaUiColors.calendarCardio,
           title:
               row['exercise_name']?.toString() ??
               t.translate('training_calendar_cardio'),
@@ -628,6 +701,66 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
                     programDay?.label ??
                     t.translate('training_workout'),
           subtitle: t.translate('training_calendar_planned'),
+        ),
+      );
+    }
+    if (meals != null) {
+      items.add(
+        _DaySummaryItem(
+          icon: Icons.restaurant_outlined,
+          color: TaqaUiColors.calendarMeal,
+          title: t.translate('training_calendar_meals'),
+          subtitle:
+              '${meals.mealCount} ${t.translate('training_calendar_meals_logged')} · '
+              '${meals.itemCount} ${t.translate('training_calendar_food_items')} · '
+              '${meals.calories} ${t.translate('training_calendar_kcal')}',
+        ),
+      );
+    }
+    final sleepMinutes = _sleepMinutes(metrics);
+    if (sleepMinutes > 0) {
+      final hours = sleepMinutes ~/ 60;
+      final minutes = sleepMinutes % 60;
+      items.add(
+        _DaySummaryItem(
+          icon: Icons.bedtime_outlined,
+          color: TaqaUiColors.calendarSleep,
+          title: t.translate('training_calendar_sleep'),
+          subtitle:
+              '$hours${t.translate('training_calendar_hours_short')} '
+              '$minutes${t.translate('training_calendar_minutes_short')}',
+        ),
+      );
+    }
+    if (_hasDailyActivity(metrics)) {
+      final details = <String>[];
+      if ((metrics?.steps ?? 0) > 0) {
+        details.add(
+          '${NumberFormat.decimalPattern(t.locale.languageCode).format(metrics!.steps)} '
+          '${t.translate('training_calendar_steps')}',
+        );
+      }
+      if ((metrics?.activeMinutes ?? 0) > 0) {
+        details.add(
+          '${metrics!.activeMinutes} ${t.translate('training_calendar_active_minutes')}',
+        );
+      }
+      if ((metrics?.workoutMinutes ?? 0) > 0) {
+        details.add(
+          '${metrics!.workoutMinutes} ${t.translate('training_calendar_workout_minutes')}',
+        );
+      }
+      if ((metrics?.calories ?? 0) > 0) {
+        details.add(
+          '${metrics!.calories} ${t.translate('training_calendar_kcal_burned')}',
+        );
+      }
+      items.add(
+        _DaySummaryItem(
+          icon: Icons.directions_walk,
+          color: TaqaUiColors.calendarActivity,
+          title: t.translate('training_calendar_daily_activity'),
+          subtitle: details.join(' · '),
         ),
       );
     }
@@ -661,6 +794,10 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
             )
           else
             ...items.map((item) => _DaySummaryRow(item: item)),
+          TaqaTextActionButton(
+            label: t.translate('training_calendar_show_more'),
+            onTap: () => unawaited(_openDayTimeline(_selectedDate)),
+          ),
           if (!isPast && strength.isEmpty) ...[
             SizedBox(height: TaqaUiScale.h(10)),
             TaqaFilledButton(
@@ -691,6 +828,22 @@ class _TrainingCalendarPageState extends State<TrainingCalendarPage> {
         ],
       ),
     );
+  }
+
+  int _sleepMinutes(DailyMetricsEntry? metrics) {
+    if (metrics == null) return 0;
+    final asleep = metrics.sleepMinutesAsleep;
+    if (asleep != null && asleep > 0) return asleep;
+    final hours = metrics.sleepHours;
+    return hours != null && hours > 0 ? (hours * 60).round() : 0;
+  }
+
+  bool _hasDailyActivity(DailyMetricsEntry? metrics) {
+    if (metrics == null) return false;
+    return (metrics.steps ?? 0) > 0 ||
+        (metrics.activeMinutes ?? 0) > 0 ||
+        (metrics.workoutMinutes ?? 0) > 0 ||
+        (metrics.calories ?? 0) > 0;
   }
 }
 
