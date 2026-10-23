@@ -8,6 +8,7 @@ import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/training/training_service.dart';
 import '../../services/training/timer_based_exercises.dart';
+import '../../services/training/rest_countdown.dart';
 import '../../services/training/training_network_resilience.dart';
 import '../../services/training/cardio_session_queue.dart';
 import 'exercise_feedback_sheet.dart';
@@ -115,6 +116,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   Timer? _restCountdownTimer;
   int _restCountdownRemaining = 0;
   bool _restCountdownActive = false;
+  RestCountdown? _restCountdown;
   int _restPresetSeconds = 60;
   bool _hideRestPresetAfterStart = false;
 
@@ -497,8 +499,9 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       'set_running': _activeSetTimerRunning,
       'set_saved_at_ms': DateTime.now().millisecondsSinceEpoch,
       'rest_preset': _restPresetSeconds,
-      'rest_countdown_remaining': _restCountdownRemaining,
+      'rest_countdown_remaining': _restCountdown?.remainingSeconds() ?? 0,
       'rest_countdown_active': _restCountdownActive,
+      'rest_ends_at_ms': _restCountdown?.endsAtMs,
       'rest_after': _activeSetRestSeconds,
       'hide_rest_preset_after_start': _hideRestPresetAfterStart,
       'started': started,
@@ -588,8 +591,13 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       if (savedRunning && savedSetIndex > 0) {
         _startActiveSetTimer();
       }
-      if (savedRestActive && savedRestRemaining > 0) {
-        _startRestCountdown(savedRestRemaining);
+      if (savedRestActive) {
+        final countdown = RestCountdown.restore(
+          endsAtMs: (state['rest_ends_at_ms'] as num?)?.toInt(),
+          remainingSeconds: savedRestRemaining,
+          savedAtMs: savedAtMs,
+        );
+        _startRestCountdown(savedRestRemaining, endsAtMs: countdown.endsAtMs);
       }
     }
   }
@@ -655,25 +663,40 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     );
   }
 
-  void _startRestCountdown(int restSeconds) {
+  void _startRestCountdown(int restSeconds, {int? endsAtMs}) {
     _syncTotalToSubTimerStartIfNeeded();
     _stopRestCountdown();
-    if (restSeconds <= 0) return;
-    _restCountdownRemaining = restSeconds;
+    if (restSeconds <= 0 && endsAtMs == null) return;
+    _restCountdown = endsAtMs == null
+        ? RestCountdown.start(restSeconds)
+        : RestCountdown(endsAtMs: endsAtMs);
+    _restCountdownRemaining = _restCountdown!.remainingSeconds();
     _restCountdownActive = true;
     _restCountdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) {
         _stopRestCountdown();
         return;
       }
-      setState(() {
-        _restCountdownRemaining--;
-        if (_restCountdownRemaining <= 0) {
-          _onRestComplete();
-        }
-      });
+      _syncRestCountdown();
     });
-    if (mounted) setState(() {});
+    _syncRestCountdown();
+    unawaited(_saveTimerState());
+  }
+
+  void _syncRestCountdown() {
+    if (!mounted || !_restCountdownActive) return;
+    setState(() {
+      _restCountdownRemaining = _restCountdown?.remainingSeconds() ?? 0;
+    });
+    if (_restCountdownRemaining == 0) _onRestComplete();
+  }
+
+  void _extendRestCountdown() {
+    _syncRestCountdown();
+    if (!_restCountdownActive) return;
+    _restCountdown = _restCountdown?.extendedBy(30);
+    _syncRestCountdown();
+    unawaited(_saveTimerState());
   }
 
   void _stopRestCountdown() {
@@ -681,21 +704,24 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     _restCountdownTimer = null;
     _restCountdownActive = false;
     _restCountdownRemaining = 0;
+    _restCountdown = null;
   }
 
   void _skipRest() {
     _stopRestCountdown();
     if (mounted) setState(() {});
+    unawaited(_saveTimerState());
   }
 
   void _onRestComplete() {
     _stopRestCountdown();
+    if (mounted) setState(() {});
     final nextSetIndex = _nextPendingSetIndex();
     if (nextSetIndex != null) {
       unawaited(_startSet(nextSetIndex));
       return;
     }
-    if (mounted) setState(() {});
+    unawaited(_saveTimerState());
   }
 
   int? _nextPendingSetIndex() {
@@ -1412,6 +1438,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
       _activeSetTimerRunning = true;
     });
     _startActiveSetTimer(notify: false);
+    await _saveTimerState();
   }
 
   Future<void> _onPrimaryExerciseButtonPressed() async {
@@ -2391,9 +2418,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
                           ),
                           const Spacer(),
                           TextButton(
-                            onPressed: () {
-                              setState(() => _restCountdownRemaining += 30);
-                            },
+                            onPressed: _extendRestCountdown,
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.white70,
                               visualDensity: VisualDensity.compact,
@@ -3338,6 +3363,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      unawaited(_saveTimerState());
       // Keep tracking alive for active cardio sessions (background updates).
       if (!(started && !_paused && _isCardioExercise())) {
         timer?.cancel();
@@ -3347,6 +3373,7 @@ class _ExerciseSessionSheetState extends State<ExerciseSessionSheet>
     }
     if (state == AppLifecycleState.resumed) {
       _syncElapsedFromStart(force: true);
+      _syncRestCountdown();
       if (started && !_paused) {
         _startTimer();
         if (_isCardioExercise()) {

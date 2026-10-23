@@ -46,6 +46,7 @@ import '../../services/health/workout_health_sync_service.dart';
 import '../../services/training/training_reset_coordinator.dart';
 import '../../services/training/training_network_resilience.dart';
 import '../../services/training/previous_exercise_weight.dart';
+import '../../services/training/rest_countdown.dart';
 
 class TrainPage extends StatefulWidget {
   const TrainPage({super.key});
@@ -1153,7 +1154,8 @@ class _WorkoutLauncherExerciseCard extends StatefulWidget {
 }
 
 class _WorkoutLauncherExerciseCardState
-    extends State<_WorkoutLauncherExerciseCard> {
+    extends State<_WorkoutLauncherExerciseCard>
+    with WidgetsBindingObserver {
   late List<_LauncherSetRow> _rows;
   bool _starting = false;
   bool _finishingExercise = false;
@@ -1167,6 +1169,7 @@ class _WorkoutLauncherExerciseCardState
   late int _restSeconds;
   bool _restCountdownActive = false;
   int _restRemainingSeconds = 0;
+  RestCountdown? _restCountdown;
   int _flowSetIndex = 0;
   bool _setInProgress = false;
   // Previous session's logged value per set index (label like "60×8"), shown in
@@ -1178,6 +1181,7 @@ class _WorkoutLauncherExerciseCardState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _previousBySetIndex = _buildPreviousLabels();
     _rows = _seedRows();
     _restSeconds = widget.restSeconds;
@@ -1211,9 +1215,22 @@ class _WorkoutLauncherExerciseCardState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_saveLauncherProgressState());
     _activeTicker?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted || !widget.isActive) return;
+    if (state == AppLifecycleState.resumed) {
+      setState(_syncRestCountdown);
+      unawaited(_saveLauncherProgressState());
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      unawaited(_saveLauncherProgressState());
+    }
   }
 
   Future<void> _restoreLauncherProgressState() async {
@@ -1260,12 +1277,18 @@ class _WorkoutLauncherExerciseCardState
       fallback: DateTime.now().millisecondsSinceEpoch,
     );
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final gapSeconds = savedAtMs > 0 ? ((nowMs - savedAtMs) / 1000).floor() : 0;
     final savedRestActive = state['launcher_rest_countdown_active'] == true;
     var restRemaining = _toInt(
       state['launcher_rest_countdown_remaining'],
       fallback: 0,
     );
+    final restCountdown = savedRestActive
+        ? RestCountdown.restore(
+            endsAtMs: (state['launcher_rest_ends_at_ms'] as num?)?.toInt(),
+            remainingSeconds: restRemaining,
+            savedAtMs: savedAtMs > 0 ? savedAtMs : nowMs,
+          )
+        : null;
     var setInProgress = state['launcher_set_in_progress'] == true;
     final timerPaused =
         _isTimerBased && setInProgress && state['paused'] == true;
@@ -1283,8 +1306,8 @@ class _WorkoutLauncherExerciseCardState
     if (setStartedAtMs <= 0) {
       setStartedAtMs = null;
     }
-    if (savedRestActive && restRemaining > 0) {
-      restRemaining -= gapSeconds;
+    if (restCountdown != null) {
+      restRemaining = restCountdown.remainingSeconds(nowMs: nowMs);
       if (restRemaining <= 0) {
         restRemaining = 0;
         setInProgress = true;
@@ -1312,6 +1335,7 @@ class _WorkoutLauncherExerciseCardState
       _setInProgress = setInProgress;
       _restCountdownActive = savedRestActive && restRemaining > 0;
       _restRemainingSeconds = _restCountdownActive ? restRemaining : 0;
+      _restCountdown = _restCountdownActive ? restCountdown : null;
       _exerciseStartedAtMs = _toInt(state['start_ms'], fallback: 0);
       if (_exerciseStartedAtMs != null && _exerciseStartedAtMs! <= 0) {
         _exerciseStartedAtMs = null;
@@ -1359,7 +1383,9 @@ class _WorkoutLauncherExerciseCardState
       'launcher_paused_at_ms': _timerPausedAtMs,
       'launcher_rest_seconds': _restSeconds,
       'launcher_rest_countdown_active': _restCountdownActive,
-      'launcher_rest_countdown_remaining': _restRemainingSeconds,
+      'launcher_rest_countdown_remaining':
+          _restCountdown?.remainingSeconds() ?? 0,
+      'launcher_rest_ends_at_ms': _restCountdown?.endsAtMs,
       'launcher_saved_at_ms': DateTime.now().millisecondsSinceEpoch,
     });
   }
@@ -1372,19 +1398,20 @@ class _WorkoutLauncherExerciseCardState
     }
     _activeTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted || !widget.isActive) return;
-      setState(() {
-        if (_restCountdownActive && _restRemainingSeconds > 0) {
-          _restRemainingSeconds -= 1;
-          if (_restRemainingSeconds <= 0) {
-            _restRemainingSeconds = 0;
-            _restCountdownActive = false;
-            _setInProgress = true;
-            _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
-          }
-        }
-      });
+      setState(_syncRestCountdown);
       unawaited(_saveLauncherProgressState());
     });
+  }
+
+  void _syncRestCountdown() {
+    if (!_restCountdownActive) return;
+    _restRemainingSeconds = _restCountdown?.remainingSeconds() ?? 0;
+    if (_restRemainingSeconds == 0) {
+      _restCountdown = null;
+      _restCountdownActive = false;
+      _setInProgress = true;
+      _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+    }
   }
 
   int _initialFlowSetIndex() {
@@ -1490,6 +1517,7 @@ class _WorkoutLauncherExerciseCardState
           _timerPausedAtMs = null;
           _restCountdownActive = rest > 0;
           _restRemainingSeconds = rest;
+          _restCountdown = rest > 0 ? RestCountdown.start(rest) : null;
         });
       }
       await _saveLauncherProgressState();
@@ -1503,6 +1531,7 @@ class _WorkoutLauncherExerciseCardState
         _timerPausedAtMs = null;
         _restCountdownActive = false;
         _restRemainingSeconds = 0;
+        _restCountdown = null;
         _setStartedAtMs = DateTime.now().millisecondsSinceEpoch;
       });
     }
@@ -1660,6 +1689,7 @@ class _WorkoutLauncherExerciseCardState
       _timerPausedAtMs = null;
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
+      _restCountdown = null;
       _exerciseFinished = true;
       if (programExerciseId != null) {
         await TrainingProgressStorage.clearExerciseTimerState(
@@ -1695,6 +1725,7 @@ class _WorkoutLauncherExerciseCardState
     setState(() {
       _restCountdownActive = false;
       _restRemainingSeconds = 0;
+      _restCountdown = null;
       // Auto-start the next set's timer immediately (same as when rest finishes
       // naturally), so skipping rest doesn't require a manual "START SET" tap.
       _setInProgress = true;
@@ -1793,6 +1824,7 @@ class _WorkoutLauncherExerciseCardState
       _restSeconds = selected;
       if (_restCountdownActive && _restRemainingSeconds > selected) {
         _restRemainingSeconds = selected;
+        _restCountdown = RestCountdown.start(selected);
       }
     });
     await _saveLauncherProgressState();
@@ -2108,6 +2140,7 @@ class _WorkoutLauncherExerciseCardState
     _timerPausedAtMs = null;
     _restCountdownActive = false;
     _restRemainingSeconds = 0;
+    _restCountdown = null;
     _flowSetIndex = _initialFlowSetIndex();
     _setInProgress = true;
     _exerciseFinished = false;
@@ -2981,6 +3014,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   bool _exRestActive = false;
   bool _showExRestPanel = false;
   Timer? _exRestTimer;
+  RestCountdown? _exRestCountdown;
 
   static const List<Map<String, dynamic>> _fallbackCardioLibrary = [
     {
@@ -3051,6 +3085,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state != AppLifecycleState.resumed) return;
+    if (mounted) setState(_syncExRestCountdown);
     if (_resumeRefreshInFlight) return;
     _resumeRefreshInFlight = true;
     unawaited(_refreshOnResume());
@@ -3617,29 +3652,36 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     return "$m:$s";
   }
 
-  void _startExRestCountdown([int? restSeconds]) {
-    _stopExRestCountdownQuiet();
+  void _startExRestCountdown([int? restSeconds, int? endsAtMs]) {
+    _exRestTimer?.cancel();
     final total = restSeconds ?? _exRestPresetSeconds;
-    if (total <= 0) return;
-    _exRestRemaining = total;
+    if (total <= 0) {
+      _stopExRestCountdownQuiet();
+      return;
+    }
+    _exRestCountdown = endsAtMs == null
+        ? RestCountdown.start(total)
+        : RestCountdown(endsAtMs: endsAtMs);
+    _exRestRemaining = _exRestCountdown!.remainingSeconds();
     _exRestActive = true;
     TrainingProgressStorage.saveExerciseRestCountdown(
       totalSeconds: total,
-      startedAtMs: DateTime.now().millisecondsSinceEpoch,
+      startedAtMs: _exRestCountdown!.endsAtMs - total * 1000,
     );
     _exRestTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) {
         _stopExRestCountdownQuiet();
         return;
       }
-      setState(() {
-        _exRestRemaining--;
-        if (_exRestRemaining <= 0) {
-          _stopExRestCountdownQuiet();
-        }
-      });
+      setState(_syncExRestCountdown);
     });
     if (mounted) setState(() {});
+  }
+
+  void _syncExRestCountdown() {
+    if (!_exRestActive) return;
+    _exRestRemaining = _exRestCountdown?.remainingSeconds() ?? 0;
+    if (_exRestRemaining == 0) _stopExRestCountdownQuiet();
   }
 
   void _stopExRestCountdownQuiet() {
@@ -3647,6 +3689,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     _exRestTimer = null;
     _exRestActive = false;
     _exRestRemaining = 0;
+    _exRestCountdown = null;
     TrainingProgressStorage.clearExerciseRestCountdown();
   }
 
@@ -3661,11 +3704,10 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
     final total = state['totalSeconds'] as int? ?? 0;
     final startedAt = state['startedAtMs'] as int? ?? 0;
     if (total <= 0 || startedAt <= 0) return;
-    final elapsed = ((DateTime.now().millisecondsSinceEpoch - startedAt) / 1000)
-        .round();
-    final remaining = total - elapsed;
+    final countdown = RestCountdown(endsAtMs: startedAt + total * 1000);
+    final remaining = countdown.remainingSeconds();
     if (remaining > 0) {
-      _startExRestCountdown(remaining);
+      _startExRestCountdown(total, countdown.endsAtMs);
     } else {
       await TrainingProgressStorage.clearExerciseRestCountdown();
     }
