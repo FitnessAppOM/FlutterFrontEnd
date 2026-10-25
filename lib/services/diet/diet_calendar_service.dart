@@ -14,6 +14,7 @@ class DietCalendarDaySummary {
     required this.proteinG,
     required this.carbsG,
     required this.fatG,
+    required this.plannedMealCount,
   });
 
   final DateTime mealDate;
@@ -23,6 +24,10 @@ class DietCalendarDaySummary {
   final int proteinG;
   final int carbsG;
   final int fatG;
+  final int plannedMealCount;
+
+  bool get hasLoggedMeals => mealCount > 0;
+  bool get hasPlannedMeals => plannedMealCount > 0;
 
   factory DietCalendarDaySummary.fromJson(Map<String, dynamic> json) {
     int asInt(Object? value) => value is num
@@ -37,6 +42,7 @@ class DietCalendarDaySummary {
       proteinG: asInt(json['protein_g']),
       carbsG: asInt(json['carbs_g']),
       fatG: asInt(json['fat_g']),
+      plannedMealCount: asInt(json['planned_meal_count']),
     );
   }
 }

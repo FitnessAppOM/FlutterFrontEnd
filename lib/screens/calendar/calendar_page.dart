@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
-import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
@@ -15,7 +14,9 @@ import '../../services/diet/diet_calendar_service.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../services/training/training_service.dart';
+import '../../utils/calendar_date_utils.dart';
 import 'day_timeline_page.dart';
+import 'training_plan_picker_sheet.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key, required this.program});
@@ -35,7 +36,6 @@ class _CalendarPageState extends State<CalendarPage> {
   Map<DateTime, DietCalendarDaySummary> _mealSummaries = const {};
   Map<DateTime, DailyMetricsEntry> _dailyMetrics = const {};
   bool _loading = true;
-  bool _saving = false;
   String? _error;
   int _loadRequest = 0;
 
@@ -48,43 +48,18 @@ class _CalendarPageState extends State<CalendarPage> {
     unawaited(_loadMonth());
   }
 
-  DateTime _day(DateTime value) => DateTime(value.year, value.month, value.day);
+  DateTime _day(DateTime value) => calendarDay(value);
 
   DateTime? _parseDay(Object? raw) {
     final parsed = DateTime.tryParse(raw?.toString() ?? '');
     return parsed == null ? null : _day(parsed);
   }
 
-  List<_ProgramDay> get _programDays {
-    final rawDays = widget.program['days'];
-    if (rawDays is! List) return const [];
-    final result = <_ProgramDay>[];
-    for (var i = 0; i < rawDays.length; i++) {
-      final raw = rawDays[i];
-      if (raw is! Map) continue;
-      final day = Map<String, dynamic>.from(raw);
-      final rawId = day['day_id'] ?? day['day_index'];
-      final id = rawId is num
-          ? rawId.toInt()
-          : int.tryParse(rawId?.toString() ?? '') ?? i + 1;
-      final rawLabel = day['day_label'] ?? day['label'];
-      final label = rawLabel?.toString().trim();
-      final exercises = day['exercises'];
-      result.add(
-        _ProgramDay(
-          id: id > 0 ? id : i + 1,
-          index: i,
-          label: label == null || label.isEmpty ? 'Day ${i + 1}' : label,
-          exerciseCount: exercises is List ? exercises.length : 0,
-        ),
-      );
-    }
-    return result;
-  }
+  List<CalendarProgramDay> get _programDays =>
+      calendarProgramDays(widget.program);
 
   int? get _programId {
-    final raw = widget.program['program_id'];
-    return raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
+    return calendarProgramId(widget.program);
   }
 
   Future<List<Map<String, dynamic>>> _safeStrengthHistory(
@@ -165,7 +140,7 @@ class _CalendarPageState extends State<CalendarPage> {
     final start = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
     final end = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0);
     final today = _day(DateTime.now());
-    final age = today.difference(start).inDays;
+    final age = calendarDayDifference(today, start);
     final historyDays = age < 30 ? 30 : (age + 35).clamp(30, 2000);
 
     try {
@@ -240,119 +215,25 @@ class _CalendarPageState extends State<CalendarPage> {
 
   Future<void> _openDayTimeline(DateTime date) async {
     setState(() => _selectedDate = date);
-    final today = _day(DateTime.now());
-    final canEditPlan =
-        !date.isBefore(today) && !(_strengthHistory[date]?.isNotEmpty ?? false);
-    final editPlan = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) =>
-            DayTimelinePage(date: date, canEditTrainingPlan: canEditPlan),
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => DayTimelinePage(
+          date: date,
+          program: widget.program,
+          canEditTrainingPlan: !(_strengthHistory[date]?.isNotEmpty ?? false),
+        ),
       ),
     );
     if (!mounted) return;
-    if (editPlan == true) {
-      await _showPlanPicker();
-    } else {
-      unawaited(_loadMonth());
-    }
+    unawaited(_loadMonth());
   }
 
-  Future<void> _showPlanPicker() async {
-    final t = AppLocalizations.of(context);
-    final today = _day(DateTime.now());
-    if (_selectedDate.isBefore(today) ||
-        (_strengthHistory[_selectedDate]?.isNotEmpty ?? false)) {
-      AppToast.show(
-        context,
-        t.translate('training_calendar_past_readonly'),
-        type: AppToastType.info,
-      );
-      return;
-    }
-
-    final selection = await showModalBottomSheet<_PlanSelection>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _PlanPickerSheet(
-        days: _programDays,
-        selected: _entries[_selectedDate],
-      ),
-    );
-    if (selection == null || !mounted) return;
-    await _savePlan(selection);
-  }
-
-  Future<void> _savePlan(_PlanSelection selection) async {
-    if (_saving) return;
-    final t = AppLocalizations.of(context);
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || userId <= 0 || !mounted) return;
-    setState(() => _saving = true);
-    try {
-      await TrainingScheduleService.save(
-        userId: userId,
-        scheduledDate: _selectedDate,
-        scheduleType: selection.isRest ? 'rest' : 'training',
-        programId: selection.isRest ? null : _programId,
-        trainingDayIndex: selection.day?.id,
-      );
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        t.translate('training_calendar_saved'),
-        type: AppToastType.success,
-      );
-      await _loadMonth();
-    } catch (_) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        t.translate('error_generic'),
-        type: AppToastType.error,
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  Future<void> _removePlan() async {
-    final entry = _entries[_selectedDate];
-    if (_saving || entry == null) return;
-    final t = AppLocalizations.of(context);
-    final userId = await AccountStorage.getUserId();
-    if (userId == null || userId <= 0) return;
-    setState(() => _saving = true);
-    try {
-      await TrainingScheduleService.remove(
-        userId: userId,
-        scheduledDate: _selectedDate,
-      );
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        t.translate('training_calendar_removed'),
-        type: AppToastType.success,
-      );
-      await _loadMonth();
-    } catch (_) {
-      if (!mounted) return;
-      AppToast.show(
-        context,
-        t.translate('error_generic'),
-        type: AppToastType.error,
-      );
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  _ProgramDay? _programDayFor(TrainingScheduleEntry? entry) {
+  CalendarProgramDay? _programDayFor(TrainingScheduleEntry? entry) {
     if (entry?.trainingDayIndex == null || entry?.programId != _programId) {
       return null;
     }
     for (final day in _programDays) {
-      if (day.id == entry!.trainingDayIndex) return day;
+      if (day.dayIndex == entry!.trainingDayIndex) return day;
     }
     return null;
   }
@@ -472,9 +353,9 @@ class _CalendarPageState extends State<CalendarPage> {
     ).day;
     final offset = first.weekday - DateTime.monday;
     final cellCount = (((offset + daysInMonth) / 7).ceil() * 7);
-    final gridStart = first.subtract(Duration(days: offset));
+    final gridStart = addCalendarDays(first, -offset);
     final weekdayLabels = List<String>.generate(7, (index) {
-      final monday = DateTime(2024, 1, 1).add(Duration(days: index));
+      final monday = addCalendarDays(DateTime(2024, 1, 1), index);
       return DateFormat.E(t.locale.languageCode).format(monday);
     });
 
@@ -514,7 +395,7 @@ class _CalendarPageState extends State<CalendarPage> {
               childAspectRatio: 0.82,
             ),
             itemBuilder: (context, index) {
-              final date = gridStart.add(Duration(days: index));
+              final date = addCalendarDays(gridStart, index);
               return _buildDayCell(context, date);
             },
           ),
@@ -532,7 +413,9 @@ class _CalendarPageState extends State<CalendarPage> {
     final entry = _entries[date];
     final hasStrength = _strengthHistory[date]?.isNotEmpty ?? false;
     final hasCardio = _cardioHistory[date]?.isNotEmpty ?? false;
-    final hasMeals = _mealSummaries.containsKey(date);
+    final mealSummary = _mealSummaries[date];
+    final hasMeals = mealSummary?.hasLoggedMeals ?? false;
+    final hasPlannedMeals = mealSummary?.hasPlannedMeals ?? false;
     final metrics = _dailyMetrics[date];
     final hasSleep = _sleepMinutes(metrics) > 0;
     final hasDailyActivity = _hasDailyActivity(metrics);
@@ -542,6 +425,7 @@ class _CalendarPageState extends State<CalendarPage> {
       if (!hasStrength && entry?.isTraining == true) colors.accent,
       if (entry?.isRest == true) colors.textSecondary,
       if (hasMeals) TaqaUiColors.calendarMeal,
+      if (hasPlannedMeals && !hasMeals) TaqaUiColors.calendarMeal,
       if (hasSleep) TaqaUiColors.calendarSleep,
       if (hasDailyActivity) TaqaUiColors.calendarActivity,
     ];
@@ -705,15 +589,25 @@ class _CalendarPageState extends State<CalendarPage> {
       );
     }
     if (meals != null) {
+      final mealParts = <String>[];
+      if (meals.mealCount > 0) {
+        mealParts.add(
+          '${meals.mealCount} ${t.translate('training_calendar_meals_logged')} · '
+          '${meals.itemCount} ${t.translate('training_calendar_food_items')} · '
+          '${meals.calories} ${t.translate('training_calendar_kcal')}',
+        );
+      }
+      if (meals.plannedMealCount > 0) {
+        mealParts.add(
+          '${meals.plannedMealCount} ${t.translate('day_timeline_meals_planned')}',
+        );
+      }
       items.add(
         _DaySummaryItem(
           icon: Icons.restaurant_outlined,
           color: TaqaUiColors.calendarMeal,
           title: t.translate('training_calendar_meals'),
-          subtitle:
-              '${meals.mealCount} ${t.translate('training_calendar_meals_logged')} · '
-              '${meals.itemCount} ${t.translate('training_calendar_food_items')} · '
-              '${meals.calories} ${t.translate('training_calendar_kcal')}',
+          subtitle: mealParts.join(' · '),
         ),
       );
     }
@@ -794,37 +688,13 @@ class _CalendarPageState extends State<CalendarPage> {
             )
           else
             ...items.map((item) => _DaySummaryRow(item: item)),
-          TaqaTextActionButton(
-            label: t.translate('training_calendar_show_more'),
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: isPast
+                ? t.translate('calendar_modify_your_day')
+                : t.translate('calendar_plan_your_day'),
             onTap: () => unawaited(_openDayTimeline(_selectedDate)),
           ),
-          if (!isPast && strength.isEmpty) ...[
-            SizedBox(height: TaqaUiScale.h(10)),
-            TaqaFilledButton(
-              label: entry == null
-                  ? t.translate('training_calendar_schedule')
-                  : t.translate('training_calendar_change_plan'),
-              onTap: _saving ? null : _showPlanPicker,
-              loading: _saving,
-            ),
-          ],
-          if (_selectedDate == today &&
-              strength.isEmpty &&
-              entry?.isTraining == true &&
-              programDay != null) ...[
-            SizedBox(height: TaqaUiScale.h(8)),
-            TaqaTextActionButton(
-              label: t.translate('training_calendar_open_workout'),
-              onTap: () => Navigator.of(context).pop(programDay.index),
-            ),
-          ],
-          if (!isPast && strength.isEmpty && entry != null) ...[
-            SizedBox(height: TaqaUiScale.h(2)),
-            TaqaTextActionButton(
-              label: t.translate('training_calendar_remove_plan'),
-              onTap: _saving ? null : _removePlan,
-            ),
-          ],
         ],
       ),
     );
@@ -844,155 +714,6 @@ class _CalendarPageState extends State<CalendarPage> {
         (metrics.activeMinutes ?? 0) > 0 ||
         (metrics.workoutMinutes ?? 0) > 0 ||
         (metrics.calories ?? 0) > 0;
-  }
-}
-
-class _ProgramDay {
-  const _ProgramDay({
-    required this.id,
-    required this.index,
-    required this.label,
-    required this.exerciseCount,
-  });
-
-  final int id;
-  final int index;
-  final String label;
-  final int exerciseCount;
-}
-
-class _PlanSelection {
-  const _PlanSelection.rest() : isRest = true, day = null;
-  const _PlanSelection.training(this.day) : isRest = false;
-
-  final bool isRest;
-  final _ProgramDay? day;
-}
-
-class _PlanPickerSheet extends StatelessWidget {
-  const _PlanPickerSheet({required this.days, required this.selected});
-
-  final List<_ProgramDay> days;
-  final TrainingScheduleEntry? selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = AppLocalizations.of(context);
-    final colors = context.taqaColors;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: TaqaUiScale.insetsLTRB(20, 20, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                t.translate('training_calendar_select_workout'),
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: TaqaUiScale.sp(20),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: TaqaUiScale.h(12)),
-              _PlanOption(
-                icon: Icons.hotel_outlined,
-                title: t.translate('training_calendar_rest_day'),
-                selected: selected?.isRest == true,
-                onTap: () =>
-                    Navigator.of(context).pop(const _PlanSelection.rest()),
-              ),
-              ...days.map(
-                (day) => _PlanOption(
-                  icon: Icons.fitness_center,
-                  title: day.label,
-                  subtitle:
-                      '${day.exerciseCount} ${t.translate('training_calendar_exercises')}',
-                  selected:
-                      selected?.isTraining == true &&
-                      selected?.trainingDayIndex == day.id,
-                  onTap: () =>
-                      Navigator.of(context).pop(_PlanSelection.training(day)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlanOption extends StatelessWidget {
-  const _PlanOption({
-    required this.icon,
-    required this.title,
-    required this.selected,
-    required this.onTap,
-    this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.taqaColors;
-    return Padding(
-      padding: EdgeInsets.only(top: TaqaUiScale.h(8)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: TaqaUiScale.radius(12),
-        child: Container(
-          padding: TaqaUiScale.insetsLTRB(14, 12, 14, 12),
-          decoration: BoxDecoration(
-            color: selected
-                ? colors.accent.withValues(alpha: 0.14)
-                : colors.surfaceElevated,
-            borderRadius: TaqaUiScale.radius(12),
-            border: Border.all(color: selected ? colors.accent : colors.border),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: colors.textPrimary, size: 20),
-              SizedBox(width: TaqaUiScale.w(12)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (subtitle != null)
-                      Text(
-                        subtitle!,
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: TaqaUiScale.sp(11),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              if (selected) Icon(Icons.check_circle, color: colors.accent),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

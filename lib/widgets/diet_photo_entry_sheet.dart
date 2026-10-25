@@ -10,6 +10,13 @@ import '../TaqaUI/components/taqa_toast.dart';
 import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 
+typedef DietPhotoEntrySubmit =
+    Future<Map<String, dynamic>> Function({
+      required List<int> photoBytes,
+      required String filename,
+      required String? textDescription,
+    });
+
 class DietPhotoEntrySheet extends StatefulWidget {
   const DietPhotoEntrySheet({
     super.key,
@@ -18,6 +25,8 @@ class DietPhotoEntrySheet extends StatefulWidget {
     required this.mealId,
     required this.mealTitle,
     this.trainingDayId,
+    this.onSubmit,
+    this.successMessage,
     required this.onLogged,
   });
 
@@ -28,6 +37,8 @@ class DietPhotoEntrySheet extends StatefulWidget {
   final int mealId;
   final String mealTitle;
   final int? trainingDayId;
+  final DietPhotoEntrySubmit? onSubmit;
+  final String Function(Map<String, dynamic> response)? successMessage;
   final Future<void> Function(Map<String, dynamic>? daySummary) onLogged;
 
   @override
@@ -124,14 +135,21 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
     setState(() => _loading = true);
 
     try {
-      final res = await DietService.addItemFromPhoto(
-        userId: widget.userId,
-        mealId: widget.mealId,
-        photoBytes: _photoBytes!,
-        filename: _photoName ?? 'meal.jpg',
-        textDescription: _descCtrl.text,
-        trainingDayId: widget.trainingDayId,
-      );
+      final description = _descCtrl.text.trim();
+      final res = widget.onSubmit != null
+          ? await widget.onSubmit!(
+              photoBytes: _photoBytes!,
+              filename: _photoName ?? 'meal.jpg',
+              textDescription: description.isEmpty ? null : description,
+            )
+          : await DietService.addItemFromPhoto(
+              userId: widget.userId,
+              mealId: widget.mealId,
+              photoBytes: _photoBytes!,
+              filename: _photoName ?? 'meal.jpg',
+              textDescription: description,
+              trainingDayId: widget.trainingDayId,
+            );
 
       if (!mounted) return;
       final daySummary = res["day_summary"] is Map
@@ -141,7 +159,7 @@ class _DietPhotoEntrySheetState extends State<DietPhotoEntrySheet> {
       if (widget.rootContext.mounted) {
         AppToast.show(
           widget.rootContext,
-          t.translate("diet_item_added"),
+          widget.successMessage?.call(res) ?? t.translate("diet_item_added"),
           type: AppToastType.success,
         );
       }

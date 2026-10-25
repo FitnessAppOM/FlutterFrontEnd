@@ -5,6 +5,19 @@ import 'package:http/http.dart' as http;
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
 
+/// Resolves the logical 1-based day index expected by the schedule API.
+///
+/// Program payloads also contain `day_id`, which is the database row ID and
+/// must never be sent as `training_day_index`.
+int resolveTrainingScheduleDayIndex(
+  Map<String, dynamic> programDay,
+  int listIndex,
+) {
+  final raw = programDay['day_index'];
+  final parsed = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '');
+  return parsed != null && parsed > 0 ? parsed : listIndex + 1;
+}
+
 class TrainingScheduleEntry {
   const TrainingScheduleEntry({
     required this.scheduledDate,

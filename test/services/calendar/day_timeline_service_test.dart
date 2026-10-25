@@ -39,13 +39,30 @@ void main() {
             ],
           },
         },
+        {
+          'id': 'planned-meal-91',
+          'type': 'planned_meal',
+          'title': 'Dinner',
+          'occurred_at': '2026-10-20T19:30:00+00:00',
+          'details': {
+            'plan_id': 91,
+            'status': 'planned',
+            'can_mark_eaten': false,
+            'totals': {'calories': 620, 'protein_g': 48},
+            'items': [
+              {'name': 'Chicken bowl', 'calories': 620},
+            ],
+          },
+        },
       ],
     });
 
-    expect(data.events, hasLength(2));
+    expect(data.events, hasLength(3));
     expect(data.events.first.title, 'Breakfast');
     expect(data.events.first.details['totals']['calories'], 450);
-    expect(data.events.last.details['exercises'][0]['sets'][0]['reps'], 10);
+    expect(data.events[1].details['exercises'][0]['sets'][0]['reps'], 10);
+    expect(data.events.last.type, 'planned_meal');
+    expect(data.events.last.details['plan_id'], 91);
     expect(data.dailySummary?['steps'], 9000);
     expect(data.plannedActivity?['training_day_label'], 'Push day');
   });

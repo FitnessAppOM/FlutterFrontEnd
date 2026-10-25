@@ -195,10 +195,12 @@ class TaqaHourlyTimeline extends StatelessWidget {
     super.key,
     required this.hourLabel,
     required this.eventsByHour,
+    this.onEmptyHourTap,
   });
 
   final String Function(int hour) hourLabel;
   final Map<int, List<Widget>> eventsByHour;
+  final ValueChanged<int>? onEmptyHourTap;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +218,9 @@ class TaqaHourlyTimeline extends StatelessWidget {
             hourLabel: hourLabel(hour),
             events: events,
             isLast: hour == 23,
+            onTap: events.isEmpty && onEmptyHourTap != null
+                ? () => onEmptyHourTap!(hour)
+                : null,
           );
         }),
       ),
@@ -228,11 +233,13 @@ class _TaqaTimelineHourRow extends StatelessWidget {
     required this.hourLabel,
     required this.events,
     required this.isLast,
+    this.onTap,
   });
 
   final String hourLabel;
   final List<Widget> events;
   final bool isLast;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +247,7 @@ class _TaqaTimelineHourRow extends StatelessWidget {
     final timeColumnWidth = TaqaUiScale.w(62);
     final railColumnWidth = TaqaUiScale.w(26);
 
-    return Stack(
+    final row = Stack(
       children: [
         if (!isLast)
           PositionedDirectional(
@@ -315,6 +322,11 @@ class _TaqaTimelineHourRow extends StatelessWidget {
           ],
         ),
       ],
+    );
+    if (onTap == null) return row;
+    return Semantics(
+      button: true,
+      child: InkWell(onTap: onTap, child: row),
     );
   }
 }

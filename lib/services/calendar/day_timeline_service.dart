@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
@@ -69,10 +70,22 @@ class DayTimelineData {
 }
 
 class DayTimelineService {
+  static final Random _random = Random.secure();
+
   static String _dateParam(DateTime value) =>
       '${value.year.toString().padLeft(4, '0')}-'
       '${value.month.toString().padLeft(2, '0')}-'
       '${value.day.toString().padLeft(2, '0')}';
+
+  static String _timestampWithOffset(DateTime value) {
+    final local = value.isUtc ? value.toLocal() : value;
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final totalMinutes = offset.inMinutes.abs();
+    final hours = (totalMinutes ~/ 60).toString().padLeft(2, '0');
+    final minutes = (totalMinutes % 60).toString().padLeft(2, '0');
+    return '${local.toIso8601String()}$sign$hours:$minutes';
+  }
 
   static Future<DayTimelineData> fetch({
     required int userId,
@@ -92,5 +105,111 @@ class DayTimelineService {
     return DayTimelineData.fromJson(
       jsonDecode(response.body) as Map<String, dynamic>,
     );
+  }
+
+  static String newEntryKey(int userId) {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final random = _random.nextInt(0x7fffffff);
+    return 'calendar-$userId-$now-$random';
+  }
+
+  static Future<Map<String, dynamic>> createMeal({
+    required int userId,
+    required DateTime scheduledAt,
+    required String title,
+    required List<Map<String, dynamic>> items,
+    String? notes,
+    required String entryKey,
+  }) async {
+    final uri = Uri.parse('${ApiConfig.baseUrl}/calendar/$userId/meals');
+    final localScheduledAt = scheduledAt.isUtc
+        ? scheduledAt.toLocal()
+        : scheduledAt;
+    final response = await http.post(
+      uri,
+      headers: {
+        ...await AccountStorage.getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'scheduled_date': _dateParam(localScheduledAt),
+        'scheduled_at': _timestampWithOffset(localScheduledAt),
+        'title': title,
+        'notes': notes,
+        'items': items,
+        'entry_key': entryKey,
+      }),
+    );
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to save meal'));
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
+  static Future<Map<String, dynamic>> createPhotoMeal({
+    required int userId,
+    required DateTime scheduledAt,
+    required List<int> photoBytes,
+    required String filename,
+    String? textDescription,
+    required String entryKey,
+  }) async {
+    final localScheduledAt = scheduledAt.isUtc
+        ? scheduledAt.toLocal()
+        : scheduledAt;
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('${ApiConfig.baseUrl}/calendar/$userId/meals/photo'),
+    );
+    request.headers.addAll(await AccountStorage.getAuthHeaders());
+    request.fields.addAll({
+      'scheduled_date': _dateParam(localScheduledAt),
+      'scheduled_at': _timestampWithOffset(localScheduledAt),
+      'entry_key': entryKey,
+      if (textDescription?.trim().isNotEmpty == true)
+        'text_description': textDescription!.trim(),
+    });
+    request.files.add(
+      http.MultipartFile.fromBytes('photo', photoBytes, filename: filename),
+    );
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to save meal'));
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
+  static Future<Map<String, dynamic>> markMealPlanEaten({
+    required int userId,
+    required int planId,
+  }) async {
+    final uri = Uri.parse(
+      '${ApiConfig.baseUrl}/calendar/$userId/meal-plans/$planId/complete',
+    );
+    final response = await http.post(
+      uri,
+      headers: await AccountStorage.getAuthHeaders(),
+    );
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to log planned meal'));
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
+  static String _responseError(http.Response response, String fallback) {
+    try {
+      final body = jsonDecode(response.body);
+      if (body is Map && body['detail'] != null) {
+        final detail = body['detail'].toString().trim();
+        if (detail.isNotEmpty) return detail;
+      }
+    } catch (_) {
+      // Use the stable fallback below.
+    }
+    return '$fallback (${response.statusCode})';
   }
 }

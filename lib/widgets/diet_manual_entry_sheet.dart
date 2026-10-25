@@ -7,6 +7,12 @@ import '../TaqaUI/styles/taqa_ui_scale.dart';
 import '../TaqaUI/taqa_ui_colors.dart';
 import 'diet_item_search_sheet.dart';
 
+typedef DietManualEntrySubmit =
+    Future<Map<String, dynamic>> Function({
+      required String? mealName,
+      required List<Map<String, dynamic>> ingredients,
+    });
+
 class DietManualEntrySheet extends StatefulWidget {
   const DietManualEntrySheet({
     super.key,
@@ -16,6 +22,8 @@ class DietManualEntrySheet extends StatefulWidget {
     required this.mealTitle,
     required this.mealDate,
     this.trainingDayId,
+    this.onSubmit,
+    this.successMessage,
     required this.onLogged,
   });
 
@@ -25,6 +33,8 @@ class DietManualEntrySheet extends StatefulWidget {
   final String mealTitle;
   final DateTime mealDate;
   final int? trainingDayId;
+  final DietManualEntrySubmit? onSubmit;
+  final String Function(Map<String, dynamic> response)? successMessage;
   final Future<void> Function(Map<String, dynamic>? daySummary) onLogged;
 
   @override
@@ -206,14 +216,19 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
     setState(() => _loading = true);
     try {
       final mealName = _mealNameCtrl.text.trim();
-      final response = await DietService.saveManualEntry(
-        userId: widget.userId,
-        mealId: widget.mealId,
-        mealName: mealName.isEmpty ? null : mealName,
-        ingredients: ingredients,
-        date: widget.mealDate,
-        trainingDayId: widget.trainingDayId,
-      );
+      final response = widget.onSubmit != null
+          ? await widget.onSubmit!(
+              mealName: mealName.isEmpty ? null : mealName,
+              ingredients: ingredients,
+            )
+          : await DietService.saveManualEntry(
+              userId: widget.userId,
+              mealId: widget.mealId,
+              mealName: mealName.isEmpty ? null : mealName,
+              ingredients: ingredients,
+              date: widget.mealDate,
+              trainingDayId: widget.trainingDayId,
+            );
 
       if (!mounted) return;
       final daySummary = response["day_summary"] is Map
@@ -226,7 +241,8 @@ class _DietManualEntrySheetState extends State<DietManualEntrySheet> {
           widget.rootContext,
           queued
               ? t.translate("diet_saved_offline")
-              : t.translate("diet_item_added"),
+              : widget.successMessage?.call(response) ??
+                    t.translate("diet_item_added"),
           type: queued ? AppToastType.info : AppToastType.success,
         );
       }

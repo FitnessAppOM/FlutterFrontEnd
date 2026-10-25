@@ -7,20 +7,29 @@ import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_timeline.dart';
+import '../../TaqaUI/components/taqa_toast.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/calendar/day_timeline_service.dart';
+import '../../services/training/training_schedule_service.dart';
+import '../../widgets/diet_item_search_sheet.dart';
+import '../../widgets/diet_logging_options_sheet.dart';
+import '../../widgets/diet_manual_entry_sheet.dart';
+import '../../widgets/diet_photo_entry_sheet.dart';
+import 'training_plan_picker_sheet.dart';
 
 class DayTimelinePage extends StatefulWidget {
   const DayTimelinePage({
     super.key,
     required this.date,
+    required this.program,
     this.canEditTrainingPlan = false,
   });
 
   final DateTime date;
+  final Map<String, dynamic> program;
   final bool canEditTrainingPlan;
 
   @override
@@ -29,7 +38,11 @@ class DayTimelinePage extends StatefulWidget {
 
 class _DayTimelinePageState extends State<DayTimelinePage> {
   DayTimelineData? _data;
+  Timer? _dueMealRefreshTimer;
   bool _loading = true;
+  bool _savingMeal = false;
+  bool _savingActivity = false;
+  final Set<int> _completingPlanIds = <int>{};
   String? _error;
 
   @override
@@ -64,6 +77,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         _data = data;
         _loading = false;
       });
+      _scheduleDueMealRefresh(data);
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -72,6 +86,376 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
           context,
         ).translate('day_timeline_load_error');
       });
+    }
+  }
+
+  void _scheduleDueMealRefresh(DayTimelineData data) {
+    _dueMealRefreshTimer?.cancel();
+    final now = DateTime.now();
+    final futurePlanTimes =
+        data.events
+            .where((event) => event.type == 'planned_meal')
+            .map((event) => event.occurredAt)
+            .whereType<DateTime>()
+            .where((time) => time.isAfter(now))
+            .toList()
+          ..sort();
+    if (futurePlanTimes.isEmpty) return;
+    _dueMealRefreshTimer = Timer(
+      futurePlanTimes.first.difference(now) + const Duration(seconds: 1),
+      _load,
+    );
+  }
+
+  @override
+  void dispose() {
+    _dueMealRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _addMeal({int? initialHour}) async {
+    if (_savingMeal) return;
+    final now = DateTime.now();
+    final isToday = DateUtils.isSameDay(widget.date, now);
+    final initial = initialHour == null
+        ? (isToday
+              ? TimeOfDay.fromDateTime(now)
+              : const TimeOfDay(hour: 12, minute: 0))
+        : TimeOfDay(hour: initialHour, minute: 0);
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: initial,
+    );
+    if (!mounted || selectedTime == null) return;
+
+    final scheduledAt = DateTime(
+      widget.date.year,
+      widget.date.month,
+      widget.date.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    final t = AppLocalizations.of(context);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => DietLoggingOptionsSheet(
+        mealTitle: t.translate('day_timeline_meal_default_name'),
+        onSearch: () => unawaited(_addMealFromSearch(userId, scheduledAt)),
+        onManualEntry: () => unawaited(_addMealManually(userId, scheduledAt)),
+        onPhotoEntry: () => unawaited(_addMealFromPhoto(userId, scheduledAt)),
+      ),
+    );
+  }
+
+  Future<void> _addMealManually(int userId, DateTime scheduledAt) async {
+    if (!mounted) return;
+    final t = AppLocalizations.of(context);
+    final entryKey = DayTimelineService.newEntryKey(userId);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.taqaColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(15)),
+        ),
+      ),
+      builder: (_) => DietManualEntrySheet(
+        rootContext: context,
+        userId: userId,
+        mealId: 0,
+        mealTitle: t.translate('day_timeline_meal_default_name'),
+        mealDate: widget.date,
+        onSubmit: ({required mealName, required ingredients}) async {
+          if (mounted) setState(() => _savingMeal = true);
+          try {
+            return await DayTimelineService.createMeal(
+              userId: userId,
+              scheduledAt: scheduledAt,
+              title: mealName?.trim().isNotEmpty == true
+                  ? mealName!.trim()
+                  : t.translate('day_timeline_meal_default_name'),
+              items: ingredients.map((item) {
+                int number(String key) =>
+                    (item[key] as num?)?.round() ??
+                    double.tryParse(item[key]?.toString() ?? '')?.round() ??
+                    0;
+                return <String, dynamic>{
+                  'name': item['ingredient_name']?.toString() ?? '',
+                  'grams': item['grams'],
+                  'calories': number('calories'),
+                  'protein_g': number('protein_g'),
+                  'carbs_g': number('carbs_g'),
+                  'fat_g': number('fat_g'),
+                  if (item['food_id'] != null) 'food_id': item['food_id'],
+                };
+              }).toList(),
+              entryKey: entryKey,
+            );
+          } finally {
+            if (mounted) setState(() => _savingMeal = false);
+          }
+        },
+        successMessage: (response) => response['status'] == 'planned'
+            ? t.translate('day_timeline_meal_planned')
+            : t.translate('day_timeline_meal_logged'),
+        onLogged: (_) async => _load(),
+      ),
+    );
+  }
+
+  Future<void> _addMealFromSearch(int userId, DateTime scheduledAt) async {
+    if (!mounted || _savingMeal) return;
+    final t = AppLocalizations.of(context);
+    Map<String, dynamic>? picked;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.taqaColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(15)),
+        ),
+      ),
+      builder: (_) => DietItemSearchSheet(
+        rootContext: context,
+        userId: userId,
+        mealId: 0,
+        mealTitle: t.translate('day_timeline_meal_default_name'),
+        onLogged: (_) async {},
+        onPickForManualEntry: (ingredient) => picked = ingredient,
+      ),
+    );
+    if (!mounted || picked == null) return;
+    final item = picked!;
+    int number(String key) =>
+        (item[key] as num?)?.round() ??
+        double.tryParse(item[key]?.toString() ?? '')?.round() ??
+        0;
+    await _saveMeal(
+      userId: userId,
+      scheduledAt: scheduledAt,
+      title: item['name']?.toString().trim().isNotEmpty == true
+          ? item['name'].toString().trim()
+          : t.translate('day_timeline_meal_default_name'),
+      items: [
+        {
+          'name': item['name']?.toString() ?? '',
+          'grams': item['grams'],
+          'calories': number('calories'),
+          'protein_g': number('protein'),
+          'carbs_g': number('carbs'),
+          'fat_g': number('fat'),
+          if (item['food_id'] != null) 'food_id': item['food_id'],
+          'source': 'search',
+        },
+      ],
+      entryKey: DayTimelineService.newEntryKey(userId),
+    );
+  }
+
+  Future<void> _addMealFromPhoto(int userId, DateTime scheduledAt) async {
+    if (!mounted) return;
+    final t = AppLocalizations.of(context);
+    final entryKey = DayTimelineService.newEntryKey(userId);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.taqaColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(15)),
+        ),
+      ),
+      builder: (_) => DietPhotoEntrySheet(
+        rootContext: context,
+        userId: userId,
+        mealId: 0,
+        mealTitle: t.translate('day_timeline_meal_default_name'),
+        onSubmit:
+            ({
+              required photoBytes,
+              required filename,
+              required textDescription,
+            }) async {
+              if (mounted) setState(() => _savingMeal = true);
+              try {
+                return await DayTimelineService.createPhotoMeal(
+                  userId: userId,
+                  scheduledAt: scheduledAt,
+                  photoBytes: photoBytes,
+                  filename: filename,
+                  textDescription: textDescription,
+                  entryKey: entryKey,
+                );
+              } finally {
+                if (mounted) setState(() => _savingMeal = false);
+              }
+            },
+        successMessage: (response) => response['status'] == 'planned'
+            ? t.translate('day_timeline_meal_planned')
+            : t.translate('day_timeline_meal_logged'),
+        onLogged: (_) async => _load(),
+      ),
+    );
+  }
+
+  Future<void> _saveMeal({
+    required int userId,
+    required DateTime scheduledAt,
+    required String title,
+    required List<Map<String, dynamic>> items,
+    required String entryKey,
+  }) async {
+    if (_savingMeal) return;
+    final t = AppLocalizations.of(context);
+    setState(() => _savingMeal = true);
+    try {
+      final response = await DayTimelineService.createMeal(
+        userId: userId,
+        scheduledAt: scheduledAt,
+        title: title,
+        items: items,
+        entryKey: entryKey,
+      );
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        response['status'] == 'planned'
+            ? t.translate('day_timeline_meal_planned')
+            : t.translate('day_timeline_meal_logged'),
+        type: AppToastType.success,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        error.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingMeal = false);
+    }
+  }
+
+  TrainingScheduleEntry? _selectedActivity() {
+    final plan = _data?.plannedActivity;
+    if (plan == null) return null;
+    int? number(Object? value) =>
+        value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
+    return TrainingScheduleEntry(
+      scheduledDate: widget.date,
+      scheduleType: plan['schedule_type']?.toString() ?? '',
+      programId: number(plan['program_id']),
+      trainingDayIndex: number(plan['training_day_index']),
+      trainingDayLabel: plan['training_day_label']?.toString(),
+    );
+  }
+
+  Future<void> _addOrChangeActivity() async {
+    if (_savingActivity || !widget.canEditTrainingPlan) return;
+    final selection = await showModalBottomSheet<CalendarPlanSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => TrainingPlanPickerSheet(
+        days: calendarProgramDays(widget.program),
+        selected: _selectedActivity(),
+      ),
+    );
+    if (!mounted || selection == null) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    setState(() => _savingActivity = true);
+    try {
+      await TrainingScheduleService.save(
+        userId: userId,
+        scheduledDate: widget.date,
+        scheduleType: selection.isRest ? 'rest' : 'training',
+        programId: selection.isRest ? null : calendarProgramId(widget.program),
+        trainingDayIndex: selection.day?.dayIndex,
+      );
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('training_calendar_saved'),
+        type: AppToastType.success,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        error.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingActivity = false);
+    }
+  }
+
+  Future<void> _removeActivity() async {
+    if (_savingActivity || _data?.plannedActivity == null) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    setState(() => _savingActivity = true);
+    try {
+      await TrainingScheduleService.remove(
+        userId: userId,
+        scheduledDate: widget.date,
+      );
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('training_calendar_removed'),
+        type: AppToastType.success,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        error.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingActivity = false);
+    }
+  }
+
+  Future<void> _markMealEaten(DayTimelineEvent event) async {
+    final planId = _asInt(event.details['plan_id']);
+    if (planId <= 0 || _completingPlanIds.contains(planId)) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    setState(() => _completingPlanIds.add(planId));
+    try {
+      await DayTimelineService.markMealPlanEaten(
+        userId: userId,
+        planId: planId,
+      );
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('day_timeline_meal_logged'),
+        type: AppToastType.success,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        error.toString().replaceFirst('Exception: ', ''),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _completingPlanIds.remove(planId));
     }
   }
 
@@ -136,7 +520,17 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       if (time == null) continue;
       eventsByHour
           .putIfAbsent(time.hour, () => [])
-          .add(_TimelineEventContent(event: event));
+          .add(
+            _TimelineEventContent(
+              event: event,
+              completing: _completingPlanIds.contains(
+                _asInt(event.details['plan_id']),
+              ),
+              onMarkEaten: event.type == 'planned_meal'
+                  ? () => _markMealEaten(event)
+                  : null,
+            ),
+          );
     }
 
     return ListView(
@@ -154,15 +548,6 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         ),
         SizedBox(height: TaqaUiScale.h(18)),
         _buildAllDaySummary(context, data),
-        if (widget.canEditTrainingPlan) ...[
-          SizedBox(height: TaqaUiScale.h(10)),
-          TaqaFilledButton(
-            label: data.plannedActivity == null
-                ? t.translate('training_calendar_schedule')
-                : t.translate('training_calendar_change_plan'),
-            onTap: () => Navigator.of(context).pop(true),
-          ),
-        ],
         SizedBox(height: TaqaUiScale.h(24)),
         Text(
           t.translate('day_timeline_hourly'),
@@ -172,6 +557,27 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
             fontWeight: FontWeight.w800,
           ),
         ),
+        SizedBox(height: TaqaUiScale.h(10)),
+        TaqaFilledButton(
+          label: t.translate('day_timeline_log_food'),
+          onTap: _savingMeal ? null : _addMeal,
+          loading: _savingMeal,
+        ),
+        if (widget.canEditTrainingPlan) ...[
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: data.plannedActivity == null
+                ? t.translate('day_timeline_add_activity')
+                : t.translate('training_calendar_change_plan'),
+            onTap: _savingActivity ? null : _addOrChangeActivity,
+            loading: _savingActivity,
+          ),
+          if (data.plannedActivity != null)
+            TextButton(
+              onPressed: _savingActivity ? null : _removeActivity,
+              child: Text(t.translate('training_calendar_remove_plan')),
+            ),
+        ],
         SizedBox(height: TaqaUiScale.h(4)),
         Text(
           data.events.isEmpty
@@ -193,6 +599,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
             ),
           ),
           eventsByHour: eventsByHour,
+          onEmptyHourTap: (hour) => _addMeal(initialHour: hour),
         ),
       ],
     );
@@ -354,12 +761,18 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
 }
 
 class _TimelineEventContent extends StatelessWidget {
-  const _TimelineEventContent({required this.event});
+  const _TimelineEventContent({
+    required this.event,
+    required this.completing,
+    this.onMarkEaten,
+  });
 
   final DayTimelineEvent event;
+  final bool completing;
+  final VoidCallback? onMarkEaten;
 
   Color _color() => switch (event.type) {
-    'meal' => TaqaUiColors.calendarMeal,
+    'meal' || 'planned_meal' => TaqaUiColors.calendarMeal,
     'strength' => TaqaUiColors.calendarStrength,
     'cardio' => TaqaUiColors.calendarCardio,
     _ => TaqaUiColors.calendarActivity,
@@ -367,6 +780,7 @@ class _TimelineEventContent extends StatelessWidget {
 
   IconData _icon() => switch (event.type) {
     'meal' => Icons.restaurant_outlined,
+    'planned_meal' => Icons.schedule,
     'strength' => Icons.fitness_center,
     'cardio' => Icons.directions_run,
     _ => Icons.circle_outlined,
@@ -389,9 +803,12 @@ class _TimelineEventContent extends StatelessWidget {
     final time = event.occurredAt == null
         ? ''
         : DateFormat.jm(t.locale.languageCode).format(event.occurredAt!);
-    if (event.type == 'meal') {
+    if (event.type == 'meal' || event.type == 'planned_meal') {
       final totals = _map(event.details['totals']);
-      return '$time · ${_asInt(totals['calories'])} ${t.translate('training_calendar_kcal')} · '
+      final status = event.type == 'planned_meal'
+          ? '${t.translate('day_timeline_planned')} · '
+          : '';
+      return '$time · $status${_asInt(totals['calories'])} ${t.translate('training_calendar_kcal')} · '
           'P ${_asInt(totals['protein_g'])}g · C ${_asInt(totals['carbs_g'])}g · F ${_asInt(totals['fat_g'])}g';
     }
     if (event.type == 'strength') {
@@ -419,10 +836,41 @@ class _TimelineEventContent extends StatelessWidget {
   Widget _details(BuildContext context) {
     return switch (event.type) {
       'meal' => _mealDetails(context),
+      'planned_meal' => _plannedMealDetails(context),
       'strength' => _strengthDetails(context),
       'cardio' => _cardioDetails(context),
       _ => const SizedBox.shrink(),
     };
+  }
+
+  Widget _plannedMealDetails(BuildContext context) {
+    final canMarkEaten = event.details['can_mark_eaten'] == true;
+    return Column(
+      children: [
+        _mealDetails(context),
+        if (canMarkEaten && onMarkEaten != null) ...[
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: AppLocalizations.of(
+              context,
+            ).translate('day_timeline_mark_eaten'),
+            onTap: completing ? null : onMarkEaten,
+            loading: completing,
+          ),
+        ] else ...[
+          SizedBox(height: TaqaUiScale.h(8)),
+          Text(
+            AppLocalizations.of(
+              context,
+            ).translate('day_timeline_available_at_time'),
+            style: TextStyle(
+              color: context.taqaColors.textSecondary,
+              fontSize: TaqaUiScale.sp(10),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _mealDetails(BuildContext context) {

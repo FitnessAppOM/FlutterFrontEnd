@@ -55,4 +55,33 @@ void main() {
     expect(find.text('Eggs'), findsOneWidget);
     expect(find.text('210 kcal · P 18g'), findsOneWidget);
   });
+
+  testWidgets('empty timeline hours expose the add callback', (tester) async {
+    await tester.binding.setSurfaceSize(TaqaUiScale.designSize);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    int? tappedHour;
+    await tester.pumpWidget(
+      ScreenUtilInit(
+        designSize: TaqaUiScale.designSize,
+        minTextAdapt: true,
+        builder: (_, _) => MaterialApp(
+          theme: ThemeData(
+            extensions: const <ThemeExtension<dynamic>>[TaqaUiPalette.light],
+          ),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: TaqaHourlyTimeline(
+                hourLabel: (hour) => '$hour:00',
+                eventsByHour: const {},
+                onEmptyHourTap: (hour) => tappedHour = hour,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('6:00'));
+    expect(tappedHour, 6);
+  });
 }
