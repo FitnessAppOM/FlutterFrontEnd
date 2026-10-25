@@ -25,6 +25,7 @@ class TrainingScheduleEntry {
     this.programId,
     this.trainingDayIndex,
     this.trainingDayLabel,
+    this.scheduledAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -34,6 +35,7 @@ class TrainingScheduleEntry {
   final int? programId;
   final int? trainingDayIndex;
   final String? trainingDayLabel;
+  final DateTime? scheduledAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -50,6 +52,9 @@ class TrainingScheduleEntry {
       programId: parseInt(json['program_id']),
       trainingDayIndex: parseInt(json['training_day_index']),
       trainingDayLabel: json['training_day_label']?.toString(),
+      scheduledAt: DateTime.tryParse(
+        json['scheduled_at']?.toString() ?? '',
+      )?.toLocal(),
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
     );
@@ -64,6 +69,16 @@ class TrainingScheduleService {
     final mm = date.month.toString().padLeft(2, '0');
     final dd = date.day.toString().padLeft(2, '0');
     return '$yyyy-$mm-$dd';
+  }
+
+  static String _timestampWithOffset(DateTime value) {
+    final local = value.isUtc ? value.toLocal() : value;
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final totalMinutes = offset.inMinutes.abs();
+    final hours = (totalMinutes ~/ 60).toString().padLeft(2, '0');
+    final minutes = (totalMinutes % 60).toString().padLeft(2, '0');
+    return '${local.toIso8601String()}$sign$hours:$minutes';
   }
 
   static Future<List<TrainingScheduleEntry>> fetchRange({
@@ -106,6 +121,7 @@ class TrainingScheduleService {
     required String scheduleType,
     int? programId,
     int? trainingDayIndex,
+    DateTime? scheduledAt,
   }) async {
     final url = Uri.parse('$baseUrl/training/schedule/$userId');
     final response = await http.post(
@@ -120,6 +136,9 @@ class TrainingScheduleService {
         'program_id': scheduleType == 'training' ? programId : null,
         'training_day_index': scheduleType == 'training'
             ? trainingDayIndex
+            : null,
+        'scheduled_at': scheduleType == 'training' && scheduledAt != null
+            ? _timestampWithOffset(scheduledAt)
             : null,
       }),
     );

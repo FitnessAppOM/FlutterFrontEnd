@@ -27,6 +27,7 @@ void main() {
         'program_id': 12,
         'training_day_index': 2,
         'training_day_label': 'Push Day',
+        'scheduled_at': '2026-10-22T18:30:00+03:00',
         'created_at': '2026-10-20T12:30:00',
         'updated_at': '2026-10-20T12:30:00',
       });
@@ -35,6 +36,7 @@ void main() {
       expect(entry.programId, 12);
       expect(entry.trainingDayIndex, 2);
       expect(entry.trainingDayLabel, 'Push Day');
+      expect(entry.scheduledAt?.minute, 30);
       expect(entry.isTraining, isTrue);
       expect(entry.isRest, isFalse);
     });

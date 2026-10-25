@@ -200,6 +200,69 @@ class DayTimelineService {
     return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
   }
 
+  static Future<Map<String, dynamic>> updateMealPlan({
+    required int userId,
+    required int planId,
+    required String title,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final response = await http.patch(
+      Uri.parse('${ApiConfig.baseUrl}/calendar/$userId/meal-plans/$planId'),
+      headers: {
+        ...await AccountStorage.getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({'title': title, 'items': items}),
+    );
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to update meal plan'));
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
+  static Future<void> deleteMealPlan({
+    required int userId,
+    required int planId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}/calendar/$userId/meal-plans/$planId'),
+      headers: await AccountStorage.getAuthHeaders(),
+    );
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to delete meal plan'));
+    }
+  }
+
+  static Future<Map<String, dynamic>> appendPhotoToMealPlan({
+    required int userId,
+    required int planId,
+    required List<int> photoBytes,
+    required String filename,
+    String? textDescription,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+        '${ApiConfig.baseUrl}/calendar/$userId/meal-plans/$planId/items/photo',
+      ),
+    );
+    request.headers.addAll(await AccountStorage.getAuthHeaders());
+    if (textDescription?.trim().isNotEmpty == true) {
+      request.fields['text_description'] = textDescription!.trim();
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes('photo', photoBytes, filename: filename),
+    );
+    final response = await http.Response.fromStream(await request.send());
+    await AccountStorage.handle401(response.statusCode);
+    if (response.statusCode != 200) {
+      throw Exception(_responseError(response, 'Failed to update meal plan'));
+    }
+    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+  }
+
   static String _responseError(http.Response response, String fallback) {
     try {
       final body = jsonDecode(response.body);

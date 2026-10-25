@@ -18,6 +18,7 @@ import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_logging_options_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
 import '../../widgets/diet_photo_entry_sheet.dart';
+import 'calendar_meal_editor_sheet.dart';
 import 'training_plan_picker_sheet.dart';
 
 class DayTimelinePage extends StatefulWidget {
@@ -125,6 +126,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     final selectedTime = await showTimePicker(
       context: context,
       initialTime: initial,
+      initialEntryMode: TimePickerEntryMode.inputOnly,
     );
     if (!mounted || selectedTime == null) return;
 
@@ -355,6 +357,9 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       programId: number(plan['program_id']),
       trainingDayIndex: number(plan['training_day_index']),
       trainingDayLabel: plan['training_day_label']?.toString(),
+      scheduledAt: DateTime.tryParse(
+        plan['scheduled_at']?.toString() ?? '',
+      )?.toLocal(),
     );
   }
 
@@ -370,6 +375,29 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       ),
     );
     if (!mounted || selection == null) return;
+    DateTime? scheduledAt;
+    if (!selection.isRest) {
+      final existing = _selectedActivity()?.scheduledAt;
+      final now = DateTime.now();
+      final initial = existing != null
+          ? TimeOfDay.fromDateTime(existing)
+          : DateUtils.isSameDay(widget.date, now)
+          ? TimeOfDay.fromDateTime(now)
+          : const TimeOfDay(hour: 12, minute: 0);
+      final selectedTime = await showTimePicker(
+        context: context,
+        initialTime: initial,
+        initialEntryMode: TimePickerEntryMode.inputOnly,
+      );
+      if (!mounted || selectedTime == null) return;
+      scheduledAt = DateTime(
+        widget.date.year,
+        widget.date.month,
+        widget.date.day,
+        selectedTime.hour,
+        selectedTime.minute,
+      );
+    }
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
     setState(() => _savingActivity = true);
@@ -380,6 +408,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         scheduleType: selection.isRest ? 'rest' : 'training',
         programId: selection.isRest ? null : calendarProgramId(widget.program),
         trainingDayIndex: selection.day?.dayIndex,
+        scheduledAt: scheduledAt,
       );
       if (!mounted) return;
       AppToast.show(
@@ -427,6 +456,64 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     } finally {
       if (mounted) setState(() => _savingActivity = false);
     }
+  }
+
+  Future<void> _editActivity() async {
+    final t = AppLocalizations.of(context);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.taqaColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(18)),
+        ),
+      ),
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: TaqaUiScale.insetsLTRB(20, 20, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TaqaFilledButton(
+                label: t.translate('training_calendar_change_plan'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_addOrChangeActivity());
+                },
+              ),
+              SizedBox(height: TaqaUiScale.h(8)),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_removeActivity());
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: Text(t.translate('training_calendar_remove_plan')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editMeal(DayTimelineEvent event) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.taqaColors.background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(TaqaUiScale.r(18)),
+        ),
+      ),
+      builder: (_) => CalendarMealEditorSheet(
+        event: event,
+        mealDate: widget.date,
+        onChanged: _load,
+      ),
+    );
   }
 
   Future<void> _markMealEaten(DayTimelineEvent event) async {
@@ -529,6 +616,36 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
               onMarkEaten: event.type == 'planned_meal'
                   ? () => _markMealEaten(event)
                   : null,
+              onEdit: event.type == 'meal' || event.type == 'planned_meal'
+                  ? () => _editMeal(event)
+                  : null,
+            ),
+          );
+    }
+    final plannedActivity = data.plannedActivity;
+    final plannedActivityTime = DateTime.tryParse(
+      plannedActivity?['scheduled_at']?.toString() ?? '',
+    )?.toLocal();
+    if (plannedActivity != null && plannedActivityTime != null) {
+      final isRest = plannedActivity['schedule_type'] == 'rest';
+      eventsByHour
+          .putIfAbsent(plannedActivityTime.hour, () => [])
+          .add(
+            TaqaTimelineEventCard(
+              icon: isRest ? Icons.hotel_outlined : Icons.fitness_center,
+              color: isRest ? colors.textSecondary : colors.accent,
+              title: isRest
+                  ? t.translate('training_calendar_rest_day')
+                  : plannedActivity['training_day_label']?.toString() ??
+                        t.translate('training_workout'),
+              subtitle:
+                  '${DateFormat.jm(t.locale.languageCode).format(plannedActivityTime)} · '
+                  '${t.translate('day_timeline_planned')}',
+              details: Text(
+                t.translate('training_calendar_planned'),
+                style: TextStyle(color: colors.textSecondary),
+              ),
+              onEdit: _editActivity,
             ),
           );
     }
@@ -563,20 +680,13 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
           onTap: _savingMeal ? null : _addMeal,
           loading: _savingMeal,
         ),
-        if (widget.canEditTrainingPlan) ...[
+        if (widget.canEditTrainingPlan && data.plannedActivity == null) ...[
           SizedBox(height: TaqaUiScale.h(10)),
           TaqaFilledButton(
-            label: data.plannedActivity == null
-                ? t.translate('day_timeline_add_activity')
-                : t.translate('training_calendar_change_plan'),
+            label: t.translate('day_timeline_add_activity'),
             onTap: _savingActivity ? null : _addOrChangeActivity,
             loading: _savingActivity,
           ),
-          if (data.plannedActivity != null)
-            TextButton(
-              onPressed: _savingActivity ? null : _removeActivity,
-              child: Text(t.translate('training_calendar_remove_plan')),
-            ),
         ],
         SizedBox(height: TaqaUiScale.h(4)),
         Text(
@@ -610,9 +720,12 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     final colors = context.taqaColors;
     final metrics = data.dailySummary;
     final plan = data.plannedActivity;
+    final planTime = DateTime.tryParse(
+      plan?['scheduled_at']?.toString() ?? '',
+    )?.toLocal();
     final cards = <Widget>[];
 
-    if (plan != null) {
+    if (plan != null && planTime == null) {
       final isRest = plan['schedule_type'] == 'rest';
       cards.add(
         TaqaTimelineSummaryCard(
@@ -623,6 +736,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
               ? t.translate('training_calendar_rest_day')
               : plan['training_day_label']?.toString() ??
                     t.translate('training_workout'),
+          onEdit: widget.canEditTrainingPlan ? _editActivity : null,
         ),
       );
     }
@@ -765,11 +879,13 @@ class _TimelineEventContent extends StatelessWidget {
     required this.event,
     required this.completing,
     this.onMarkEaten,
+    this.onEdit,
   });
 
   final DayTimelineEvent event;
   final bool completing;
   final VoidCallback? onMarkEaten;
+  final VoidCallback? onEdit;
 
   Color _color() => switch (event.type) {
     'meal' || 'planned_meal' => TaqaUiColors.calendarMeal,
@@ -795,6 +911,7 @@ class _TimelineEventContent extends StatelessWidget {
       title: event.title,
       subtitle: _subtitle(context),
       details: _details(context),
+      onEdit: onEdit,
     );
   }
 

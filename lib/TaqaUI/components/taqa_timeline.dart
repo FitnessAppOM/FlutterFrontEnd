@@ -12,6 +12,7 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     this.detail,
+    this.onEdit,
   });
 
   final IconData icon;
@@ -19,6 +20,7 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
   final String title;
   final String value;
   final String? detail;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +76,15 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onEdit != null)
+            IconButton(
+              onPressed: onEdit,
+              icon: Icon(
+                Icons.edit_outlined,
+                size: 18,
+                color: colors.textSecondary,
+              ),
+            ),
         ],
       ),
     );
@@ -89,6 +100,7 @@ class TaqaTimelineEventCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.details,
+    this.onEdit,
   });
 
   final IconData icon;
@@ -96,6 +108,7 @@ class TaqaTimelineEventCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget details;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -120,13 +133,29 @@ class TaqaTimelineEventCard extends StatelessWidget {
             ),
             child: Icon(icon, color: color, size: 18),
           ),
-          title: Text(
-            title,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: TaqaUiScale.sp(13),
-              fontWeight: FontWeight.w800,
-            ),
+          title: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: TaqaUiScale.sp(13),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (onEdit != null)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onEdit,
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: colors.textSecondary,
+                  ),
+                ),
+            ],
           ),
           subtitle: Text(
             subtitle,

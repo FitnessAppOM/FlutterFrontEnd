@@ -584,7 +584,10 @@ class _CalendarPageState extends State<CalendarPage> {
               : entry.trainingDayLabel ??
                     programDay?.label ??
                     t.translate('training_workout'),
-          subtitle: t.translate('training_calendar_planned'),
+          subtitle: entry.scheduledAt == null
+              ? t.translate('training_calendar_planned')
+              : '${t.translate('training_calendar_planned')} · '
+                    '${DateFormat.jm(t.locale.languageCode).format(entry.scheduledAt!)}',
         ),
       );
     }
