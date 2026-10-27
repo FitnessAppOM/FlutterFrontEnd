@@ -12,7 +12,6 @@ import '../../localization/app_localizations.dart';
 import '../../services/calendar/day_timeline_service.dart';
 import '../../services/diet/diet_service.dart';
 import '../../widgets/diet_item_search_sheet.dart';
-import '../../widgets/diet_logging_options_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
 import '../../widgets/diet_photo_entry_sheet.dart';
 
@@ -172,15 +171,38 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
   Future<void> _addItem() async {
     final userId = await _userId();
     if (!mounted || userId == null) return;
-    await showDialog<void>(
+    final t = AppLocalizations.of(context);
+    final mode = await showTaqaOptionDialog<_CalendarMealEntryMode>(
       context: context,
-      builder: (_) => DietLoggingOptionsSheet(
-        mealTitle: widget.event.title,
-        onSearch: () => unawaited(_openSearch(userId)),
-        onManualEntry: () => unawaited(_openManual(userId)),
-        onPhotoEntry: () => unawaited(_openPhoto(userId)),
-      ),
+      title: t.translate('diet_add_item_title'),
+      cancelLabel: t.translate('common_cancel'),
+      options: [
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.search,
+          title: t.translate('diet_option_search'),
+          subtitle: t.translate('diet_option_search_desc'),
+        ),
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.manual,
+          title: t.translate('diet_option_manual'),
+          subtitle: t.translate('diet_option_manual_desc'),
+        ),
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.photo,
+          title: t.translate('diet_option_photo'),
+          subtitle: t.translate('diet_option_photo_desc'),
+        ),
+      ],
     );
+    if (!mounted || mode == null) return;
+    switch (mode) {
+      case _CalendarMealEntryMode.search:
+        await _openSearch(userId);
+      case _CalendarMealEntryMode.manual:
+        await _openManual(userId);
+      case _CalendarMealEntryMode.photo:
+        await _openPhoto(userId);
+    }
   }
 
   Future<void> _openSearch(int userId) async {
@@ -403,10 +425,11 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
               onTap: _working ? null : _addItem,
               loading: _working,
             ),
-            TextButton.icon(
-              onPressed: _working ? null : _deleteMeal,
-              icon: const Icon(Icons.delete_outline),
-              label: Text(t.translate('diet_delete_meal')),
+            TaqaTextActionButton(
+              label: t.translate('diet_delete_meal'),
+              onTap: _working ? null : _deleteMeal,
+              icon: Icons.delete_outline,
+              foregroundColor: colors.danger,
             ),
           ],
         ),
@@ -417,3 +440,5 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
 
 int _int(Object? value) =>
     value is num ? value.round() : int.tryParse(value?.toString() ?? '') ?? 0;
+
+enum _CalendarMealEntryMode { search, manual, photo }

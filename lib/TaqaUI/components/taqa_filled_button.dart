@@ -69,10 +69,14 @@ class TaqaTextActionButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onTap,
+    this.icon,
+    this.foregroundColor,
   });
 
   final String label;
   final VoidCallback? onTap;
+  final IconData? icon;
+  final Color? foregroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -85,18 +89,30 @@ class TaqaTextActionButton extends StatelessWidget {
         child: SizedBox(
           width: double.infinity,
           height: TaqaUiScale.h(45),
-          child: Center(
-            child: Text(
-              taqaUppercase(label),
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(10),
-                fontWeight: FontWeight.w600,
-                height: 12 / 10,
-                letterSpacing: 0,
-                color: colors.textPrimary,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  size: TaqaUiScale.w(17),
+                  color: foregroundColor ?? colors.textPrimary,
+                ),
+                SizedBox(width: TaqaUiScale.w(7)),
+              ],
+              Text(
+                taqaUppercase(label),
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(10),
+                  fontWeight: FontWeight.w600,
+                  height: 12 / 10,
+                  letterSpacing: 0,
+                  color: foregroundColor ?? colors.textPrimary,
+                ),
               ),
-            ),
+            ],
           ),
         ),
       ),

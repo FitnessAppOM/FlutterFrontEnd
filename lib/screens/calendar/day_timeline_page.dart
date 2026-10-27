@@ -6,8 +6,11 @@ import 'package:intl/intl.dart';
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
+import '../../TaqaUI/components/taqa_popup_guard.dart';
 import '../../TaqaUI/components/taqa_timeline.dart';
+import '../../TaqaUI/components/taqa_time_input_dialog.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
+import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
@@ -15,7 +18,6 @@ import '../../localization/app_localizations.dart';
 import '../../services/calendar/day_timeline_service.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../widgets/diet_item_search_sheet.dart';
-import '../../widgets/diet_logging_options_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
 import '../../widgets/diet_photo_entry_sheet.dart';
 import 'calendar_meal_editor_sheet.dart';
@@ -123,10 +125,16 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
               ? TimeOfDay.fromDateTime(now)
               : const TimeOfDay(hour: 12, minute: 0))
         : TimeOfDay(hour: initialHour, minute: 0);
-    final selectedTime = await showTimePicker(
+    final t = AppLocalizations.of(context);
+    final selectedTime = await showTaqaTimeInputDialog(
       context: context,
       initialTime: initial,
-      initialEntryMode: TimePickerEntryMode.inputOnly,
+      title: t.translate('day_timeline_set_meal_time'),
+      hourLabel: t.translate('day_timeline_hour'),
+      minuteLabel: t.translate('day_timeline_minute'),
+      invalidTimeMessage: t.translate('day_timeline_invalid_time'),
+      cancelLabel: t.translate('common_cancel'),
+      saveLabel: t.translate('common_save'),
     );
     if (!mounted || selectedTime == null) return;
 
@@ -139,18 +147,37 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     );
     final userId = await AccountStorage.getUserId();
     if (!mounted || userId == null || userId <= 0) return;
-    final t = AppLocalizations.of(context);
-
-    await showDialog<void>(
+    final mode = await showTaqaOptionDialog<_CalendarMealEntryMode>(
       context: context,
-      barrierDismissible: true,
-      builder: (_) => DietLoggingOptionsSheet(
-        mealTitle: t.translate('day_timeline_meal_default_name'),
-        onSearch: () => unawaited(_addMealFromSearch(userId, scheduledAt)),
-        onManualEntry: () => unawaited(_addMealManually(userId, scheduledAt)),
-        onPhotoEntry: () => unawaited(_addMealFromPhoto(userId, scheduledAt)),
-      ),
+      title: t.translate('diet_add_item_title'),
+      cancelLabel: t.translate('common_cancel'),
+      options: [
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.search,
+          title: t.translate('diet_option_search'),
+          subtitle: t.translate('diet_option_search_desc'),
+        ),
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.manual,
+          title: t.translate('diet_option_manual'),
+          subtitle: t.translate('diet_option_manual_desc'),
+        ),
+        TaqaDialogOption(
+          value: _CalendarMealEntryMode.photo,
+          title: t.translate('diet_option_photo'),
+          subtitle: t.translate('diet_option_photo_desc'),
+        ),
+      ],
     );
+    if (!mounted || mode == null) return;
+    switch (mode) {
+      case _CalendarMealEntryMode.search:
+        await _addMealFromSearch(userId, scheduledAt);
+      case _CalendarMealEntryMode.manual:
+        await _addMealManually(userId, scheduledAt);
+      case _CalendarMealEntryMode.photo:
+        await _addMealFromPhoto(userId, scheduledAt);
+    }
   }
 
   Future<void> _addMealManually(int userId, DateTime scheduledAt) async {
@@ -365,7 +392,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
 
   Future<void> _addOrChangeActivity() async {
     if (_savingActivity || !widget.canEditTrainingPlan) return;
-    final selection = await showModalBottomSheet<CalendarPlanSelection>(
+    final selection = await TaqaPopupGuard.bottomSheet<CalendarPlanSelection>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -384,10 +411,16 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
           : DateUtils.isSameDay(widget.date, now)
           ? TimeOfDay.fromDateTime(now)
           : const TimeOfDay(hour: 12, minute: 0);
-      final selectedTime = await showTimePicker(
+      final t = AppLocalizations.of(context);
+      final selectedTime = await showTaqaTimeInputDialog(
         context: context,
         initialTime: initial,
-        initialEntryMode: TimePickerEntryMode.inputOnly,
+        title: t.translate('day_timeline_set_activity_time'),
+        hourLabel: t.translate('day_timeline_hour'),
+        minuteLabel: t.translate('day_timeline_minute'),
+        invalidTimeMessage: t.translate('day_timeline_invalid_time'),
+        cancelLabel: t.translate('common_cancel'),
+        saveLabel: t.translate('common_save'),
       );
       if (!mounted || selectedTime == null) return;
       scheduledAt = DateTime(
@@ -460,42 +493,50 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
 
   Future<void> _editActivity() async {
     final t = AppLocalizations.of(context);
-    await showModalBottomSheet<void>(
+    final colors = context.taqaColors;
+    final action = await TaqaPopupGuard.bottomSheet<_ActivityEditAction>(
       context: context,
-      backgroundColor: context.taqaColors.background,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(TaqaUiScale.r(18)),
-        ),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) => SafeArea(
         top: false,
-        child: Padding(
+        child: Container(
           padding: TaqaUiScale.insetsLTRB(20, 20, 20, 24),
+          decoration: BoxDecoration(
+            color: colors.background,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(TaqaUiScale.r(18)),
+            ),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TaqaFilledButton(
                 label: t.translate('training_calendar_change_plan'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  unawaited(_addOrChangeActivity());
-                },
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_ActivityEditAction.change),
               ),
               SizedBox(height: TaqaUiScale.h(8)),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.of(sheetContext).pop();
-                  unawaited(_removeActivity());
-                },
-                icon: const Icon(Icons.delete_outline),
-                label: Text(t.translate('training_calendar_remove_plan')),
+              TaqaTextActionButton(
+                label: t.translate('training_calendar_remove_plan'),
+                icon: Icons.delete_outline,
+                foregroundColor: colors.danger,
+                onTap: () =>
+                    Navigator.of(sheetContext).pop(_ActivityEditAction.remove),
               ),
             ],
           ),
         ),
       ),
     );
+    if (!mounted) return;
+    switch (action) {
+      case _ActivityEditAction.change:
+        await _addOrChangeActivity();
+      case _ActivityEditAction.remove:
+        await _removeActivity();
+      case null:
+        return;
+    }
   }
 
   Future<void> _editMeal(DayTimelineEvent event) async {
@@ -873,6 +914,10 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     return parts.join(' · ');
   }
 }
+
+enum _CalendarMealEntryMode { search, manual, photo }
+
+enum _ActivityEditAction { change, remove }
 
 class _TimelineEventContent extends StatelessWidget {
   const _TimelineEventContent({

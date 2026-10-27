@@ -87,6 +87,22 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  Future<List<TrainingScheduleEntry>> _safeTrainingSchedule(
+    int userId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    try {
+      return await TrainingScheduleService.fetchRange(
+        userId: userId,
+        start: start,
+        end: end,
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<Map<DateTime, DietCalendarDaySummary>> _safeMealSummaries(
     int userId,
     DateTime start,
@@ -145,11 +161,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
     try {
       final results = await Future.wait<dynamic>([
-        TrainingScheduleService.fetchRange(
-          userId: userId,
-          start: start,
-          end: end,
-        ),
+        _safeTrainingSchedule(userId, start, end),
         _safeStrengthHistory(userId, historyDays),
         _safeCardioHistory(userId),
         _safeMealSummaries(userId, start, end),
