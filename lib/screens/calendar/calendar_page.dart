@@ -11,6 +11,7 @@ import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/diet/diet_calendar_service.dart';
+import '../../services/calendar/calendar_source_loader.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../services/training/training_service.dart';
@@ -39,6 +40,15 @@ class _CalendarPageState extends State<CalendarPage> {
   String? _error;
   int _loadRequest = 0;
 
+  void _reportSourceFailure(
+    String source,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    debugPrint('Calendar month source failed: $source ($error)');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -65,74 +75,74 @@ class _CalendarPageState extends State<CalendarPage> {
   Future<List<Map<String, dynamic>>> _safeStrengthHistory(
     int userId,
     int limitDays,
-  ) async {
-    try {
-      return await TrainingService.fetchTrainingHistory(
+  ) {
+    return CalendarSourceLoader.load(
+      source: 'strength_history',
+      request: () => TrainingService.fetchTrainingHistory(
         userId: userId,
         limitDays: limitDays,
-      );
-    } catch (_) {
-      return const [];
-    }
+      ),
+      fallback: const <Map<String, dynamic>>[],
+      onFailure: _reportSourceFailure,
+    );
   }
 
-  Future<List<Map<String, dynamic>>> _safeCardioHistory(int userId) async {
-    try {
-      return await TrainingService.fetchCardioHistory(
-        userId: userId,
-        limit: 500,
-      );
-    } catch (_) {
-      return const [];
-    }
+  Future<List<Map<String, dynamic>>> _safeCardioHistory(int userId) {
+    return CalendarSourceLoader.load(
+      source: 'cardio_history',
+      request: () =>
+          TrainingService.fetchCardioHistory(userId: userId, limit: 500),
+      fallback: const <Map<String, dynamic>>[],
+      onFailure: _reportSourceFailure,
+    );
   }
 
   Future<List<TrainingScheduleEntry>> _safeTrainingSchedule(
     int userId,
     DateTime start,
     DateTime end,
-  ) async {
-    try {
-      return await TrainingScheduleService.fetchRange(
+  ) {
+    return CalendarSourceLoader.load(
+      source: 'training_schedule',
+      request: () => TrainingScheduleService.fetchRange(
         userId: userId,
         start: start,
         end: end,
-      );
-    } catch (_) {
-      return const [];
-    }
+      ),
+      fallback: const <TrainingScheduleEntry>[],
+      onFailure: _reportSourceFailure,
+    );
   }
 
   Future<Map<DateTime, DietCalendarDaySummary>> _safeMealSummaries(
     int userId,
     DateTime start,
     DateTime end,
-  ) async {
-    try {
-      return await DietCalendarService.fetchRange(
+  ) {
+    return CalendarSourceLoader.load(
+      source: 'meal_summaries',
+      request: () => DietCalendarService.fetchRange(
         userId: userId,
         start: start,
         end: end,
-      );
-    } catch (_) {
-      return const {};
-    }
+      ),
+      fallback: const <DateTime, DietCalendarDaySummary>{},
+      onFailure: _reportSourceFailure,
+    );
   }
 
   Future<Map<DateTime, DailyMetricsEntry>> _safeDailyMetrics(
     int userId,
     DateTime start,
     DateTime end,
-  ) async {
-    try {
-      return await DailyMetricsApi.fetchRange(
-        userId: userId,
-        start: start,
-        end: end,
-      );
-    } catch (_) {
-      return const {};
-    }
+  ) {
+    return CalendarSourceLoader.load(
+      source: 'daily_metrics',
+      request: () =>
+          DailyMetricsApi.fetchRange(userId: userId, start: start, end: end),
+      fallback: const <DateTime, DailyMetricsEntry>{},
+      onFailure: _reportSourceFailure,
+    );
   }
 
   Future<void> _loadMonth() async {
