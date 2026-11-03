@@ -24,6 +24,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
     this.onTrainingTap,
     this.onDietTap,
     this.onAvatarTap,
+    this.onCalendarTap,
     this.message,
     this.streakDays,
   });
@@ -36,6 +37,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
   final VoidCallback? onTrainingTap;
   final VoidCallback? onDietTap;
   final VoidCallback? onAvatarTap;
+  final VoidCallback? onCalendarTap;
   final String? message;
   final int? streakDays;
 
@@ -147,7 +149,7 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     top: descriptionTop,
                     width: math.min(
                       descriptionWidth,
-                      cardWidth - (leftInset * 2),
+                      cardWidth - (leftInset * 2) - TaqaUiScale.w(56),
                     ),
                     height: descriptionHeight,
                     child: Text(
@@ -159,6 +161,18 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                         fontSize:
                             (TaqaUiStyles.subtitle.fontSize ?? 15) *
                             layoutScale,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: leftInset,
+                    top: nameTop + nameHeight,
+                    child: IconButton(
+                      tooltip: t('training_calendar'),
+                      onPressed: onCalendarTap,
+                      icon: Icon(
+                        Icons.calendar_month_outlined,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),

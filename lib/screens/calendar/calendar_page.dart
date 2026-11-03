@@ -642,8 +642,8 @@ class _CalendarPageState extends State<CalendarPage> {
       final minutes = sleepMinutes % 60;
       items.add(
         _DaySummaryItem(
-          icon: Icons.bedtime_outlined,
-          color: TaqaUiColors.calendarSleep,
+          icon: Icons.bed_outlined,
+          color: colors.textPrimary,
           title: t.translate('training_calendar_sleep'),
           subtitle:
               '$hours${t.translate('training_calendar_hours_short')} '

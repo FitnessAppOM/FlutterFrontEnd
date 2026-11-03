@@ -84,6 +84,7 @@ import '../../screens/steps_detail_page.dart';
 import '../../screens/calories_detail_page.dart';
 import '../../screens/water_intake_detail_page.dart';
 import '../../screens/daily_journal.dart';
+import '../../screens/calendar/calendar_page.dart';
 import '../../screens/taqa_score_detail_page.dart';
 import '../../localization/app_localizations.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
@@ -512,6 +513,7 @@ class DashboardPageState extends State<DashboardPage>
   bool _cachedTodayLoadedOnce = false;
   int? _streakCount;
   bool _streakLoading = false;
+  bool _openingCalendar = false;
   int? _cachedTodayDietConsumedCalories;
   int? _cachedTodayDietTargetCalories;
   String? _cachedTodayDietDayType;
@@ -5280,6 +5282,35 @@ class DashboardPageState extends State<DashboardPage>
     widget.onNavigateToTab?.call(1);
   }
 
+  Future<void> _openCalendar() async {
+    if (_openingCalendar) return;
+    setState(() => _openingCalendar = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || !mounted) return;
+      Map<String, dynamic>? program;
+      try {
+        program = await TrainingService.fetchActiveProgram(userId);
+      } catch (_) {
+        program = await TrainingService.fetchActiveProgramFromCache();
+        if (program == null) rethrow;
+      }
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => CalendarPage(program: program!)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('training_calendar_load_error'),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _openingCalendar = false);
+    }
+  }
+
   void _openDietPage() {
     widget.onNavigateToTab?.call(0);
   }
@@ -5392,6 +5423,7 @@ class DashboardPageState extends State<DashboardPage>
           onTrainingTap: _wiggling ? null : _openTrainingPage,
           onDietTap: _wiggling ? null : _openDietPage,
           onAvatarTap: _wiggling ? null : _openProfilePage,
+          onCalendarTap: _wiggling || _openingCalendar ? null : _openCalendar,
           streakDays: _streakCount,
         ),
         const SizedBox(height: 16),

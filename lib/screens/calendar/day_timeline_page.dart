@@ -16,11 +16,14 @@ import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/calendar/day_timeline_service.dart';
+import '../../services/health/sleep_service.dart';
+import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
 import '../../widgets/diet_photo_entry_sheet.dart';
 import 'calendar_meal_editor_sheet.dart';
+import 'calendar_sleep_dialog.dart';
 import 'training_plan_picker_sheet.dart';
 
 class DayTimelinePage extends StatefulWidget {
@@ -45,6 +48,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   bool _loading = true;
   bool _savingMeal = false;
   bool _savingActivity = false;
+  bool _savingSleep = false;
   final Set<int> _completingPlanIds = <int>{};
   String? _error;
 
@@ -114,6 +118,53 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   void dispose() {
     _dueMealRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  bool get _canLogSleep => !DateUtils.dateOnly(
+    widget.date,
+  ).isAfter(DateUtils.dateOnly(DateTime.now()));
+
+  Future<void> _logSleep() async {
+    if (_savingSleep || !_canLogSleep) return;
+    final t = AppLocalizations.of(context);
+    final minutes = _sleepMinutes(_data?.dailySummary);
+    final hours = await TaqaPopupGuard.dialog<double>(
+      context: context,
+      builder: (_) => CalendarSleepDialog(initialMinutes: minutes),
+    );
+    if (!mounted || hours == null) return;
+    setState(() => _savingSleep = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (userId == null || userId <= 0) throw StateError('No active user');
+      final day = DateUtils.dateOnly(widget.date);
+      // Write both duration fields because calendar summaries prefer minutes.
+      // Omit unrelated daily metrics so existing activity data is preserved.
+      await DailyMetricsApi.upsert(
+        userId: userId,
+        entryDate: day,
+        sleepHours: hours,
+        sleepMinutesAsleep: (hours * 60).round(),
+      );
+      DailyMetricsApi.clearCache();
+      await SleepService().saveManualEntry(day, hours);
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate('day_timeline_sleep_saved'),
+        type: AppToastType.success,
+      );
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      AppToast.show(
+        context,
+        t.translate('day_timeline_sleep_save_error'),
+        type: AppToastType.error,
+      );
+    } finally {
+      if (mounted) setState(() => _savingSleep = false);
+    }
   }
 
   Future<void> _addMeal({int? initialHour}) async {
@@ -706,6 +757,18 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         ),
         SizedBox(height: TaqaUiScale.h(18)),
         _buildAllDaySummary(context, data),
+        if (_canLogSleep) ...[
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: t.translate(
+              _sleepMinutes(data.dailySummary) > 0
+                  ? 'day_timeline_edit_sleep'
+                  : 'day_timeline_log_sleep',
+            ),
+            onTap: _savingSleep ? null : _logSleep,
+            loading: _savingSleep,
+          ),
+        ],
         SizedBox(height: TaqaUiScale.h(24)),
         Text(
           t.translate('day_timeline_hourly'),
@@ -786,11 +849,12 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     if (sleepMinutes > 0) {
       cards.add(
         TaqaTimelineSummaryCard(
-          icon: Icons.bedtime_outlined,
-          color: TaqaUiColors.calendarSleep,
+          icon: Icons.bed_outlined,
+          color: colors.textPrimary,
           title: t.translate('training_calendar_sleep'),
           value: _durationLabel(context, sleepMinutes),
           detail: _sleepDetail(context, metrics!),
+          onEdit: _canLogSleep && !_savingSleep ? _logSleep : null,
         ),
       );
     }
