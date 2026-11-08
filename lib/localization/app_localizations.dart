@@ -11,6 +11,10 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'en': {
+      'training_update_pending': 'Your training update is pending. This is your previous plan.',
+      'training_update_failed': 'Your profile was saved, but your training update failed. This is your previous plan.',
+      'training_update_review': 'A training update was not completed. Please review your current plan with your coach.',
+      'training_update_check': 'Check update',
       'welcome_tagline': 'Your Taqa, tracked.',
       'welcome_tagline_sub': 'All in one place',
       'saved_accounts': 'Saved accounts',
@@ -2721,6 +2725,10 @@ class AppLocalizations {
     },
 
     'ar': {
+      'training_update_pending': 'تحديث خطة التدريب قيد الانتظار. هذه خطتك السابقة.',
+      'training_update_failed': 'تم حفظ ملفك، لكن تعذّر تحديث خطة التدريب. هذه خطتك السابقة.',
+      'training_update_review': 'لم يكتمل تحديث التدريب. يرجى مراجعة خطتك الحالية مع مدربك.',
+      'training_update_check': 'متابعة التحديث',
       'welcome_tagline': 'طاقتك، مُتابَعة.',
       'welcome_tagline_sub': 'كل شيء في مكان واحد',
       'saved_accounts': 'الحسابات المحفوظة',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/account_storage.dart';
 import '../core/diet_regeneration_flag.dart';
@@ -8,7 +9,7 @@ import '../services/auth/profile_service.dart';
 import '../services/diet/diet_service.dart';
 import '../services/diet/diet_targets_storage.dart';
 import '../services/training/training_service.dart';
-import '../services/training/training_progress_storage.dart';
+import '../services/training/plan_update_coordinator.dart';
 import '../TaqaUI/components/taqa_toast.dart';
 import '../widgets/taqa_bolt_loading_screen.dart';
 import '../core/user_friendly_error.dart';
@@ -16,9 +17,14 @@ import '../core/user_friendly_error.dart';
 /// Shown after editing profile when training days change.
 /// Saves the profile first, then regenerates training + diet.
 class UpdatingPlanScreen extends StatefulWidget {
-  const UpdatingPlanScreen({super.key, required this.profilePayload});
+  const UpdatingPlanScreen({super.key, required this.profilePayload})
+    : resumeJobId = null;
+  const UpdatingPlanScreen.resume({super.key, required int jobId})
+    : resumeJobId = jobId,
+      profilePayload = null;
 
-  final Map<String, dynamic> profilePayload;
+  final Map<String, dynamic>? profilePayload;
+  final int? resumeJobId;
 
   @override
   State<UpdatingPlanScreen> createState() => _UpdatingPlanScreenState();
@@ -28,6 +34,10 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
   bool _isWorking = true;
   String? _error;
   bool _cooldownBlocked = false;
+  bool _recoveryBlocked = false;
+  PlanUpdateCoordinator? _coordinator;
+  final String _requestKey =
+      'profile-${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
   DateTime? _cooldownUntil;
   int _retryCount = 0;
   static const int _maxRetries = 3;
@@ -51,19 +61,6 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     _run();
   }
 
-  bool _isAcceptedTrainingGeneration(dynamic payload) {
-    if (payload is! Map) return false;
-    final map = Map<String, dynamic>.from(payload);
-    final status = map['status']?.toString().trim().toLowerCase();
-    if (status == 'accepted') return true;
-    final nested = map['generation'];
-    if (nested is Map) {
-      final nestedStatus = nested['status']?.toString().trim().toLowerCase();
-      if (nestedStatus == 'accepted') return true;
-    }
-    return false;
-  }
-
   Future<void> _run() async {
     // A failed attempt can be retried automatically. Keep the bolt visible
     // during that pause instead of falling through to the non-loading status
@@ -80,58 +77,32 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
       userId = await AccountStorage.getUserId();
       if (userId == null) throw Exception("User not found");
 
-      // Save profile first. Backend may now accept async training generation.
-      final response = await ProfileApi.updateProfile(
-        widget.profilePayload,
-      ).timeout(_requestTimeout);
-      if (!mounted) return;
-      await AccountStorage.clearProfileEditBlockedUntil();
-
-      final programRegenerated = response['program_regenerated'] == true;
-      final regenError = response['program_regeneration_error']?.toString();
-      final acceptedFromProfile = _isAcceptedTrainingGeneration(
-        response['training_generation'],
+      _coordinator ??= PlanUpdateCoordinator(
+        jobId: widget.resumeJobId,
+        saveProfile: () => ProfileApi.updateProfile(
+          widget.profilePayload!,
+          requestKey: _requestKey,
+        ).timeout(_requestTimeout),
+        readJob: (jobId) => TrainingService.fetchGenerationStatus(
+          userId!,
+          jobId: jobId,
+        ).timeout(_requestTimeout),
+        retryJob: (jobId) async {
+          await TrainingService.generateProgram(
+            userId!,
+            retryJobId: jobId,
+          ).timeout(_requestTimeout);
+        },
+        fetchProgram: () => TrainingService.fetchActiveProgram(
+          userId!,
+        ).timeout(_requestTimeout),
+        pollInterval: _pollInterval,
+        pollTimeout: _pollTimeout,
       );
-
-      // New backend: poll generation status when accepted from profile/update.
-      if (acceptedFromProfile) {
-        await TrainingService.waitForGenerationToComplete(
-          userId,
-          pollInterval: _pollInterval,
-          timeout: _pollTimeout,
-        );
-      } else if (!programRegenerated && regenError == null) {
-        // Legacy fallback: explicit generate, then poll status endpoint.
-        await TrainingService.generateProgram(userId).timeout(_requestTimeout);
-        await TrainingService.waitForGenerationToComplete(
-          userId,
-          pollInterval: _pollInterval,
-          timeout: _pollTimeout,
-        );
-      }
+      await _coordinator!.run();
       if (!mounted) return;
-
-      // Refresh local program cache to reset progress for the new plan.
-      bool synced = false;
-      try {
-        await TrainingService.fetchActiveProgram(
-          userId,
-        ).timeout(const Duration(seconds: 20));
-        synced = true;
-      } on TrainingGenerationInProgressException {
-        await TrainingService.waitForGenerationToComplete(
-          userId,
-          pollInterval: _pollInterval,
-          timeout: const Duration(seconds: 30),
-        );
-        await TrainingService.fetchActiveProgram(
-          userId,
-        ).timeout(const Duration(seconds: 20));
-        synced = true;
-      } catch (_) {}
-      if (!synced) {
-        await TrainingProgressStorage.clearAll();
-      }
+      final response = _coordinator!.savedProfile ?? const <String, dynamic>{};
+      await AccountStorage.clearProfileEditBlockedUntil();
       AccountStorage.notifyTrainingChanged();
 
       // Pre-open / fetch today's meals (best-effort)
@@ -180,17 +151,25 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
         return;
       }
 
-      if (userId != null) {
-        final navigated = await _tryNavigateIfReady(userId);
-        if (navigated) return;
-      }
-
       if (!mounted) return;
 
-      final msg = userFriendlyErrorMessage(e);
+      final t = AppLocalizations.of(context);
+      final msg = e is PlanUpdateException
+          ? t.translate(
+              e.retryable ? 'training_update_failed' : 'training_update_review',
+            )
+          : e is TrainingApiException && e.statusCode == 409
+          ? t.translate('training_update_review')
+          : e is TimeoutException && _coordinator?.jobId != null
+          ? t.translate('training_update_pending')
+          : userFriendlyErrorMessage(e);
       final elapsed = DateTime.now().difference(_startedAt);
       final shouldShowToast = elapsed >= _toastThreshold;
-      final canRetry = !isMissingQuestionnaireError(e);
+      final canRetry =
+          !isMissingQuestionnaireError(e) &&
+          (e is! PlanUpdateException || e.retryable) &&
+          (e is! TrainingApiException || e.isRetryable);
+      _recoveryBlocked = !canRetry;
       final isFinalAttempt = !canRetry || _retryCount + 1 >= _maxRetries;
       if (shouldShowToast && msg.isNotEmpty) {
         AppToast.show(context, msg, type: AppToastType.error);
@@ -218,40 +197,13 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     }
   }
 
-  /// Navigate if training program is ready (diet may still be generating in background).
-  Future<bool> _tryNavigateIfReady(int userId) async {
-    try {
-      await TrainingService.waitForGenerationToComplete(
-        userId,
-        pollInterval: _pollInterval,
-        timeout: const Duration(seconds: 20),
-      );
-      await TrainingService.fetchActiveProgram(
-        userId,
-      ).timeout(const Duration(seconds: 20));
-      AccountStorage.notifyTrainingChanged();
-      if (!mounted) return true;
-      DietRegenerationFlag.setRegenerating();
-      await DietTargetsStorage.clearTargets();
-      if (!mounted) return true;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
-        (_) => false,
-      );
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = AppLocalizations.of(context);
 
     if (_isWorking) {
       return PopScope(
-        canPop: _cooldownBlocked,
+        canPop: !_isWorking,
         child: Scaffold(
           backgroundColor: TaqaBoltLoadingScreen.background,
           body: TaqaBoltLoadingScreen(note: t.translate("updating_plan_note")),
@@ -260,7 +212,7 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
     }
 
     return PopScope(
-      canPop: _cooldownBlocked,
+      canPop: !_isWorking,
       child: Scaffold(
         backgroundColor: TaqaBoltLoadingScreen.background,
         body: TaqaBoltStatusScreen(
@@ -275,12 +227,12 @@ class _UpdatingPlanScreenState extends State<UpdatingPlanScreen> {
               : null,
           errorDetail: _error,
           buttonLabel: _showFinalError
-              ? (_cooldownBlocked
+              ? ((_cooldownBlocked || _recoveryBlocked)
                     ? t.translate("back")
                     : t.translate("generating_retry"))
               : null,
           onButtonTap: () {
-            if (!_cooldownBlocked) {
+            if (!_cooldownBlocked && !_recoveryBlocked) {
               _retryCount = 0;
               _run();
               return;

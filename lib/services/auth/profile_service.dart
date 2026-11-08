@@ -291,13 +291,15 @@ class ProfileApi {
   }
 
   static Future<Map<String, dynamic>> updateProfile(
-    Map<String, dynamic> payload,
-  ) async {
+    Map<String, dynamic> payload, {
+    String? requestKey,
+  }) async {
     final sessionUserId = await AccountStorage.getUserId();
     final url = Uri.parse("${ApiConfig.baseUrl}/profile/update");
     final headers = {
       "Content-Type": "application/json",
       ...await AccountStorage.getAuthHeaders(),
+      if (requestKey != null) 'Idempotency-Key': requestKey,
     };
     final res = await http.post(
       url,

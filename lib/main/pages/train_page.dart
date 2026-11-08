@@ -12,6 +12,7 @@ import 'package:taqaproject/TaqaUI/components/taqa_set_row_edit_dialog.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/TaqaUI/taqa_ui_colors.dart';
 import '../../widgets/training/exercise_card.dart';
+import '../../widgets/training/plan_update_banner.dart';
 import '../../widgets/training/exercise_feedback_sheet.dart';
 import '../../widgets/training/exercise_instruction_dialog.dart';
 import '../../widgets/training/exercise_session_sheet.dart';
@@ -5865,6 +5866,7 @@ class TrainPageState extends State<TrainPage> with WidgetsBindingObserver {
                         ),
                       if (_resumableSession != null)
                         _buildResumeWorkoutBanner(),
+                      if (!_isDeactivated) const PlanUpdateBanner(),
                       Row(
                         children: [
                           Expanded(

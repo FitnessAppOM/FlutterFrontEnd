@@ -424,8 +424,15 @@ class TrainingService {
     return 'Training generation failed';
   }
 
-  static Future<Map<String, dynamic>> generateProgram(int userId) async {
-    final url = Uri.parse('$baseUrl/training/generate/$userId');
+  static Future<Map<String, dynamic>> generateProgram(
+    int userId, {
+    int? retryJobId,
+  }) async {
+    final url = Uri.parse('$baseUrl/training/generate/$userId').replace(
+      queryParameters: retryJobId == null
+          ? null
+          : {'retry_job_id': '$retryJobId'},
+    );
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.post(url, headers: headers);
     _recordServerClock(response);
@@ -440,17 +447,29 @@ class TrainingService {
       throw Exception(body['detail'] ?? 'Training generation failed');
     }
 
-    throw Exception('Unexpected error (${response.statusCode})');
+    throw TrainingApiException(
+      response.statusCode,
+      _decodeMapBody(response.body)['detail']?.toString() ??
+          'Training generation failed',
+    );
   }
 
-  static Future<Map<String, dynamic>> fetchGenerationStatus(int userId) async {
-    final url = Uri.parse('$baseUrl/training/generation/status/$userId');
+  static Future<Map<String, dynamic>> fetchGenerationStatus(
+    int userId, {
+    int? jobId,
+  }) async {
+    final url = Uri.parse(
+      '$baseUrl/training/generation/status/$userId',
+    ).replace(queryParameters: jobId == null ? null : {'job_id': '$jobId'});
     final headers = await AccountStorage.getAuthHeaders();
     final response = await http.get(url, headers: headers);
     _recordServerClock(response);
     await AccountStorage.handle401(response.statusCode);
     if (response.statusCode != 200) {
-      throw Exception('Failed to load training generation status');
+      throw TrainingApiException(
+        response.statusCode,
+        'Failed to load training generation status',
+      );
     }
     return _decodeMapBody(response.body);
   }
@@ -477,15 +496,16 @@ class TrainingService {
 
   static Future<Map<String, dynamic>> waitForGenerationToComplete(
     int userId, {
+    int? jobId,
     Duration pollInterval = const Duration(seconds: 3),
     Duration timeout = const Duration(seconds: 90),
   }) async {
     final deadline = DateTime.now().add(timeout);
     while (true) {
-      final statusPayload = await fetchGenerationStatus(userId);
+      final statusPayload = await fetchGenerationStatus(userId, jobId: jobId);
       final status = _generationStatusFromPayload(statusPayload);
       if (status == 'succeeded') return statusPayload;
-      if (status == 'failed') {
+      if (status == 'failed' || status == 'superseded') {
         throw Exception(_generationErrorFromPayload(statusPayload));
       }
       if (DateTime.now().isAfter(deadline)) {
