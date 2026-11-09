@@ -449,16 +449,18 @@ class _PhotoSourceButton extends StatelessWidget {
               color: context.taqaColors.textPrimary,
             ),
             SizedBox(width: TaqaUiScale.w(8)),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: TaqaUiFontFamilies.interTight,
-                fontSize: TaqaUiScale.sp(13),
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                color: context.taqaColors.textPrimary,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: TaqaUiFontFamilies.interTight,
+                  fontSize: TaqaUiScale.sp(13),
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
+                  color: context.taqaColors.textPrimary,
+                ),
               ),
             ),
           ],

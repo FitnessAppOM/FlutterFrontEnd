@@ -34,6 +34,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Daily summary'));
+    await tester.pumpAndSettle();
   }
 
   for (final fails in [false, true]) {
@@ -47,6 +49,19 @@ void main() {
         await http.runWithClient(
           () async {
             await pumpDay(tester, DateTime(2026, 1, 5));
+            await tester.scrollUntilVisible(
+              find.text('LOG SLEEP'),
+              150,
+              scrollable: find.byType(Scrollable).first,
+            );
+            await tester.pumpAndSettle();
+            if (find.text('LOG SLEEP').hitTestable().evaluate().isEmpty) {
+              await tester.drag(
+                find.byType(Scrollable).first,
+                const Offset(0, -150),
+              );
+              await tester.pumpAndSettle();
+            }
             await tester.tap(find.text('LOG SLEEP'));
             await tester.pumpAndSettle();
             await tester.enterText(find.byType(TextField), '7.5');
@@ -71,8 +86,27 @@ void main() {
               );
             } else {
               expect(jsonDecode(stored!), {'2026-01-05': 7.5});
+              // Let the save toast clear before scrolling to the edit action.
+              await tester.pump(const Duration(seconds: 4));
+              await tester.pumpAndSettle();
+              await tester.scrollUntilVisible(
+                find.text('EDIT SLEEP'),
+                120,
+                scrollable: find.byType(Scrollable).first,
+              );
               expect(find.text('EDIT SLEEP'), findsOneWidget);
+              await tester.scrollUntilVisible(
+                find.textContaining('9,000'),
+                -120,
+                scrollable: find.byType(Scrollable).first,
+              );
               expect(find.textContaining('9,000'), findsOneWidget);
+              await tester.scrollUntilVisible(
+                find.text('EDIT SLEEP'),
+                120,
+                scrollable: find.byType(Scrollable).first,
+              );
+              await tester.pumpAndSettle();
               await tester.tap(find.text('EDIT SLEEP'));
               await tester.pumpAndSettle();
               expect(
@@ -96,6 +130,9 @@ void main() {
             await tester.pumpAndSettle();
           },
           () => MockClient((request) async {
+            if (request.url.path.endsWith('/sessions')) {
+              return http.Response('{}', 404);
+            }
             if (request.method == 'POST') {
               final body = jsonDecode(request.body) as Map<String, dynamic>;
               writes.add(body);
@@ -124,16 +161,23 @@ void main() {
         await pumpDay(tester, day);
         expect(find.text('LOG SLEEP'), findsNothing);
         expect(find.text('EDIT SLEEP'), findsNothing);
+        await tester.scrollUntilVisible(
+          find.text('LOG FOOD'),
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(find.text('LOG FOOD'), findsOneWidget);
       },
       () => MockClient(
-        (_) async => http.Response(
-          jsonEncode({
-            'entry_date': day.toIso8601String().split('T').first,
-            'daily_summary': null,
-            'events': [],
-          }),
-          200,
+        (request) async => http.Response(
+          request.url.path.endsWith('/sessions')
+              ? '{}'
+              : jsonEncode({
+                  'entry_date': day.toIso8601String().split('T').first,
+                  'daily_summary': null,
+                  'events': [],
+                }),
+          request.url.path.endsWith('/sessions') ? 404 : 200,
         ),
       ),
     );
@@ -146,6 +190,19 @@ void main() {
     await http.runWithClient(
       () async {
         await pumpDay(tester, DateTime.now());
+        await tester.scrollUntilVisible(
+          find.text('LOG SLEEP'),
+          150,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+        if (find.text('LOG SLEEP').hitTestable().evaluate().isEmpty) {
+          await tester.drag(
+            find.byType(Scrollable).first,
+            const Offset(0, -150),
+          );
+          await tester.pumpAndSettle();
+        }
         await tester.tap(find.text('LOG SLEEP'));
         await tester.pumpAndSettle();
         for (final input in ['0', '25', 'NaN', '-1']) {
@@ -166,6 +223,9 @@ void main() {
         expect(writes, 0);
       },
       () => MockClient((request) async {
+        if (request.url.path.endsWith('/sessions')) {
+          return http.Response('{}', 404);
+        }
         if (request.method == 'POST') writes++;
         return http.Response(
           jsonEncode({

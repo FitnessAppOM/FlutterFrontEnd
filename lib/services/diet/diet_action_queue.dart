@@ -87,6 +87,11 @@ class DietActionQueue {
     return (await _load(userId)).length;
   }
 
+  static Future<bool> hasPendingForDate(int userId, DateTime date) async {
+    final day = _dateParam(date);
+    return (await _load(userId)).any((action) => action['meal_date'] == day);
+  }
+
   static Future<http.Response> _send(
     int userId,
     Map<String, dynamic> action,

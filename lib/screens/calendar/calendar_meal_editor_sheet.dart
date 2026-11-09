@@ -10,6 +10,9 @@ import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/calendar/day_timeline_service.dart';
+import '../../services/calendar/calendar_food_commands.dart';
+import 'calendar_time_editor_sheet.dart';
+import 'calendar_details_sheet.dart';
 import '../../services/diet/diet_service.dart';
 import '../../widgets/diet_item_search_sheet.dart';
 import '../../widgets/diet_manual_entry_sheet.dart';
@@ -34,9 +37,113 @@ class CalendarMealEditorSheet extends StatefulWidget {
 
 class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
   bool _working = false;
+  bool _timeOpen = false;
+  bool _checkingPending = true;
+  CalendarFoodState? _timeState;
+  PendingCalendarMove? _pendingMove;
+  int? _timeUserId;
+
+  bool get _legacyBlocked =>
+      _working || _timeOpen || _checkingPending || _pendingMove != null;
+  bool get _preservePlanOverride =>
+      _isPlanned && (_timeState?.overrides?.any((v) => v != null) ?? false);
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadTimeAction());
+  }
+
+  Future<void> _loadTimeAction() async {
+    try {
+      final userId = await _userId();
+      if (!mounted || userId == null) return;
+      final pending = await CalendarFoodCommands.pending(userId);
+      if (!mounted) return;
+      setState(() {
+        _pendingMove = pending;
+        _timeUserId = userId;
+        _checkingPending = false;
+        _timeState = null;
+      });
+      if (pending != null) return;
+      final state = await CalendarFoodCommands.fetchState(
+        userId,
+        _isPlanned ? 'meal_plan' : 'meal',
+        _isPlanned ? _planId : _mealId,
+      );
+      if (mounted) setState(() => _timeState = state);
+    } catch (_) {
+      // Capability lookup failure must not remove legacy editing.
+    } finally {
+      if (mounted) setState(() => _checkingPending = false);
+    }
+  }
+
+  Future<void> _editTime({bool copy = false}) async {
+    if (_working || _timeOpen || _timeUserId == null) return;
+    setState(() => _timeOpen = true);
+    try {
+      final saved = await showCalendarTimeEditor(
+        context,
+        userId: _timeUserId!,
+        kind: _pendingMove?.kind ?? (_isPlanned ? 'meal_plan' : 'meal'),
+        foodId: _pendingMove?.id ?? (_isPlanned ? _planId : _mealId),
+        copy: _pendingMove?.isCopy ?? copy,
+      );
+      if (!mounted) return;
+      if (saved) {
+        // Keep refresh errors separate from the committed server operation.
+        try {
+          await _finish();
+        } catch (_) {
+          debugPrint('Calendar time saved; timeline refresh failed.');
+        }
+      } else {
+        await _loadTimeAction();
+      }
+    } finally {
+      if (mounted) setState(() => _timeOpen = false);
+    }
+  }
 
   int get _mealId =>
       int.tryParse(widget.event.id.replaceFirst('meal-', '')) ?? 0;
+
+  Future<void> _details([Map<String, dynamic>? item]) async {
+    if (_legacyBlocked || _timeUserId == null || _timeState == null) return;
+    setState(() => _timeOpen = true);
+    try {
+      final saved = await showCalendarDetails(
+        context,
+        userId: _timeUserId!,
+        date: widget.mealDate,
+        action: item == null ? 'recipe' : 'edit-item',
+        kind: _timeState!.kind,
+        foodId: _timeState!.id,
+        itemId: item == null || _isPlanned ? null : _int(item['id']),
+        itemKey: _isPlanned ? (item?['item_key']?.toString()) : null,
+        entries: [
+          {
+            'source': _timeState!.source,
+            'destinations': <Map<String, dynamic>>[],
+          },
+        ],
+      );
+      if (saved && item != null) {
+        try {
+          await _finish();
+        } catch (_) {
+          debugPrint('Food saved; timeline refresh failed.');
+        }
+      } else {
+        await _loadTimeAction();
+      }
+    } finally {
+      if (mounted) setState(() => _timeOpen = false);
+    }
+  }
+
   int get _planId => _int(widget.event.details['plan_id']);
   bool get _isPlanned => widget.event.type == 'planned_meal';
 
@@ -328,6 +435,7 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
       items
           .map(
             (item) => {
+              if (item['item_key'] != null) 'item_key': item['item_key'],
               'name': item['name']?.toString() ?? '',
               'grams': item['grams'],
               'calories': _int(item['calories']),
@@ -370,7 +478,7 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
     final colors = context.taqaColors;
     return SafeArea(
       top: false,
-      child: Padding(
+      child: SingleChildScrollView(
         padding: TaqaUiScale.insetsLTRB(20, 18, 20, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -389,12 +497,46 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
                   ),
                 ),
                 IconButton(
-                  onPressed: _working ? null : _rename,
+                  onPressed: _legacyBlocked ? null : _rename,
                   icon: Icon(Icons.edit_outlined, color: colors.textPrimary),
                 ),
               ],
             ),
             SizedBox(height: TaqaUiScale.h(10)),
+            if (_timeState?.canEditTime == true || _pendingMove != null)
+              TaqaTextActionButton(
+                label: t.translate(
+                  _pendingMove == null
+                      ? 'calendar_time_edit'
+                      : (_pendingMove!.isDetails
+                            ? 'calendar_details_retry'
+                            : _pendingMove!.isBulk
+                            ? 'calendar_bulk_retry'
+                            : _pendingMove!.isCopy
+                            ? 'calendar_copy_retry'
+                            : 'calendar_time_retry'),
+                ),
+                icon: Icons.schedule,
+                onTap: _working || _timeOpen ? null : _editTime,
+              ),
+            if (_pendingMove != null)
+              Text(t.translate('calendar_time_pending_move')),
+            if (_preservePlanOverride)
+              Text(t.translate('calendar_copy_preserve_override')),
+            if (_timeState?.canCopy == true && _pendingMove == null)
+              TaqaTextActionButton(
+                label: t.translate('calendar_copy_title'),
+                icon: Icons.copy_outlined,
+                onTap: _working || _timeOpen
+                    ? null
+                    : () => _editTime(copy: true),
+              ),
+            if (_timeState?.canRecipe == true && _pendingMove == null)
+              TaqaTextActionButton(
+                label: t.translate('calendar_details_recipe'),
+                icon: Icons.restaurant_menu,
+                onTap: _legacyBlocked ? null : () => _details(),
+              ),
             ConstrainedBox(
               constraints: BoxConstraints(maxHeight: TaqaUiScale.h(320)),
               child: ListView(
@@ -402,6 +544,12 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
                 children: _items
                     .map(
                       (item) => ListTile(
+                        onTap:
+                            !_legacyBlocked &&
+                                _timeState?.canEditContents == true &&
+                                (!_isPlanned || item['item_key'] != null)
+                            ? () => _details(item)
+                            : null,
                         contentPadding: EdgeInsets.zero,
                         title: Text(item['name']?.toString() ?? ''),
                         subtitle: Text(
@@ -411,7 +559,9 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
                           'F ${_int(item['fat_g'])}g',
                         ),
                         trailing: IconButton(
-                          onPressed: _working ? null : () => _deleteItem(item),
+                          onPressed: _legacyBlocked || _preservePlanOverride
+                              ? null
+                              : () => _deleteItem(item),
                           icon: const Icon(Icons.delete_outline),
                         ),
                       ),
@@ -420,14 +570,16 @@ class _CalendarMealEditorSheetState extends State<CalendarMealEditorSheet> {
               ),
             ),
             SizedBox(height: TaqaUiScale.h(12)),
+            if (_timeState?.canEditContents == true)
+              Text(t.translate('calendar_item_tap')),
             TaqaFilledButton(
               label: t.translate('diet_add_item_tag'),
-              onTap: _working ? null : _addItem,
+              onTap: _legacyBlocked || _preservePlanOverride ? null : _addItem,
               loading: _working,
             ),
             TaqaTextActionButton(
               label: t.translate('diet_delete_meal'),
-              onTap: _working ? null : _deleteMeal,
+              onTap: _legacyBlocked ? null : _deleteMeal,
               icon: Icons.delete_outline,
               foregroundColor: colors.danger,
             ),

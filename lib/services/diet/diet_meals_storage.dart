@@ -7,6 +7,24 @@ class DietMealsStorage {
   static const _keyPrefix = "diet_meals_cache";
   static const _lastSyncPrefix = "diet_meals_last_sync";
 
+  /// Invalidate only the affected user's date, including training-day variants.
+  /// Callers must retain cached projections while offline actions are pending.
+  static Future<void> invalidateDate(int userId, DateTime date) async {
+    final sp = await SharedPreferences.getInstance();
+    final day = _dateKey(date);
+    final prefixes = [
+      '${_keyPrefix}_u${userId}_${day}_',
+      '${_lastSyncPrefix}_u${userId}_${day}_',
+    ];
+    final keys = sp
+        .getKeys()
+        .where((key) => prefixes.any(key.startsWith))
+        .toList();
+    for (final key in keys) {
+      await sp.remove(key);
+    }
+  }
+
   static String _dateKey(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
     final mm = d.month.toString().padLeft(2, '0');

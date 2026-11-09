@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'calendar_action_style.dart';
 
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_value_dialog.dart';
@@ -99,6 +100,7 @@ class _CalendarSleepDialogState extends State<CalendarSleepDialog> {
             Row(
               children: [
                 TextButton(
+                  style: calendarActionStyle(context),
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(t.translate('common_cancel')),
                 ),

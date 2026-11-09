@@ -6,6 +6,11 @@ import '../../core/account_storage.dart';
 class DietDaySummaryStorage {
   static const _keyPrefix = "diet_day_summary_cache";
 
+  static Future<void> invalidateDate(int userId, DateTime date) async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.remove('${_keyPrefix}_u${userId}_${_dateKey(date)}');
+  }
+
   static String _dateKey(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
     final mm = d.month.toString().padLeft(2, '0');

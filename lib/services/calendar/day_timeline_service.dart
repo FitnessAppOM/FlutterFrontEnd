@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import 'calendar_diet_refresh.dart';
 
 class DayTimelineEvent {
   const DayTimelineEvent({
@@ -144,7 +145,7 @@ class DayTimelineService {
     if (response.statusCode != 200) {
       throw Exception(_responseError(response, 'Failed to save meal'));
     }
-    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    return _createdMealResult(response, userId, localScheduledAt);
   }
 
   static Future<Map<String, dynamic>> createPhotoMeal({
@@ -179,12 +180,29 @@ class DayTimelineService {
     if (response.statusCode != 200) {
       throw Exception(_responseError(response, 'Failed to save meal'));
     }
-    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    return _createdMealResult(response, userId, localScheduledAt);
+  }
+
+  static Future<Map<String, dynamic>> _createdMealResult(
+    http.Response response,
+    int userId,
+    DateTime date,
+  ) async {
+    final result = Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    if (result['status'] == 'logged' ||
+        result['status'] == 'already_completed') {
+      await CalendarDietRefresh.afterConsumedChange(
+        userId: userId,
+        dates: [date],
+      );
+    }
+    return result;
   }
 
   static Future<Map<String, dynamic>> markMealPlanEaten({
     required int userId,
     required int planId,
+    required DateTime date,
   }) async {
     final uri = Uri.parse(
       '${ApiConfig.baseUrl}/calendar/$userId/meal-plans/$planId/complete',
@@ -197,7 +215,7 @@ class DayTimelineService {
     if (response.statusCode != 200) {
       throw Exception(_responseError(response, 'Failed to log planned meal'));
     }
-    return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    return _createdMealResult(response, userId, date);
   }
 
   static Future<Map<String, dynamic>> updateMealPlan({

@@ -1,7 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../localization/app_localizations.dart';
 
 import '../styles/taqa_ui_scale.dart';
 import '../taqa_ui_colors.dart';
+
+String _editLabel(BuildContext context) =>
+    Localizations.of<AppLocalizations>(
+      context,
+      AppLocalizations,
+    )?.translate('calendar_health_edit') ??
+    'Edit';
 
 /// Shared all-day summary card for calendar and timeline experiences.
 class TaqaTimelineSummaryCard extends StatelessWidget {
@@ -78,6 +86,7 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
           ),
           if (onEdit != null)
             IconButton(
+              tooltip: '${_editLabel(context)}: $title',
               onPressed: onEdit,
               icon: Icon(
                 Icons.edit_outlined,
@@ -147,7 +156,7 @@ class TaqaTimelineEventCard extends StatelessWidget {
               ),
               if (onEdit != null)
                 IconButton(
-                  visualDensity: VisualDensity.compact,
+                  tooltip: '${_editLabel(context)}: $title',
                   onPressed: onEdit,
                   icon: Icon(
                     Icons.edit_outlined,
@@ -225,11 +234,13 @@ class TaqaHourlyTimeline extends StatelessWidget {
     required this.hourLabel,
     required this.eventsByHour,
     this.onEmptyHourTap,
+    this.addLabel,
   });
 
   final String Function(int hour) hourLabel;
   final Map<int, List<Widget>> eventsByHour;
   final ValueChanged<int>? onEmptyHourTap;
+  final String Function(int)? addLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -244,6 +255,7 @@ class TaqaHourlyTimeline extends StatelessWidget {
         children: List.generate(24, (hour) {
           final events = eventsByHour[hour] ?? const <Widget>[];
           return _TaqaTimelineHourRow(
+            addLabel: addLabel?.call(hour),
             hourLabel: hourLabel(hour),
             events: events,
             isLast: hour == 23,
@@ -263,12 +275,14 @@ class _TaqaTimelineHourRow extends StatelessWidget {
     required this.events,
     required this.isLast,
     this.onTap,
+    this.addLabel,
   });
 
   final String hourLabel;
   final List<Widget> events;
   final bool isLast;
   final VoidCallback? onTap;
+  final String? addLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +339,7 @@ class _TaqaTimelineHourRow extends StatelessWidget {
             ),
             Expanded(
               child: Container(
-                constraints: BoxConstraints(minHeight: TaqaUiScale.h(48)),
+                constraints: const BoxConstraints(minHeight: 48),
                 padding: TaqaUiScale.insetsLTRB(4, 5, 10, 7),
                 decoration: BoxDecoration(
                   border: isLast
@@ -355,6 +369,7 @@ class _TaqaTimelineHourRow extends StatelessWidget {
     if (onTap == null) return row;
     return Semantics(
       button: true,
+      label: addLabel,
       child: InkWell(onTap: onTap, child: row),
     );
   }

@@ -5292,12 +5292,19 @@ class DashboardPageState extends State<DashboardPage>
       try {
         program = await TrainingService.fetchActiveProgram(userId);
       } catch (_) {
-        program = await TrainingService.fetchActiveProgramFromCache();
-        if (program == null) rethrow;
+        try {
+          program = await TrainingService.fetchActiveProgramFromCache();
+        } catch (_) {
+          // Food and sleep history do not require an available training plan.
+          program = null;
+        }
       }
+      if (await AccountStorage.getUserId() != userId) return;
       if (!mounted) return;
       await Navigator.of(context).push<void>(
-        MaterialPageRoute(builder: (_) => CalendarPage(program: program!)),
+        MaterialPageRoute(
+          builder: (_) => CalendarPage(program: program ?? const {}),
+        ),
       );
     } catch (_) {
       if (!mounted) return;

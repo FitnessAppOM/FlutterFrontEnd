@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'calendar_action_style.dart';
 import 'package:intl/intl.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -12,6 +13,7 @@ import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
 import '../../services/diet/diet_calendar_service.dart';
 import '../../services/calendar/calendar_source_loader.dart';
+import '../../services/calendar/calendar_health_api.dart';
 import '../../services/metrics/daily_metrics_api.dart';
 import '../../services/training/training_schedule_service.dart';
 import '../../services/training/training_service.dart';
@@ -36,9 +38,13 @@ class _CalendarPageState extends State<CalendarPage> {
   Map<DateTime, List<Map<String, dynamic>>> _cardioHistory = const {};
   Map<DateTime, DietCalendarDaySummary> _mealSummaries = const {};
   Map<DateTime, DailyMetricsEntry> _dailyMetrics = const {};
+  Map<DateTime, Map<String, dynamic>> _healthDays = const {};
+  Map<String, dynamic>? _selectedHealth;
+  int _healthSelectionRequest = 0;
   bool _loading = true;
   String? _error;
   int _loadRequest = 0;
+  int? _pageUser;
 
   void _reportSourceFailure(
     String source,
@@ -55,7 +61,14 @@ class _CalendarPageState extends State<CalendarPage> {
     final today = _day(DateTime.now());
     _visibleMonth = DateTime(today.year, today.month);
     _selectedDate = today;
+    AccountStorage.accountChange.addListener(_loadMonth);
     unawaited(_loadMonth());
+  }
+
+  @override
+  void dispose() {
+    AccountStorage.accountChange.removeListener(_loadMonth);
+    super.dispose();
   }
 
   DateTime _day(DateTime value) => calendarDay(value);
@@ -151,10 +164,22 @@ class _CalendarPageState extends State<CalendarPage> {
       setState(() {
         _loading = true;
         _error = null;
+        _selectedHealth = null;
+        _healthSelectionRequest++;
       });
     }
     final userId = await AccountStorage.getUserId();
     if (!mounted || request != _loadRequest) return;
+    if (_pageUser != null && userId != _pageUser) {
+      setState(() {
+        _loading = false;
+        _error = AppLocalizations.of(
+          context,
+        ).translate('calendar_time_account_changed');
+      });
+      return;
+    }
+    _pageUser = userId;
     if (userId == null || userId <= 0) {
       setState(() {
         _loading = false;
@@ -176,6 +201,12 @@ class _CalendarPageState extends State<CalendarPage> {
         _safeCardioHistory(userId),
         _safeMealSummaries(userId, start, end),
         _safeDailyMetrics(userId, start, end),
+        CalendarSourceLoader.load<Map<String, dynamic>?>(
+          source: 'manual_sessions',
+          request: () => CalendarHealthApi.range(userId, start, end),
+          fallback: null,
+          onFailure: _reportSourceFailure,
+        ),
       ]);
       if (!mounted || request != _loadRequest) return;
 
@@ -202,8 +233,14 @@ class _CalendarPageState extends State<CalendarPage> {
         _cardioHistory = cardio;
         _mealSummaries = results[3] as Map<DateTime, DietCalendarDaySummary>;
         _dailyMetrics = results[4] as Map<DateTime, DailyMetricsEntry>;
+        _healthDays = {
+          for (final row in (results[5]?['days'] as List? ?? []))
+            _day(DateTime.parse(row['entry_date'] as String)):
+                Map<String, dynamic>.from(row as Map),
+        };
         _loading = false;
       });
+      unawaited(_loadSelectedHealth());
     } catch (_) {
       if (!mounted || request != _loadRequest) return;
       setState(() {
@@ -215,11 +252,11 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
-  void _changeMonth(int delta) {
+  void _changeMonth(int delta, {DateTime? selected}) {
     final next = DateTime(_visibleMonth.year, _visibleMonth.month + delta);
     setState(() {
       _visibleMonth = next;
-      _selectedDate = DateTime(next.year, next.month, 1);
+      _selectedDate = selected ?? DateTime(next.year, next.month, 1);
     });
     unawaited(_loadMonth());
   }
@@ -232,7 +269,31 @@ class _CalendarPageState extends State<CalendarPage> {
       _visibleMonth = DateTime(today.year, today.month);
       _selectedDate = today;
     });
-    if (monthChanged) unawaited(_loadMonth());
+    if (monthChanged) {
+      unawaited(_loadMonth());
+    } else {
+      unawaited(_loadSelectedHealth());
+    }
+  }
+
+  Future<void> _loadSelectedHealth() async {
+    final request = ++_healthSelectionRequest;
+    final day = _selectedDate;
+    if (mounted) setState(() => _selectedHealth = null);
+    final user = await AccountStorage.getUserId();
+    if (user == null || user != _pageUser) return;
+    try {
+      final data = await CalendarHealthApi.day(user, day);
+      if (mounted &&
+          request == _healthSelectionRequest &&
+          day == _selectedDate &&
+          !_loading &&
+          user == await AccountStorage.getUserId()) {
+        setState(() => _selectedHealth = data);
+      }
+    } catch (_) {
+      /* Optional source; the existing aggregate remains visible. */
+    }
   }
 
   Future<void> _openDayTimeline(DateTime date) async {
@@ -242,7 +303,7 @@ class _CalendarPageState extends State<CalendarPage> {
         builder: (_) => DayTimelinePage(
           date: date,
           program: widget.program,
-          canEditTrainingPlan: !(_strengthHistory[date]?.isNotEmpty ?? false),
+          canEditTrainingPlan: _programId != null && _programDays.isNotEmpty,
         ),
       ),
     );
@@ -269,6 +330,7 @@ class _CalendarPageState extends State<CalendarPage> {
       appBar: TaqaPageAppBar(
         title: t.translate('training_calendar'),
         trailing: TextButton(
+          style: calendarActionStyle(context),
           onPressed: _goToToday,
           child: Text(
             t.translate('training_calendar_today'),
@@ -358,6 +420,7 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
               const SizedBox(height: 10),
               TextButton(
+                style: calendarActionStyle(context),
                 onPressed: _loadMonth,
                 child: Text(t.translate('generating_retry')),
               ),
@@ -412,9 +475,13 @@ class _CalendarPageState extends State<CalendarPage> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: cellCount,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 0.82,
+              mainAxisExtent:
+                  (MediaQuery.textScalerOf(context).scale(TaqaUiScale.sp(12)) *
+                              1.5 +
+                          20)
+                      .clamp(48.0, 120.0),
             ),
             itemBuilder: (context, index) {
               final date = addCalendarDays(gridStart, index);
@@ -427,6 +494,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildDayCell(BuildContext context, DateTime rawDate) {
+    final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
     final date = _day(rawDate);
     final inMonth = date.month == _visibleMonth.month;
@@ -439,8 +507,12 @@ class _CalendarPageState extends State<CalendarPage> {
     final hasMeals = mealSummary?.hasLoggedMeals ?? false;
     final hasPlannedMeals = mealSummary?.hasPlannedMeals ?? false;
     final metrics = _dailyMetrics[date];
-    final hasSleep = _sleepMinutes(metrics) > 0;
-    final hasDailyActivity = _hasDailyActivity(metrics);
+    final hasSleep =
+        _sleepMinutes(metrics) > 0 ||
+        ((_healthDays[date]?['sleep_count'] as num?) ?? 0) > 0;
+    final hasDailyActivity =
+        _hasDailyActivity(metrics) ||
+        ((_healthDays[date]?['activity_count'] as num?) ?? 0) > 0;
     final dots = <Color>[
       if (hasStrength) TaqaUiColors.calendarStrength,
       if (hasCardio) TaqaUiColors.calendarCardio,
@@ -451,67 +523,92 @@ class _CalendarPageState extends State<CalendarPage> {
       if (hasSleep) TaqaUiColors.calendarSleep,
       if (hasDailyActivity) TaqaUiColors.calendarActivity,
     ];
-    return InkWell(
-      borderRadius: TaqaUiScale.radius(12),
-      onTap: () {
-        if (!inMonth) {
-          final delta =
-              date.isBefore(DateTime(_visibleMonth.year, _visibleMonth.month))
+    void selectDate() {
+      if (!inMonth) {
+        _changeMonth(
+          date.isBefore(DateTime(_visibleMonth.year, _visibleMonth.month))
               ? -1
-              : 1;
-          _changeMonth(delta);
-          return;
-        }
+              : 1,
+          selected: date,
+        );
+      } else {
         setState(() => _selectedDate = date);
-      },
-      child: Container(
-        margin: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: selected ? colors.accent : Colors.transparent,
-          borderRadius: TaqaUiScale.radius(12),
-          border: isToday && !selected
-              ? Border.all(color: colors.accent, width: 1.5)
-              : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              '${date.day}',
-              style: TextStyle(
-                color: selected
-                    ? colors.onAccent
-                    : inMonth
-                    ? colors.textPrimary
-                    : colors.textSecondary.withValues(alpha: 0.38),
-                fontSize: TaqaUiScale.sp(12),
-                fontWeight: isToday || selected
-                    ? FontWeight.w800
-                    : FontWeight.w500,
+        unawaited(_loadSelectedHealth());
+      }
+    }
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      onTap: selectDate,
+      label: [
+        DateFormat.yMMMMEEEEd(t.locale.languageCode).format(date),
+        if (isToday) t.translate('training_calendar_today'),
+        if (hasStrength) t.translate('training_workout'),
+        if (hasCardio) t.translate('training_calendar_cardio'),
+        if (entry != null) t.translate('training_calendar_planned'),
+        if (hasMeals || hasPlannedMeals) t.translate('training_calendar_meals'),
+        if (hasSleep) t.translate('training_calendar_sleep'),
+        if (hasDailyActivity) t.translate('training_calendar_daily_activity'),
+      ].join(', '),
+      excludeSemantics: true,
+      child: InkWell(
+        borderRadius: TaqaUiScale.radius(12),
+        onTap: selectDate,
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            borderRadius: TaqaUiScale.radius(12),
+            border: isToday && !selected
+                ? Border.all(color: colors.accent, width: 1.5)
+                : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${date.day}',
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: selected
+                        ? colors.onAccent
+                        : inMonth
+                        ? colors.textPrimary
+                        : colors.textSecondary.withValues(alpha: 0.38),
+                    fontSize: TaqaUiScale.sp(12),
+                    fontWeight: isToday || selected
+                        ? FontWeight.w800
+                        : FontWeight.w500,
+                  ),
+                ),
               ),
-            ),
-            SizedBox(height: TaqaUiScale.h(4)),
-            SizedBox(
-              height: TaqaUiScale.h(5),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: dots
-                    .take(6)
-                    .map(
-                      (color) => Container(
-                        width: TaqaUiScale.w(3.5),
-                        height: TaqaUiScale.w(3.5),
-                        margin: const EdgeInsets.symmetric(horizontal: 0.7),
-                        decoration: BoxDecoration(
-                          color: selected ? colors.onAccent : color,
-                          shape: BoxShape.circle,
+              SizedBox(height: TaqaUiScale.h(4)),
+              SizedBox(
+                height: TaqaUiScale.h(5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: dots
+                      .take(6)
+                      .map(
+                        (color) => Container(
+                          width: TaqaUiScale.w(3.5),
+                          height: TaqaUiScale.w(3.5),
+                          margin: const EdgeInsets.symmetric(horizontal: 0.7),
+                          decoration: BoxDecoration(
+                            color: selected ? colors.onAccent : color,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                    )
-                    .toList(),
+                      )
+                      .toList(),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -557,6 +654,7 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildSelectedDay(BuildContext context) {
+    if (_loading || _error != null) return const SizedBox.shrink();
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
     final entry = _entries[_selectedDate];
@@ -568,6 +666,19 @@ class _CalendarPageState extends State<CalendarPage> {
     final today = _day(DateTime.now());
     final isPast = _selectedDate.isBefore(today);
     final items = <_DaySummaryItem>[];
+    final manualCount =
+        ((_healthDays[_selectedDate]?['activity_count'] as num?) ?? 0) +
+        ((_healthDays[_selectedDate]?['sleep_count'] as num?) ?? 0);
+    if (manualCount > 0) {
+      items.add(
+        _DaySummaryItem(
+          icon: Icons.history,
+          color: TaqaUiColors.calendarActivity,
+          title: t.translate('calendar_health_count'),
+          subtitle: '$manualCount',
+        ),
+      );
+    }
     for (final row in strength) {
       items.add(
         _DaySummaryItem(
@@ -636,7 +747,10 @@ class _CalendarPageState extends State<CalendarPage> {
         ),
       );
     }
-    final sleepMinutes = _sleepMinutes(metrics);
+    final selectedSleep = _selectedHealth?['sleep_summary'] as Map?;
+    final sleepMinutes = selectedSleep == null
+        ? _sleepMinutes(metrics)
+        : (selectedSleep['minutes'] as num).round();
     if (sleepMinutes > 0) {
       final hours = sleepMinutes ~/ 60;
       final minutes = sleepMinutes % 60;
@@ -647,7 +761,8 @@ class _CalendarPageState extends State<CalendarPage> {
           title: t.translate('training_calendar_sleep'),
           subtitle:
               '$hours${t.translate('training_calendar_hours_short')} '
-              '$minutes${t.translate('training_calendar_minutes_short')}',
+              '$minutes${t.translate('training_calendar_minutes_short')}'
+              '${selectedSleep == null ? '' : '\n${t.translate('calendar_health_origin_${selectedSleep['origin']}')}'}',
         ),
       );
     }

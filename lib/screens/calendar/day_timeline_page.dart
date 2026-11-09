@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'calendar_action_style.dart';
 import 'package:intl/intl.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
@@ -10,7 +11,6 @@ import '../../TaqaUI/components/taqa_popup_guard.dart';
 import '../../TaqaUI/components/taqa_timeline.dart';
 import '../../TaqaUI/components/taqa_time_input_dialog.dart';
 import '../../TaqaUI/components/taqa_toast.dart';
-import '../../TaqaUI/components/taqa_value_dialog.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
@@ -25,6 +25,15 @@ import '../../widgets/diet_photo_entry_sheet.dart';
 import 'calendar_meal_editor_sheet.dart';
 import 'calendar_sleep_dialog.dart';
 import 'training_plan_picker_sheet.dart';
+import 'timeline_nutrition_header.dart';
+import 'calendar_pending_move_banner.dart';
+import 'calendar_bulk_sheet.dart';
+import 'calendar_details_sheet.dart';
+import 'calendar_health_sheet.dart';
+import 'calendar_health_banner.dart';
+import '../../services/calendar/calendar_health_api.dart';
+import '../../services/calendar/calendar_time_zone.dart';
+import '../../services/calendar/calendar_food_commands.dart';
 
 class DayTimelinePage extends StatefulWidget {
   const DayTimelinePage({
@@ -44,6 +53,11 @@ class DayTimelinePage extends StatefulWidget {
 
 class _DayTimelinePageState extends State<DayTimelinePage> {
   DayTimelineData? _data;
+  late DateTime _date;
+  Map<String, dynamic>? _health;
+  bool _healthFailed = false;
+  bool _healthChecked = false;
+  int? _pageUser;
   Timer? _dueMealRefreshTimer;
   bool _loading = true;
   bool _savingMeal = false;
@@ -51,22 +65,143 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   bool _savingSleep = false;
   final Set<int> _completingPlanIds = <int>{};
   String? _error;
+  int _loadRequest = 0;
+  bool _bulkAvailable = false;
+  bool _bulkOpening = false;
+  bool _recipesAvailable = false;
+  bool _summaryExpanded = false;
+
+  bool get _canEditTraining =>
+      widget.canEditTrainingPlan &&
+      !(_data?.events.any((e) => e.type == 'strength') ?? true);
+  bool get _navigationBusy =>
+      _savingMeal ||
+      _savingActivity ||
+      _savingSleep ||
+      _bulkOpening ||
+      _completingPlanIds.isNotEmpty;
+
+  void _changeDay(DateTime day) {
+    if (_navigationBusy) return;
+    setState(() {
+      _date = DateUtils.dateOnly(day);
+      _summaryExpanded = false;
+    });
+    unawaited(_load());
+  }
+
+  Future<void> _checkHealth(int user, int request) async {
+    try {
+      final data = await CalendarHealthApi.day(user, _date);
+      if (mounted && request == _loadRequest) {
+        setState(() {
+          _health = data;
+          _healthChecked = true;
+        });
+      }
+    } catch (_) {
+      if (mounted && request == _loadRequest) {
+        setState(() => _healthFailed = true);
+      }
+    }
+  }
+
+  Future<void> _openHealth({
+    required String kind,
+    int? hour,
+    Map<String, dynamic>? session,
+  }) async {
+    final user = await AccountStorage.getUserId();
+    if (!mounted || user == null) return;
+    final saved = await showCalendarHealth(
+      context,
+      userId: user,
+      date: _date,
+      kind: kind,
+      hour: hour,
+      session: session,
+    );
+    if (mounted && saved == true) {
+      AppToast.show(
+        context,
+        AppLocalizations.of(context).translate('calendar_details_saved'),
+        type: AppToastType.success,
+      );
+      await _load();
+    }
+  }
+
+  Future<void> _addAtHour(int hour) async {
+    if (_health == null || !_canLogSleep) return _addMeal(initialHour: hour);
+    final t = AppLocalizations.of(context);
+    final kind = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final kind in ['food', 'activity', 'sleep'])
+                ListTile(
+                  title: Text(t.translate('calendar_health_$kind')),
+                  leading: Icon(
+                    kind == 'food'
+                        ? Icons.restaurant
+                        : kind == 'activity'
+                        ? Icons.directions_walk
+                        : Icons.bedtime_outlined,
+                  ),
+                  onTap: () => Navigator.pop(context, kind),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!mounted || kind == null) return;
+    if (kind == 'food') {
+      await _addMeal(initialHour: hour);
+    } else {
+      await _openHealth(kind: kind, hour: hour);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _date = DateUtils.dateOnly(widget.date);
+    AccountStorage.accountChange.addListener(_load);
     unawaited(_load());
   }
 
   Future<void> _load() async {
+    final request = ++_loadRequest;
+    _dueMealRefreshTimer?.cancel();
     if (mounted) {
       setState(() {
         _loading = true;
+        _bulkAvailable = false;
+        _recipesAvailable = false;
+        _health = null;
+        _healthFailed = false;
+        _healthChecked = false;
+        _data = null;
         _error = null;
       });
     }
     final userId = await AccountStorage.getUserId();
-    if (!mounted) return;
+    if (!mounted || request != _loadRequest) return;
+    if (_pageUser != null && userId != _pageUser) {
+      setState(() {
+        _loading = false;
+        _error = AppLocalizations.of(
+          context,
+        ).translate('calendar_time_account_changed');
+      });
+      return;
+    }
+    _pageUser = userId;
     if (userId == null || userId <= 0) {
       setState(() {
         _loading = false;
@@ -75,24 +210,105 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       return;
     }
     try {
-      final data = await DayTimelineService.fetch(
-        userId: userId,
-        date: widget.date,
-      );
-      if (!mounted) return;
+      final data = await DayTimelineService.fetch(userId: userId, date: _date);
+      if (!mounted || request != _loadRequest) return;
       setState(() {
         _data = data;
         _loading = false;
       });
       _scheduleDueMealRefresh(data);
+      unawaited(_checkBulk(data, userId, request));
+      unawaited(_checkRecipes(userId, request));
+      unawaited(_checkHealth(userId, request));
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || request != _loadRequest) return;
       setState(() {
         _loading = false;
         _error = AppLocalizations.of(
           context,
         ).translate('day_timeline_load_error');
       });
+    }
+  }
+
+  List<Map<String, dynamic>> _foodReferences(DayTimelineData data) => [
+    for (final event in data.events)
+      if (event.type == 'meal' || event.type == 'planned_meal')
+        {
+          'kind': event.type == 'meal' ? 'meal' : 'meal_plan',
+          'id': event.type == 'meal'
+              ? int.tryParse(event.id.replaceFirst('meal-', '')) ?? 0
+              : _asInt(event.details['plan_id']),
+        },
+  ];
+
+  Future<void> _checkBulk(DayTimelineData data, int userId, int request) async {
+    try {
+      for (final ref in _foodReferences(data)) {
+        final state = await CalendarFoodCommands.fetchState(
+          userId,
+          ref['kind'] as String,
+          ref['id'] as int,
+        );
+        if (!mounted || request != _loadRequest) return;
+        if (state == null) return;
+        if (state.canBulk) {
+          setState(() => _bulkAvailable = true);
+          return;
+        }
+      }
+    } catch (_) {
+      /* Optional capability must not block timeline loading. */
+    }
+  }
+
+  Future<void> _openBulk() async {
+    if (_bulkOpening || _data == null) return;
+    setState(() => _bulkOpening = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (!mounted || userId == null) return;
+      final saved = await showCalendarBulkEditor(
+        context,
+        userId: userId,
+        date: _date,
+        references: _foodReferences(_data!),
+      );
+      if (saved && mounted) await _load();
+    } finally {
+      if (mounted) setState(() => _bulkOpening = false);
+    }
+  }
+
+  Future<void> _checkRecipes(int userId, int request) async {
+    try {
+      final recipes = await CalendarFoodCommands.readRecipes(userId);
+      if (mounted && request == _loadRequest) {
+        setState(() => _recipesAvailable = recipes != null);
+      }
+    } catch (_) {
+      /* Optional feature must not block the day. */
+    }
+  }
+
+  Future<void> _logRecipe({int? initialHour}) async {
+    if (_bulkOpening) return;
+    setState(() => _bulkOpening = true);
+    try {
+      final userId = await AccountStorage.getUserId();
+      if (!mounted || userId == null) return;
+      final saved = await showCalendarDetails(
+        context,
+        userId: userId,
+        action: 'recipe-log',
+        date: _date,
+        initialTime: initialHour == null
+            ? null
+            : TimeOfDay(hour: initialHour, minute: 0),
+      );
+      if (saved && mounted) await _load();
+    } finally {
+      if (mounted) setState(() => _bulkOpening = false);
     }
   }
 
@@ -117,15 +333,20 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   @override
   void dispose() {
     _dueMealRefreshTimer?.cancel();
+    AccountStorage.accountChange.removeListener(_load);
     super.dispose();
   }
 
-  bool get _canLogSleep => !DateUtils.dateOnly(
-    widget.date,
-  ).isAfter(DateUtils.dateOnly(DateTime.now()));
+  bool get _canLogSleep =>
+      !DateUtils.dateOnly(_date).isAfter(DateUtils.dateOnly(DateTime.now()));
+
+  // Duration-only entry is a compatibility fallback for disabled/old backends.
+  // Do not expose a second writer while timed logging is active or unresolved.
+  bool get _canLogLegacySleep =>
+      _canLogSleep && _healthChecked && _health == null && !_healthFailed;
 
   Future<void> _logSleep() async {
-    if (_savingSleep || !_canLogSleep) return;
+    if (_savingSleep || !_canLogLegacySleep) return;
     final t = AppLocalizations.of(context);
     final minutes = _sleepMinutes(_data?.dailySummary);
     final hours = await TaqaPopupGuard.dialog<double>(
@@ -137,7 +358,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     try {
       final userId = await AccountStorage.getUserId();
       if (userId == null || userId <= 0) throw StateError('No active user');
-      final day = DateUtils.dateOnly(widget.date);
+      final day = DateUtils.dateOnly(_date);
       // Write both duration fields because calendar summaries prefer minutes.
       // Omit unrelated daily metrics so existing activity data is preserved.
       await DailyMetricsApi.upsert(
@@ -168,15 +389,107 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   }
 
   Future<void> _addMeal({int? initialHour}) async {
-    if (_savingMeal) return;
+    if (_savingMeal || _bulkOpening || _loading) return;
+    final userId = await AccountStorage.getUserId();
+    if (!mounted || userId == null || userId <= 0) return;
+    final t = AppLocalizations.of(context);
+    final mode = await showModalBottomSheet<_CalendarMealEntryMode>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        Widget option(
+          _CalendarMealEntryMode value,
+          IconData icon,
+          String title,
+          String description,
+        ) => ListTile(
+          leading: Icon(icon),
+          title: Text(t.translate(title)),
+          subtitle: Text(t.translate(description)),
+          onTap: () => Navigator.pop(sheetContext, value),
+        );
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(sheetContext).height * .85,
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      t.translate('day_timeline_log_food'),
+                      style: Theme.of(sheetContext).textTheme.titleLarge,
+                    ),
+                    option(
+                      _CalendarMealEntryMode.search,
+                      Icons.search,
+                      'diet_option_search',
+                      'diet_option_search_desc',
+                    ),
+                    option(
+                      _CalendarMealEntryMode.manual,
+                      Icons.edit_outlined,
+                      'diet_option_manual',
+                      'diet_option_manual_desc',
+                    ),
+                    option(
+                      _CalendarMealEntryMode.photo,
+                      Icons.camera_alt_outlined,
+                      'diet_option_photo',
+                      'diet_option_photo_desc',
+                    ),
+                    if (_recipesAvailable)
+                      option(
+                        _CalendarMealEntryMode.recipe,
+                        Icons.restaurant_menu,
+                        'calendar_details_recipe-log',
+                        'calendar_food_recipe_help',
+                      ),
+                    if (_bulkAvailable)
+                      option(
+                        _CalendarMealEntryMode.manage,
+                        Icons.checklist,
+                        'calendar_bulk_title',
+                        'calendar_food_manage_help',
+                      ),
+                    TextButton(
+                      style: calendarActionStyle(sheetContext),
+                      onPressed: () => Navigator.pop(sheetContext),
+                      child: Text(t.translate('common_cancel')),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    if (!mounted ||
+        mode == null ||
+        await AccountStorage.getUserId() != userId ||
+        !mounted) {
+      return;
+    }
+    if (mode == _CalendarMealEntryMode.manage) {
+      await _openBulk();
+      return;
+    }
+    if (mode == _CalendarMealEntryMode.recipe) {
+      await _logRecipe(initialHour: initialHour);
+      return;
+    }
     final now = DateTime.now();
-    final isToday = DateUtils.isSameDay(widget.date, now);
+    final isToday = DateUtils.isSameDay(_date, now);
     final initial = initialHour == null
         ? (isToday
               ? TimeOfDay.fromDateTime(now)
               : const TimeOfDay(hour: 12, minute: 0))
         : TimeOfDay(hour: initialHour, minute: 0);
-    final t = AppLocalizations.of(context);
     final selectedTime = await showTaqaTimeInputDialog(
       context: context,
       initialTime: initial,
@@ -190,37 +503,13 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     if (!mounted || selectedTime == null) return;
 
     final scheduledAt = DateTime(
-      widget.date.year,
-      widget.date.month,
-      widget.date.day,
+      _date.year,
+      _date.month,
+      _date.day,
       selectedTime.hour,
       selectedTime.minute,
     );
-    final userId = await AccountStorage.getUserId();
-    if (!mounted || userId == null || userId <= 0) return;
-    final mode = await showTaqaOptionDialog<_CalendarMealEntryMode>(
-      context: context,
-      title: t.translate('diet_add_item_title'),
-      cancelLabel: t.translate('common_cancel'),
-      options: [
-        TaqaDialogOption(
-          value: _CalendarMealEntryMode.search,
-          title: t.translate('diet_option_search'),
-          subtitle: t.translate('diet_option_search_desc'),
-        ),
-        TaqaDialogOption(
-          value: _CalendarMealEntryMode.manual,
-          title: t.translate('diet_option_manual'),
-          subtitle: t.translate('diet_option_manual_desc'),
-        ),
-        TaqaDialogOption(
-          value: _CalendarMealEntryMode.photo,
-          title: t.translate('diet_option_photo'),
-          subtitle: t.translate('diet_option_photo_desc'),
-        ),
-      ],
-    );
-    if (!mounted || mode == null) return;
+    if (await AccountStorage.getUserId() != userId || !mounted) return;
     switch (mode) {
       case _CalendarMealEntryMode.search:
         await _addMealFromSearch(userId, scheduledAt);
@@ -228,6 +517,9 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         await _addMealManually(userId, scheduledAt);
       case _CalendarMealEntryMode.photo:
         await _addMealFromPhoto(userId, scheduledAt);
+      case _CalendarMealEntryMode.recipe:
+      case _CalendarMealEntryMode.manage:
+        break;
     }
   }
 
@@ -250,7 +542,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         userId: userId,
         mealId: 0,
         mealTitle: t.translate('day_timeline_meal_default_name'),
-        mealDate: widget.date,
+        mealDate: _date,
         onSubmit: ({required mealName, required ingredients}) async {
           if (mounted) setState(() => _savingMeal = true);
           try {
@@ -430,7 +722,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     int? number(Object? value) =>
         value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
     return TrainingScheduleEntry(
-      scheduledDate: widget.date,
+      scheduledDate: _date,
       scheduleType: plan['schedule_type']?.toString() ?? '',
       programId: number(plan['program_id']),
       trainingDayIndex: number(plan['training_day_index']),
@@ -442,7 +734,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   }
 
   Future<void> _addOrChangeActivity() async {
-    if (_savingActivity || !widget.canEditTrainingPlan) return;
+    if (_savingActivity || !_canEditTraining) return;
     final selection = await TaqaPopupGuard.bottomSheet<CalendarPlanSelection>(
       context: context,
       isScrollControlled: true,
@@ -459,7 +751,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       final now = DateTime.now();
       final initial = existing != null
           ? TimeOfDay.fromDateTime(existing)
-          : DateUtils.isSameDay(widget.date, now)
+          : DateUtils.isSameDay(_date, now)
           ? TimeOfDay.fromDateTime(now)
           : const TimeOfDay(hour: 12, minute: 0);
       final t = AppLocalizations.of(context);
@@ -475,9 +767,9 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       );
       if (!mounted || selectedTime == null) return;
       scheduledAt = DateTime(
-        widget.date.year,
-        widget.date.month,
-        widget.date.day,
+        _date.year,
+        _date.month,
+        _date.day,
         selectedTime.hour,
         selectedTime.minute,
       );
@@ -488,7 +780,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     try {
       await TrainingScheduleService.save(
         userId: userId,
-        scheduledDate: widget.date,
+        scheduledDate: _date,
         scheduleType: selection.isRest ? 'rest' : 'training',
         programId: selection.isRest ? null : calendarProgramId(widget.program),
         trainingDayIndex: selection.day?.dayIndex,
@@ -521,7 +813,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     try {
       await TrainingScheduleService.remove(
         userId: userId,
-        scheduledDate: widget.date,
+        scheduledDate: _date,
       );
       if (!mounted) return;
       AppToast.show(
@@ -543,6 +835,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   }
 
   Future<void> _editActivity() async {
+    if (!_canEditTraining) return;
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
     final action = await TaqaPopupGuard.bottomSheet<_ActivityEditAction>(
@@ -602,7 +895,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       ),
       builder: (_) => CalendarMealEditorSheet(
         event: event,
-        mealDate: widget.date,
+        mealDate: _date,
         onChanged: _load,
       ),
     );
@@ -618,6 +911,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       await DayTimelineService.markMealPlanEaten(
         userId: userId,
         planId: planId,
+        date: _date,
       );
       if (!mounted) return;
       AppToast.show(
@@ -647,44 +941,55 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       appBar: TaqaPageAppBar(title: t.translate('day_timeline_title')),
       body: SafeArea(
         top: false,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: _loading
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    SizedBox(
-                      height: MediaQuery.sizeOf(context).height * 0.7,
-                      child: Center(
-                        child: CircularProgressIndicator(color: colors.accent),
-                      ),
-                    ),
-                  ],
-                )
-              : _error != null
-              ? ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: TaqaUiScale.insetsLTRB(24, 80, 24, 24),
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: colors.textSecondary,
-                      size: 34,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: _load,
-                      child: Text(t.translate('generating_retry')),
-                    ),
-                  ],
-                )
-              : _buildContent(context, _data!),
+        child: Column(
+          children: [
+            CalendarPendingMoveBanner(onSaved: _load),
+            CalendarHealthBanner(onSaved: _load),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: _loading
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          SizedBox(
+                            height: MediaQuery.sizeOf(context).height * 0.7,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: colors.accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : _error != null
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: TaqaUiScale.insetsLTRB(24, 80, 24, 24),
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            color: colors.textSecondary,
+                            size: 34,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: colors.textSecondary),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            style: calendarActionStyle(context),
+                            onPressed: _load,
+                            child: Text(t.translate('generating_retry')),
+                          ),
+                        ],
+                      )
+                    : _buildContent(context, _data!),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -693,26 +998,61 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   Widget _buildContent(BuildContext context, DayTimelineData data) {
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
-    final eventsByHour = <int, List<Widget>>{};
+    final timedCards = <int, List<(DateTime, Widget)>>{};
+    void addCard(DateTime time, Widget card) =>
+        timedCards.putIfAbsent(time.hour, () => []).add((time, card));
     for (final event in data.events) {
       final time = event.occurredAt;
       if (time == null) continue;
-      eventsByHour
-          .putIfAbsent(time.hour, () => [])
-          .add(
-            _TimelineEventContent(
-              event: event,
-              completing: _completingPlanIds.contains(
-                _asInt(event.details['plan_id']),
-              ),
-              onMarkEaten: event.type == 'planned_meal'
-                  ? () => _markMealEaten(event)
-                  : null,
-              onEdit: event.type == 'meal' || event.type == 'planned_meal'
-                  ? () => _editMeal(event)
-                  : null,
-            ),
-          );
+      addCard(
+        time,
+        _TimelineEventContent(
+          event: event,
+          completing: _completingPlanIds.contains(
+            _asInt(event.details['plan_id']),
+          ),
+          onMarkEaten: event.type == 'planned_meal'
+              ? () => _markMealEaten(event)
+              : null,
+          onEdit: event.type == 'meal' || event.type == 'planned_meal'
+              ? () => _editMeal(event)
+              : null,
+        ),
+      );
+    }
+    for (final session in (_health?['sessions'] as List? ?? []).cast<Map>()) {
+      final row = Map<String, dynamic>.from(session);
+      final asleep = row['kind'] == 'sleep';
+      final start = CalendarTimeZone.inZone(
+        DateTime.parse(row['started_at'] as String),
+        row['timezone'] as String,
+      );
+      final end = CalendarTimeZone.inZone(
+        DateTime.parse(row['ended_at'] as String),
+        row['timezone'] as String,
+      );
+      // Overnight sleep is visible on the wake date, at its wake hour.
+      final anchor = asleep ? end : start;
+      addCard(
+        anchor,
+        TaqaTimelineSummaryCard(
+          icon: asleep ? Icons.bedtime_outlined : Icons.directions_walk,
+          color: asleep
+              ? TaqaUiColors.calendarSleep
+              : TaqaUiColors.calendarActivity,
+          title:
+              '${t.translate('calendar_health_manual')} · ${t.translate('calendar_health_${asleep ? row['sleep_kind'] : row['activity_kind']}')}',
+          value: _durationLabel(
+            context,
+            ((row['duration_seconds'] as num) / 60).round(),
+          ),
+          detail:
+              '${DateFormat.MMMd(t.locale.languageCode).add_jm().format(start)} → ${DateFormat.MMMd(t.locale.languageCode).add_jm().format(end)} (${row['timezone']})${row['distance_km'] == null ? '' : '\n${row['distance_km']} ${t.translate('calendar_health_km')}'}',
+          onEdit: (row['capabilities'] as List).contains('update')
+              ? () => _openHealth(kind: row['kind'] as String, session: row)
+              : null,
+        ),
+      );
     }
     final plannedActivity = data.plannedActivity;
     final plannedActivityTime = DateTime.tryParse(
@@ -720,34 +1060,41 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     )?.toLocal();
     if (plannedActivity != null && plannedActivityTime != null) {
       final isRest = plannedActivity['schedule_type'] == 'rest';
-      eventsByHour
-          .putIfAbsent(plannedActivityTime.hour, () => [])
-          .add(
-            TaqaTimelineEventCard(
-              icon: isRest ? Icons.hotel_outlined : Icons.fitness_center,
-              color: isRest ? colors.textSecondary : colors.accent,
-              title: isRest
-                  ? t.translate('training_calendar_rest_day')
-                  : plannedActivity['training_day_label']?.toString() ??
-                        t.translate('training_workout'),
-              subtitle:
-                  '${DateFormat.jm(t.locale.languageCode).format(plannedActivityTime)} · '
-                  '${t.translate('day_timeline_planned')}',
-              details: Text(
-                t.translate('training_calendar_planned'),
-                style: TextStyle(color: colors.textSecondary),
-              ),
-              onEdit: _editActivity,
-            ),
-          );
+      addCard(
+        plannedActivityTime,
+        TaqaTimelineEventCard(
+          icon: isRest ? Icons.hotel_outlined : Icons.fitness_center,
+          color: isRest ? colors.textSecondary : colors.accent,
+          title: isRest
+              ? t.translate('training_calendar_rest_day')
+              : plannedActivity['training_day_label']?.toString() ??
+                    t.translate('training_workout'),
+          subtitle:
+              '${DateFormat.jm(t.locale.languageCode).format(plannedActivityTime)} · '
+              '${t.translate('day_timeline_planned')}',
+          details: Text(
+            t.translate('training_calendar_planned'),
+            style: TextStyle(color: colors.textSecondary),
+          ),
+          onEdit: _canEditTraining ? _editActivity : null,
+        ),
+      );
     }
 
+    final eventsByHour = <int, List<Widget>>{};
+    for (final entry in timedCards.entries) {
+      entry.value.sort((a, b) {
+        final minute = a.$1.minute.compareTo(b.$1.minute);
+        return minute != 0 ? minute : a.$1.compareTo(b.$1);
+      });
+      eventsByHour[entry.key] = entry.value.map((row) => row.$2).toList();
+    }
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: TaqaUiScale.insetsLTRB(20, 12, 20, 32),
       children: [
         Text(
-          DateFormat.yMMMMEEEEd(t.locale.languageCode).format(widget.date),
+          DateFormat.yMMMMEEEEd(t.locale.languageCode).format(_date),
           style: TextStyle(
             fontFamily: TaqaUiFontFamilies.interTight,
             color: colors.textPrimary,
@@ -755,9 +1102,72 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
             fontWeight: FontWeight.w800,
           ),
         ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          children: [
+            IconButton(
+              tooltip: t.translate('calendar_health_previous'),
+              onPressed: _navigationBusy
+                  ? null
+                  : () => _changeDay(
+                      DateTime(_date.year, _date.month, _date.day - 1),
+                    ),
+              icon: const Icon(Icons.chevron_left),
+            ),
+            TextButton(
+              style: calendarActionStyle(context),
+              onPressed: _navigationBusy
+                  ? null
+                  : () => _changeDay(DateTime.now()),
+              child: Text(t.translate('training_calendar_today')),
+            ),
+            IconButton(
+              tooltip: t.translate('calendar_health_next'),
+              onPressed: _navigationBusy
+                  ? null
+                  : () => _changeDay(
+                      DateTime(_date.year, _date.month, _date.day + 1),
+                    ),
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
+        ),
+        SizedBox(height: TaqaUiScale.h(12)),
+        _buildDaySummary(context, data),
+        SizedBox(height: TaqaUiScale.h(12)),
+        TaqaFilledButton(
+          label: t.translate('day_timeline_log_food'),
+          onTap: _savingMeal || _bulkOpening ? null : _addMeal,
+          loading: _savingMeal,
+        ),
+        if (_healthFailed)
+          TextButton(
+            style: calendarActionStyle(context),
+            onPressed: _load,
+            child: Text(t.translate('calendar_health_load_error')),
+          ),
+        if (_health != null && _canLogSleep)
+          Wrap(
+            spacing: 12,
+            children: [
+              TextButton.icon(
+                style: calendarActionStyle(context),
+                onPressed: () => _openHealth(kind: 'activity'),
+                icon: const Icon(Icons.directions_walk),
+                label: Text(t.translate('calendar_health_activity')),
+              ),
+              TextButton.icon(
+                style: calendarActionStyle(context),
+                onPressed: () => _openHealth(kind: 'sleep'),
+                icon: const Icon(Icons.bedtime_outlined),
+                label: Text(t.translate('calendar_health_sleep')),
+              ),
+            ],
+          ),
         SizedBox(height: TaqaUiScale.h(18)),
-        _buildAllDaySummary(context, data),
-        if (_canLogSleep) ...[
+        TimelineNutritionHeader(date: _date, refreshRevision: _loadRequest),
+        if (_canLogLegacySleep) ...[
           SizedBox(height: TaqaUiScale.h(10)),
           TaqaFilledButton(
             label: t.translate(
@@ -779,22 +1189,17 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
           ),
         ),
         SizedBox(height: TaqaUiScale.h(10)),
-        TaqaFilledButton(
-          label: t.translate('day_timeline_log_food'),
-          onTap: _savingMeal ? null : _addMeal,
-          loading: _savingMeal,
-        ),
-        if (widget.canEditTrainingPlan && data.plannedActivity == null) ...[
+        if (_canEditTraining && data.plannedActivity == null) ...[
           SizedBox(height: TaqaUiScale.h(10)),
           TaqaFilledButton(
-            label: t.translate('day_timeline_add_activity'),
+            label: t.translate('calendar_health_schedule'),
             onTap: _savingActivity ? null : _addOrChangeActivity,
             loading: _savingActivity,
           ),
         ],
         SizedBox(height: TaqaUiScale.h(4)),
         Text(
-          data.events.isEmpty
+          data.events.isEmpty && (_health?['sessions'] as List? ?? []).isEmpty
               ? t.translate('day_timeline_no_events')
               : t.translate('day_timeline_tap_details'),
           style: TextStyle(
@@ -804,32 +1209,61 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         ),
         SizedBox(height: TaqaUiScale.h(12)),
         TaqaHourlyTimeline(
-          hourLabel: (hour) => DateFormat.j(t.locale.languageCode).format(
-            DateTime(
-              widget.date.year,
-              widget.date.month,
-              widget.date.day,
-              hour,
-            ),
-          ),
+          addLabel: (hour) =>
+              '${t.translate('calendar_health_food')}${_health == null ? '' : ', ${t.translate('calendar_health_activity')}, ${t.translate('calendar_health_sleep')}'}: ${DateFormat.j(t.locale.languageCode).format(DateTime(2000, 1, 1, hour))}',
+          hourLabel: (hour) => DateFormat.j(
+            t.locale.languageCode,
+          ).format(DateTime(_date.year, _date.month, _date.day, hour)),
           eventsByHour: eventsByHour,
-          onEmptyHourTap: (hour) => _addMeal(initialHour: hour),
+          onEmptyHourTap: _addAtHour,
         ),
       ],
     );
   }
 
-  Widget _buildAllDaySummary(BuildContext context, DayTimelineData data) {
+  Widget _buildDaySummary(BuildContext context, DayTimelineData data) {
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
     final metrics = data.dailySummary;
     final plan = data.plannedActivity;
-    final planTime = DateTime.tryParse(
-      plan?['scheduled_at']?.toString() ?? '',
-    )?.toLocal();
     final cards = <Widget>[];
 
-    if (plan != null && planTime == null) {
+    final meals = data.events.where((e) => e.type == 'meal').toList();
+    final plannedMeals = data.events
+        .where((e) => e.type == 'planned_meal')
+        .toList();
+    final workouts = data.events
+        .where((e) => e.type == 'strength' || e.type == 'cardio')
+        .toList();
+    final activities = (_health?['sessions'] as List? ?? [])
+        .where((s) => s['kind'] == 'activity')
+        .toList();
+    String count(int value) =>
+        NumberFormat.decimalPattern(t.locale.languageCode).format(value);
+    void addEvents(String label, IconData icon, List<DayTimelineEvent> events) {
+      cards.add(
+        TaqaTimelineSummaryCard(
+          icon: icon,
+          color: colors.textPrimary,
+          title: t.translate(label),
+          value: count(events.length),
+          detail: events.isEmpty
+              ? t.translate('calendar_summary_empty')
+              : events.map((e) => e.title).join('\n'),
+        ),
+      );
+    }
+
+    addEvents('calendar_summary_meals', Icons.restaurant, meals);
+    if (plannedMeals.isNotEmpty) {
+      addEvents(
+        'calendar_summary_planned_meals',
+        Icons.restaurant_menu,
+        plannedMeals,
+      );
+    }
+    addEvents('calendar_summary_workouts', Icons.fitness_center, workouts);
+    if (plan != null) {
       final isRest = plan['schedule_type'] == 'rest';
       cards.add(
         TaqaTimelineSummaryCard(
@@ -840,24 +1274,58 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
               ? t.translate('training_calendar_rest_day')
               : plan['training_day_label']?.toString() ??
                     t.translate('training_workout'),
-          onEdit: widget.canEditTrainingPlan ? _editActivity : null,
+          onEdit: _canEditTraining ? _editActivity : null,
         ),
       );
     }
 
-    final sleepMinutes = _sleepMinutes(metrics);
-    if (sleepMinutes > 0) {
-      cards.add(
-        TaqaTimelineSummaryCard(
-          icon: Icons.bed_outlined,
-          color: colors.textPrimary,
-          title: t.translate('training_calendar_sleep'),
-          value: _durationLabel(context, sleepMinutes),
-          detail: _sleepDetail(context, metrics!),
-          onEdit: _canLogSleep && !_savingSleep ? _logSleep : null,
-        ),
-      );
-    }
+    final activityMinutes =
+        activities.fold<int>(
+          0,
+          (sum, s) => sum + _asInt(s['duration_seconds']),
+        ) ~/
+        60;
+    cards.add(
+      TaqaTimelineSummaryCard(
+        icon: Icons.directions_walk,
+        color: TaqaUiColors.calendarActivity,
+        title: t.translate('calendar_summary_activities'),
+        value: activities.isEmpty
+            ? count(0)
+            : '${count(activities.length)} · ${_durationLabel(context, activityMinutes)}',
+        detail: activities.isEmpty
+            ? t.translate('calendar_summary_empty')
+            : activities
+                  .map(
+                    (s) =>
+                        '${t.translate('calendar_health_${s['activity_kind']}')} · ${_durationLabel(context, _asInt(s['duration_seconds']) ~/ 60)}',
+                  )
+                  .join('\n'),
+      ),
+    );
+
+    final sleepSummary = _health?['sleep_summary'] as Map?;
+    final sleepMinutes = sleepSummary == null
+        ? _sleepMinutes(metrics)
+        : (sleepSummary['minutes'] as num).round();
+    cards.add(
+      TaqaTimelineSummaryCard(
+        icon: Icons.bed_outlined,
+        color: colors.textPrimary,
+        title: t.translate('training_calendar_sleep'),
+        value: sleepMinutes > 0
+            ? _durationLabel(context, sleepMinutes)
+            : t.translate('calendar_summary_empty'),
+        detail: sleepMinutes <= 0
+            ? null
+            : sleepSummary == null
+            ? _sleepDetail(context, metrics!)
+            : t.translate('calendar_health_origin_${sleepSummary['origin']}'),
+        onEdit: sleepMinutes > 0 && _canLogLegacySleep && !_savingSleep
+            ? _logSleep
+            : null,
+      ),
+    );
 
     if (_hasDailyActivity(metrics)) {
       final activityParts = <String>[];
@@ -886,21 +1354,28 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       );
     }
 
-    if (cards.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          t.translate('day_timeline_all_day'),
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: TaqaUiScale.sp(16),
-            fontWeight: FontWeight.w800,
-          ),
+    return ExpansionTile(
+      key: ValueKey('calendar-day-summary-${calendarDate(_date)}'),
+      initiallyExpanded: _summaryExpanded,
+      onExpansionChanged: (expanded) =>
+          setState(() => _summaryExpanded = expanded),
+      tilePadding: EdgeInsets.zero,
+      textColor: colors.textPrimary,
+      collapsedTextColor: colors.textPrimary,
+      iconColor: colors.textPrimary,
+      collapsedIconColor: colors.textPrimary,
+      title: Text(
+        t.translate('day_timeline_all_day'),
+        style: TextStyle(
+          fontSize: TaqaUiScale.sp(16),
+          fontWeight: FontWeight.w800,
         ),
-        SizedBox(height: TaqaUiScale.h(10)),
+      ),
+      subtitle: Text(
+        t.translate('calendar_summary_contents'),
+        style: TextStyle(color: colors.textSecondary),
+      ),
+      children: [
         ...cards.map(
           (card) => Padding(
             padding: EdgeInsets.only(bottom: TaqaUiScale.h(8)),
@@ -979,7 +1454,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
   }
 }
 
-enum _CalendarMealEntryMode { search, manual, photo }
+enum _CalendarMealEntryMode { search, manual, photo, recipe, manage }
 
 enum _ActivityEditAction { change, remove }
 

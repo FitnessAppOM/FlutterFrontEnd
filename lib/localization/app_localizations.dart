@@ -11,9 +11,161 @@ class AppLocalizations {
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'en': {
-      'training_update_pending': 'Your training update is pending. This is your previous plan.',
-      'training_update_failed': 'Your profile was saved, but your training update failed. This is your previous plan.',
-      'training_update_review': 'A training update was not completed. Please review your current plan with your coach.',
+      'calendar_health_edit': 'Edit',
+      'calendar_health_km': 'km',
+      'calendar_health_reload': 'Reload session',
+      'calendar_health_rejected':
+          'This session was not accepted. Reload it and review the dates, times and timezone.',
+      'calendar_health_reselect':
+          'Close this request and reopen the session from its calendar date before making another change.',
+      'calendar_health_activity': 'Log activity',
+      'calendar_health_sleep': 'Log timed sleep',
+      'calendar_health_food': 'Log food',
+      'calendar_health_schedule': 'Schedule a workout',
+      'calendar_health_daily_duration': 'Edit daily sleep duration',
+      'calendar_health_manual': 'Manual log',
+      'calendar_health_create': 'Create session',
+      'calendar_health_update': 'Update session',
+      'calendar_health_delete': 'Delete session',
+      'calendar_health_delete_confirm':
+          'Delete this manual session? Wearable records and daily duration entries are kept.',
+      'calendar_health_pending':
+          'A session request needs confirmation. Review and retry the same request before making another change.',
+      'calendar_health_retry': 'Review and retry session request',
+      'calendar_health_conflict':
+          'This session changed or overlaps another manual log. Reload and review your dates before saving again.',
+      'calendar_health_missing':
+          'This session was moved or deleted. Close and refresh the calendar.',
+      'calendar_health_load_error':
+          'Could not load activity and sleep logs. Tap to retry.',
+      'calendar_health_unavailable':
+          'Timed logging is currently unavailable. Existing calendar features are still available.',
+      'calendar_health_zone_check':
+          'Could not detect your phone’s timezone. Choose the correct timezone to continue.',
+      'calendar_health_saved_zone':
+          'Times use the timezone saved with this session: {zone}.',
+      'calendar_health_zone': 'Timezone',
+      'calendar_health_offset': 'Repeated time: choose UTC offset',
+      'calendar_health_gap':
+          'This local time does not exist because the clocks change. Choose another time.',
+      'calendar_health_start': 'Start / bedtime',
+      'calendar_health_end': 'End / wake time',
+      'calendar_health_kind': 'Type',
+      'calendar_health_distance': 'Distance (km, optional)',
+      'calendar_health_duration': 'Duration',
+      'calendar_health_minutes': 'minutes',
+      'calendar_health_date': 'Calendar date',
+      'calendar_health_invalid':
+          'Choose completed times from 1 minute to 24 hours apart. Resolve repeated times. Optional distance must be above 0 and at most 1000 km, with up to three decimals.',
+      'calendar_health_sleep_help':
+          'Sleep appears on its wake date. Enter bedtime and wake time, including the date for overnight sleep. These times describe your entered duration, not measured sleep stages.',
+      'calendar_health_activity_help':
+          'Activity appears on its start date. This manual log does not add workout credit, calories or scores. Recorded workouts remain separate.',
+      'calendar_health_origin_whoop': 'WHOOP sleep',
+      'calendar_health_origin_fitbit': 'Fitbit sleep',
+      'calendar_health_origin_daily_metrics': 'Saved sleep duration',
+      'calendar_health_origin_manual_sessions': 'Logged sleep',
+      'calendar_health_origin_none': 'No sleep total',
+      'calendar_health_walk': 'Walking',
+      'calendar_health_run': 'Running',
+      'calendar_health_cycle': 'Cycling',
+      'calendar_health_swim': 'Swimming',
+      'calendar_health_hike': 'Hiking',
+      'calendar_health_yoga': 'Yoga',
+      'calendar_health_other': 'Other activity',
+      'calendar_health_main': 'Main sleep',
+      'calendar_health_nap': 'Nap',
+      'calendar_health_previous': 'Previous day',
+      'calendar_health_next': 'Next day',
+      'calendar_health_pick_date': 'Choose date',
+      'calendar_health_save': 'Save session',
+      'calendar_health_close': 'Close',
+      'calendar_health_count': 'Manual sessions',
+      'calendar_details_recipe': 'Create recipe',
+      'calendar_details_recipe-log': 'Log recipe or favorite',
+      'calendar_details_edit-item': 'Edit food portion and nutrition',
+      'calendar_details_retry': 'Review and retry saved food request',
+      'calendar_details_saved': 'Saved successfully',
+      'calendar_details_unavailable':
+          'This feature or food is unavailable. Close and refresh the day.',
+      'calendar_details_calories': 'Calories (kcal)',
+      'calendar_details_protein_g': 'Protein (g)',
+      'calendar_details_carbs_g': 'Carbs (g)',
+      'calendar_details_fat_g': 'Fat (g)',
+      'calendar_recipe_name': 'Recipe name',
+      'calendar_recipe_batch_servings': 'Servings in the full recipe',
+      'calendar_recipe_servings': 'Servings to log',
+      'calendar_recipe_weight': 'Total prepared weight (g, optional)',
+      'calendar_recipe_weight_per_serving': 'Prepared weight per serving',
+      'calendar_recipe_batch': 'Full recipe nutrition',
+      'calendar_recipe_per_serving': 'One serving nutrition',
+      'calendar_recipe_overrides':
+          'Some source meals have custom totals shown below. This recipe uses food values instead; those custom totals are not carried over.',
+      'calendar_recipe_item_policy':
+          'Use the selected food values for this recipe. Saving does not log or remove food. Prepared weight describes the recipe and does not change calories.',
+      'calendar_recipe_unknown_weight': 'Weight unknown',
+      'calendar_recipe_invalid':
+          'Enter a name, a positive serving count (up to 1000, three decimals), and confirm the food-value policy. Optional weight accepts two decimals. Select 1–100 foods.',
+      'calendar_recipe_reselect':
+          'Selected foods changed. Close and select the foods again.',
+      'calendar_recipe_empty':
+          'No recipes or favorites yet. Select foods from a meal to create a recipe.',
+      'calendar_item_multiplier': 'Portion multiplier',
+      'calendar_item_quantity_help':
+          '1 keeps this portion; 0.5 halves it; 2 doubles it. Food weight and ingredient amounts scale together. Very small portions may be below the supported precision.',
+      'calendar_item_custom': 'Enter final calories and macros manually',
+      'calendar_item_override_help':
+          'This meal has custom nutrition totals. Choose whether to keep them or use the updated food values for the whole meal.',
+      'calendar_item_clear_overrides': 'Remove meal custom totals',
+      'calendar_item_use_items':
+          'Daily nutrition will use the sum of the updated foods.',
+      'calendar_item_keep_overrides':
+          'Keep all stored custom totals. A complete set still controls daily nutrition even after editing this food.',
+      'calendar_item_invalid':
+          'Use a multiplier above 0 and up to 100 (three decimals). Manual calories/macros must be whole numbers from 0 to 1,000,000.',
+      'calendar_item_tap': 'Tap a food to edit its portion or nutrition.',
+      'calendar_bulk_title': 'Manage meals',
+      'calendar_food_recipe_help':
+          'Add a saved recipe or favorite to this day.',
+      'calendar_food_manage_help':
+          'Copy meals, change their time, create a recipe or delete entries.',
+      'calendar_bulk_selected': '{count} selected',
+      'calendar_bulk_action': 'Choose an action',
+      'calendar_bulk_confirm_copy': 'Copy selected',
+      'calendar_bulk_confirm_reschedule': 'Move selected',
+      'calendar_bulk_confirm_delete': 'Delete selected',
+      'calendar_bulk_items': 'Choose individual foods',
+      'calendar_bulk_all': 'Select all meals',
+      'calendar_bulk_clear': 'Clear selection',
+      'calendar_bulk_copy': 'Copy',
+      'calendar_bulk_reschedule': 'Edit time',
+      'calendar_bulk_delete': 'Delete',
+      'calendar_bulk_confirm': 'Confirm changes',
+      'calendar_bulk_retry': 'Review and retry food changes',
+      'calendar_bulk_saved': 'Food changes saved',
+      'calendar_bulk_unavailable':
+          'Bulk actions are unavailable. Close and reload the day.',
+      'calendar_bulk_bounds':
+          'Select 1–50 meals or foods, with at most 100 resulting meals.',
+      'calendar_bulk_whole_time':
+          'To change time, select whole meals that already have a time.',
+      'calendar_bulk_override_delete':
+          'This meal has custom nutrition totals. Select the whole meal to delete it.',
+      'calendar_bulk_review':
+          'Select meals or foods to copy to another date, change their time, save as a recipe, or delete. Then choose an action and review your changes.',
+      'calendar_bulk_spacing':
+          'The first timed meal uses the chosen time. Other meals keep their elapsed time spacing, even across midnight or daylight saving changes. Untimed copies use the chosen time.',
+      'calendar_bulk_first_time': 'First meal time',
+      'calendar_bulk_remove_date': 'Remove date',
+      'calendar_bulk_preview': 'Review changes',
+      'calendar_bulk_delete_confirm':
+          'Permanently delete the selected meals or foods? This updates your daily nutrition totals. This cannot be undone.',
+      'training_update_pending':
+          'Your training update is pending. This is your previous plan.',
+      'training_update_failed':
+          'Your profile was saved, but your training update failed. This is your previous plan.',
+      'training_update_review':
+          'A training update was not completed. Please review your current plan with your coach.',
       'training_update_check': 'Check update',
       'welcome_tagline': 'Your Taqa, tracked.',
       'welcome_tagline_sub': 'All in one place',
@@ -638,8 +790,20 @@ class AppLocalizations {
       "training_calendar_exercises": "exercises",
       "training_calendar_minutes": "min",
       "day_timeline_title": "Day timeline",
+      "timeline_nutrition_title": "Daily nutrition",
+      "timeline_nutrition_error":
+          "Couldn't load nutrition. Your timeline is still available.",
+      "timeline_nutrition_target": "Target",
+      "timeline_nutrition_grams": "g",
+      "timeline_nutrition_over": "{amount} {unit} over target",
       "day_timeline_load_error": "Couldn't load this day's timeline.",
-      "day_timeline_all_day": "All-day summary",
+      "day_timeline_all_day": "Daily summary",
+      'calendar_summary_contents': 'Meals, workouts, activities and sleep',
+      'calendar_summary_meals': 'Logged meals',
+      'calendar_summary_planned_meals': 'Planned meals',
+      'calendar_summary_workouts': 'Completed workouts',
+      'calendar_summary_activities': 'Logged activities',
+      'calendar_summary_empty': 'Nothing logged yet',
       "day_timeline_hourly": "Hourly timeline",
       "day_timeline_no_events": "No timed meals or workouts were recorded.",
       "day_timeline_tap_details": "Tap an activity to see its full details.",
@@ -672,6 +836,65 @@ class AppLocalizations {
       "day_timeline_sleep_save_error": "Couldn't save sleep. Please try again.",
       "day_timeline_add_activity": "Add activity",
       "day_timeline_set_meal_time": "Set meal time",
+      "calendar_time_edit": "Edit date & time",
+      "calendar_time_saved": "Meal time saved.",
+      "calendar_copy_title": "Copy food",
+      "calendar_copy_whole": "Copy whole meal",
+      "calendar_copy_preserve_override":
+          "This plan keeps the original meal's adjusted totals. To change foods, copy selected foods without the whole-meal override first.",
+      "calendar_copy_today": "Copy to today",
+      "calendar_copy_add_date": "Add another date",
+      "calendar_copy_confirm": "Confirm copy",
+      "calendar_copy_saved": "Food copied.",
+      "calendar_copy_retry": "Check copy / retry",
+      "calendar_copy_logged": "Log as eaten",
+      "calendar_copy_planned": "Save as planned",
+      "calendar_copy_source_unchanged": "The original meal stays unchanged.",
+      "calendar_copy_item_totals":
+          "Selected foods use their own nutrition values. Whole-meal overrides are not included.",
+      "calendar_copy_preview_notice":
+          "Review each date before confirming. Planned copies count as eaten only after you mark them eaten.",
+      "calendar_copy_select_food": "Select between 1 and 100 foods to copy.",
+      "calendar_copy_unavailable":
+          "Copying is unavailable for this meal right now.",
+      "calendar_copy_conflict":
+          "The food, available meal slots or planned/eaten timing changed. Reload and review the copy before confirming again.",
+      "calendar_time_zone": "Time zone",
+      "calendar_time_source_date": "Current logged date: {date}",
+      "calendar_time_choose_zone":
+          "Could not detect your phone’s timezone. Choose the correct timezone to continue.",
+      "calendar_time_dst_gap":
+          "This time does not exist because the clocks change. Choose another time.",
+      "calendar_time_dst_fold":
+          "This time occurs twice. Choose the UTC offset for your intended time.",
+      "calendar_time_future": "Logged meals cannot move into the future.",
+      "calendar_time_plan_notice":
+          "This stays a planned meal until you mark it eaten.",
+      "calendar_time_meal_notice":
+          "This moves the whole meal and its nutrition to the selected date. Existing meals stay in place.",
+      "calendar_time_retry": "Check saved time / retry",
+      "calendar_time_uncertain":
+          "We couldn't confirm the save. Retry the same change to check its result safely.",
+      "calendar_time_pending_move":
+          "A calendar change needs confirmation. Resolve it before making another change.",
+      "calendar_time_pending_diet":
+          "Sync pending food edits for both dates before changing this meal's time.",
+      "calendar_time_online":
+          "Connect to the internet to copy or reschedule meals.",
+      "calendar_time_reload": "Reload the meal before trying again.",
+      "calendar_time_reload_button": "Reload meal",
+      "calendar_time_conflict":
+          "The meal changed or the destination has no free meal slot. Reload and review the date before saving again.",
+      "calendar_time_rejected":
+          "This time change was not accepted. Reload the meal and check the date, time and time zone.",
+      "calendar_time_load_error":
+          "Couldn't load meal time details. Please try again.",
+      "calendar_time_unavailable":
+          "Time editing is unavailable for this meal right now.",
+      "calendar_time_account_changed":
+          "Your account changed. Close this editor and reopen the calendar.",
+      "calendar_time_storage_error":
+          "Couldn't retain this change for a safe retry. Nothing was sent. Please try again.",
       "day_timeline_set_activity_time": "Set activity time",
       "day_timeline_hour": "Hour (00–23)",
       "day_timeline_minute": "Minute (00–59)",
@@ -2725,9 +2948,160 @@ class AppLocalizations {
     },
 
     'ar': {
-      'training_update_pending': 'تحديث خطة التدريب قيد الانتظار. هذه خطتك السابقة.',
-      'training_update_failed': 'تم حفظ ملفك، لكن تعذّر تحديث خطة التدريب. هذه خطتك السابقة.',
-      'training_update_review': 'لم يكتمل تحديث التدريب. يرجى مراجعة خطتك الحالية مع مدربك.',
+      'calendar_health_edit': 'تعديل',
+      'calendar_health_km': 'كم',
+      'calendar_health_reload': 'إعادة تحميل الجلسة',
+      'calendar_health_rejected':
+          'لم يتم قبول الجلسة. أعد تحميلها وراجع التواريخ والأوقات والمنطقة الزمنية.',
+      'calendar_health_reselect':
+          'أغلق هذا الطلب وافتح الجلسة من تاريخها في التقويم قبل إجراء تغيير آخر.',
+      'calendar_health_activity': 'تسجيل نشاط',
+      'calendar_health_sleep': 'تسجيل أوقات النوم',
+      'calendar_health_food': 'تسجيل طعام',
+      'calendar_health_schedule': 'جدولة تمرين',
+      'calendar_health_daily_duration': 'تعديل مدة النوم اليومية',
+      'calendar_health_manual': 'سجل يدوي',
+      'calendar_health_create': 'إنشاء جلسة',
+      'calendar_health_update': 'تعديل جلسة',
+      'calendar_health_delete': 'حذف الجلسة',
+      'calendar_health_delete_confirm':
+          'حذف هذه الجلسة اليدوية؟ ستبقى بيانات الأجهزة ومدة النوم اليومية محفوظة.',
+      'calendar_health_pending':
+          'يوجد طلب جلسة يحتاج إلى تأكيد. راجع الطلب نفسه وأعد المحاولة قبل إجراء تغيير آخر.',
+      'calendar_health_retry': 'مراجعة طلب الجلسة وإعادة المحاولة',
+      'calendar_health_conflict':
+          'تغيرت الجلسة أو تتداخل مع سجل يدوي آخر. أعد التحميل وراجع التواريخ قبل الحفظ.',
+      'calendar_health_missing':
+          'تم نقل الجلسة أو حذفها. أغلق النافذة وحدّث التقويم.',
+      'calendar_health_load_error':
+          'تعذر تحميل سجلات النشاط والنوم. اضغط لإعادة المحاولة.',
+      'calendar_health_unavailable':
+          'تسجيل الأوقات غير متاح حالياً. ميزات التقويم الحالية لا تزال متاحة.',
+      'calendar_health_zone_check':
+          'تعذر تحديد المنطقة الزمنية لهاتفك. اختر المنطقة الزمنية الصحيحة للمتابعة.',
+      'calendar_health_saved_zone':
+          'تستخدم الأوقات المنطقة الزمنية المحفوظة مع هذه الجلسة: {zone}.',
+      'calendar_health_zone': 'المنطقة الزمنية',
+      'calendar_health_offset': 'وقت متكرر: اختر فرق التوقيت عن UTC',
+      'calendar_health_gap':
+          'هذا الوقت المحلي غير موجود بسبب تغيير الساعة. اختر وقتاً آخر.',
+      'calendar_health_start': 'البداية / وقت النوم',
+      'calendar_health_end': 'النهاية / وقت الاستيقاظ',
+      'calendar_health_kind': 'النوع',
+      'calendar_health_distance': 'المسافة (كم، اختياري)',
+      'calendar_health_duration': 'المدة',
+      'calendar_health_minutes': 'دقيقة',
+      'calendar_health_date': 'تاريخ التقويم',
+      'calendar_health_invalid':
+          'اختر أوقاتاً مكتملة بفارق دقيقة إلى ٢٤ ساعة وحدد الوقت عند تكراره. المسافة الاختيارية أكبر من صفر وحتى ١٠٠٠ كم، بثلاث منازل عشرية كحد أقصى.',
+      'calendar_health_sleep_help':
+          'يظهر النوم في تاريخ الاستيقاظ. أدخل وقت النوم والاستيقاظ مع التاريخ للنوم عبر منتصف الليل. هذه مدة أدخلتها وليست قياساً لمراحل النوم.',
+      'calendar_health_activity_help':
+          'يظهر النشاط في تاريخ بدايته. هذا السجل اليدوي لا يضيف إنجاز تمرين أو سعرات أو نقاطاً. تبقى التمارين المسجلة منفصلة.',
+      'calendar_health_origin_whoop': 'نوم WHOOP',
+      'calendar_health_origin_fitbit': 'نوم Fitbit',
+      'calendar_health_origin_daily_metrics': 'مدة النوم المحفوظة',
+      'calendar_health_origin_manual_sessions': 'النوم المسجل',
+      'calendar_health_origin_none': 'لا يوجد إجمالي للنوم',
+      'calendar_health_walk': 'المشي',
+      'calendar_health_run': 'الجري',
+      'calendar_health_cycle': 'ركوب الدراجة',
+      'calendar_health_swim': 'السباحة',
+      'calendar_health_hike': 'المشي الجبلي',
+      'calendar_health_yoga': 'اليوغا',
+      'calendar_health_other': 'نشاط آخر',
+      'calendar_health_main': 'النوم الرئيسي',
+      'calendar_health_nap': 'قيلولة',
+      'calendar_health_previous': 'اليوم السابق',
+      'calendar_health_next': 'اليوم التالي',
+      'calendar_health_pick_date': 'اختيار التاريخ',
+      'calendar_health_save': 'حفظ الجلسة',
+      'calendar_health_close': 'إغلاق',
+      'calendar_health_count': 'الجلسات اليدوية',
+      'calendar_details_recipe': 'إنشاء وصفة',
+      'calendar_details_recipe-log': 'تسجيل وصفة أو وجبة مفضلة',
+      'calendar_details_edit-item': 'تعديل حصة الطعام وقيمه الغذائية',
+      'calendar_details_retry': 'مراجعة طلب الطعام المحفوظ وإعادة المحاولة',
+      'calendar_details_saved': 'تم الحفظ بنجاح',
+      'calendar_details_unavailable':
+          'الميزة أو الطعام غير متاح. أغلق وأعد تحميل اليوم.',
+      'calendar_details_calories': 'السعرات الحرارية',
+      'calendar_details_protein_g': 'البروتين (غ)',
+      'calendar_details_carbs_g': 'الكربوهيدرات (غ)',
+      'calendar_details_fat_g': 'الدهون (غ)',
+      'calendar_recipe_name': 'اسم الوصفة',
+      'calendar_recipe_batch_servings': 'عدد الحصص في الوصفة كاملة',
+      'calendar_recipe_servings': 'الحصص المراد تسجيلها',
+      'calendar_recipe_weight': 'الوزن الإجمالي بعد التحضير (غ، اختياري)',
+      'calendar_recipe_weight_per_serving': 'الوزن المحضر لكل حصة',
+      'calendar_recipe_batch': 'القيم الغذائية للوصفة كاملة',
+      'calendar_recipe_per_serving': 'القيم الغذائية لحصة واحدة',
+      'calendar_recipe_overrides':
+          'لبعض الوجبات قيم مخصصة موضحة أدناه. تستخدم الوصفة قيم الأطعمة بدلاً منها ولا تنقل القيم المخصصة.',
+      'calendar_recipe_item_policy':
+          'استخدم قيم الأطعمة المحددة للوصفة. لا يؤدي الحفظ إلى تسجيل الطعام أو حذفه. الوزن المحضر وصفي ولا يغير السعرات.',
+      'calendar_recipe_unknown_weight': 'الوزن غير معروف',
+      'calendar_recipe_invalid':
+          'أدخل اسماً وعدد حصص موجباً حتى 1000 بثلاث منازل عشرية وأكد استخدام قيم الأطعمة. الوزن الاختياري يقبل منزلتين. حدد من 1 إلى 100 طعام.',
+      'calendar_recipe_reselect':
+          'تغيرت الأطعمة المحددة. أغلق وحدد الأطعمة مجدداً.',
+      'calendar_recipe_empty':
+          'لا توجد وصفات أو وجبات مفضلة بعد. حدد أطعمة من وجبة لإنشاء وصفة.',
+      'calendar_item_multiplier': 'مضاعف الحصة',
+      'calendar_item_quantity_help':
+          '1 يبقي الحصة كما هي، و0.5 ينصفها، و2 يضاعفها. تتغير أوزان الطعام والمكونات معاً. قد تكون الحصص الصغيرة جداً أقل من الدقة المدعومة.',
+      'calendar_item_custom': 'إدخال السعرات والمغذيات النهائية يدوياً',
+      'calendar_item_override_help':
+          'لهذه الوجبة قيم غذائية مخصصة. اختر إبقاءها أو استخدام قيم الأطعمة المحدثة للوجبة كاملة.',
+      'calendar_item_clear_overrides': 'إزالة القيم المخصصة للوجبة',
+      'calendar_item_use_items':
+          'ستستخدم التغذية اليومية مجموع قيم الأطعمة المحدثة.',
+      'calendar_item_keep_overrides':
+          'احتفظ بكل القيم المخصصة. تظل المجموعة الكاملة معتمدة في التغذية اليومية حتى بعد تعديل هذا الطعام.',
+      'calendar_item_invalid':
+          'استخدم مضاعفاً موجباً حتى 100 بثلاث منازل عشرية. القيم الغذائية اليدوية أعداد صحيحة من 0 إلى 1,000,000.',
+      'calendar_item_tap': 'اضغط على طعام لتعديل حصته أو قيمه الغذائية.',
+      'calendar_bulk_title': 'إدارة الوجبات',
+      'calendar_food_recipe_help':
+          'أضف وصفة محفوظة أو وجبة مفضلة إلى هذا اليوم.',
+      'calendar_food_manage_help':
+          'انسخ الوجبات أو غيّر وقتها أو أنشئ وصفة أو احذف السجلات.',
+      'calendar_bulk_selected': 'تم تحديد {count}',
+      'calendar_bulk_action': 'اختر الإجراء',
+      'calendar_bulk_confirm_copy': 'نسخ المحدد',
+      'calendar_bulk_confirm_reschedule': 'نقل المحدد',
+      'calendar_bulk_confirm_delete': 'حذف المحدد',
+      'calendar_bulk_items': 'اختيار أطعمة منفردة',
+      'calendar_bulk_all': 'تحديد جميع الوجبات',
+      'calendar_bulk_clear': 'إلغاء التحديد',
+      'calendar_bulk_copy': 'نسخ',
+      'calendar_bulk_reschedule': 'تعديل الوقت',
+      'calendar_bulk_delete': 'حذف',
+      'calendar_bulk_confirm': 'تأكيد التغييرات',
+      'calendar_bulk_retry': 'مراجعة تغييرات الطعام وإعادة المحاولة',
+      'calendar_bulk_saved': 'تم حفظ تغييرات الطعام',
+      'calendar_bulk_unavailable':
+          'الإجراءات الجماعية غير متاحة. أغلق وأعد تحميل اليوم.',
+      'calendar_bulk_bounds':
+          'حدد من 1 إلى 50 وجبة أو طعاماً، بما لا يتجاوز 100 وجبة ناتجة.',
+      'calendar_bulk_whole_time': 'لتعديل الوقت، حدد وجبات كاملة لها وقت مسجل.',
+      'calendar_bulk_override_delete':
+          'لهذه الوجبة قيم غذائية مخصصة. حدد الوجبة كاملة لحذفها.',
+      'calendar_bulk_review':
+          'حدد وجبات أو أطعمة لنسخها إلى تاريخ آخر أو تغيير وقتها أو حفظها كوصفة أو حذفها. ثم اختر الإجراء وراجع التغييرات.',
+      'calendar_bulk_spacing':
+          'تأخذ أول وجبة مؤقتة الوقت المحدد وتحافظ الوجبات الأخرى على الفواصل الزمنية، حتى عبر منتصف الليل أو تغير التوقيت الصيفي. تستخدم النسخ غير المؤقتة الوقت المحدد.',
+      'calendar_bulk_first_time': 'وقت أول وجبة',
+      'calendar_bulk_remove_date': 'إزالة التاريخ',
+      'calendar_bulk_preview': 'مراجعة التغييرات',
+      'calendar_bulk_delete_confirm':
+          'هل تريد حذف الوجبات أو الأطعمة المحددة نهائياً؟ سيُحدّث هذا إجمالي التغذية اليومية ولا يمكن التراجع عنه.',
+      'training_update_pending':
+          'تحديث خطة التدريب قيد الانتظار. هذه خطتك السابقة.',
+      'training_update_failed':
+          'تم حفظ ملفك، لكن تعذّر تحديث خطة التدريب. هذه خطتك السابقة.',
+      'training_update_review':
+          'لم يكتمل تحديث التدريب. يرجى مراجعة خطتك الحالية مع مدربك.',
       'training_update_check': 'متابعة التحديث',
       'welcome_tagline': 'طاقتك، مُتابَعة.',
       'welcome_tagline_sub': 'كل شيء في مكان واحد',
@@ -3339,8 +3713,20 @@ class AppLocalizations {
       "training_calendar_exercises": "تمارين",
       "training_calendar_minutes": "دقيقة",
       "day_timeline_title": "الجدول الزمني لليوم",
+      "timeline_nutrition_title": "التغذية اليومية",
+      "timeline_nutrition_error":
+          "تعذر تحميل التغذية. لا يزال جدولك الزمني متاحاً.",
+      "timeline_nutrition_target": "الهدف",
+      "timeline_nutrition_grams": "غ",
+      "timeline_nutrition_over": "تجاوز الهدف بمقدار {amount} {unit}",
       "day_timeline_load_error": "تعذر تحميل الجدول الزمني لهذا اليوم.",
       "day_timeline_all_day": "ملخص اليوم",
+      'calendar_summary_contents': 'الوجبات والتمارين والأنشطة والنوم',
+      'calendar_summary_meals': 'الوجبات المسجلة',
+      'calendar_summary_planned_meals': 'الوجبات المخطط لها',
+      'calendar_summary_workouts': 'التمارين المكتملة',
+      'calendar_summary_activities': 'الأنشطة المسجلة',
+      'calendar_summary_empty': 'لا توجد سجلات بعد',
       "day_timeline_hourly": "الجدول الزمني بالساعات",
       "day_timeline_no_events": "لم يتم تسجيل وجبات أو تمارين بأوقات محددة.",
       "day_timeline_tap_details": "اضغط على النشاط لعرض التفاصيل الكاملة.",
@@ -3373,6 +3759,61 @@ class AppLocalizations {
       "day_timeline_sleep_save_error": "تعذّر حفظ النوم. حاول مرة أخرى.",
       "day_timeline_add_activity": "إضافة نشاط",
       "day_timeline_set_meal_time": "تحديد وقت الوجبة",
+      "calendar_time_edit": "تعديل التاريخ والوقت",
+      "calendar_time_saved": "تم حفظ وقت الوجبة.",
+      "calendar_copy_title": "نسخ الطعام",
+      "calendar_copy_whole": "نسخ الوجبة كاملة",
+      "calendar_copy_preserve_override":
+          "تحتفظ هذه الخطة بالقيم المعدلة للوجبة الأصلية. لتغيير الأطعمة، انسخ أطعمة محددة دون القيم المعدلة للوجبة كاملة أولاً.",
+      "calendar_copy_today": "نسخ إلى اليوم",
+      "calendar_copy_add_date": "إضافة تاريخ آخر",
+      "calendar_copy_confirm": "تأكيد النسخ",
+      "calendar_copy_saved": "تم نسخ الطعام.",
+      "calendar_copy_retry": "التحقق من النسخ / إعادة المحاولة",
+      "calendar_copy_logged": "تسجيل كوجبة تم تناولها",
+      "calendar_copy_planned": "حفظ كوجبة مخططة",
+      "calendar_copy_source_unchanged": "تبقى الوجبة الأصلية دون تغيير.",
+      "calendar_copy_item_totals":
+          "تُستخدم القيم الغذائية الخاصة بالأطعمة المحددة دون القيم المعدلة للوجبة كاملة.",
+      "calendar_copy_preview_notice":
+          "راجع كل تاريخ قبل التأكيد. لا تُحسب النسخ المخططة ضمن الطعام المتناول حتى تحدد أنك تناولتها.",
+      "calendar_copy_select_food": "اختر من 1 إلى 100 صنف لنسخه.",
+      "calendar_copy_unavailable": "نسخ هذه الوجبة غير متاح حالياً.",
+      "calendar_copy_conflict":
+          "تغير الطعام أو عدد خانات الوجبات المتاحة أو توقيت التخطيط والتناول. أعد التحميل وراجع النسخ قبل التأكيد مجدداً.",
+      "calendar_time_zone": "المنطقة الزمنية",
+      "calendar_time_source_date": "تاريخ التسجيل الحالي: {date}",
+      "calendar_time_choose_zone":
+          "تعذر تحديد المنطقة الزمنية لهاتفك. اختر المنطقة الزمنية الصحيحة للمتابعة.",
+      "calendar_time_dst_gap":
+          "هذا الوقت غير موجود بسبب تغيير الساعة. اختر وقتاً آخر.",
+      "calendar_time_dst_fold":
+          "يتكرر هذا الوقت مرتين. اختر فرق التوقيت عن UTC للوقت المقصود.",
+      "calendar_time_future": "لا يمكن نقل الوجبات المسجلة إلى المستقبل.",
+      "calendar_time_plan_notice":
+          "تبقى هذه الوجبة مخططة حتى تحدد أنك تناولتها.",
+      "calendar_time_meal_notice":
+          "سيتم نقل الوجبة كاملة وقيمها الغذائية إلى التاريخ المحدد. تبقى الوجبات الأخرى كما هي.",
+      "calendar_time_retry": "التحقق من الوقت المحفوظ / إعادة المحاولة",
+      "calendar_time_uncertain":
+          "تعذر تأكيد الحفظ. أعد محاولة التغيير نفسه للتحقق من النتيجة بأمان.",
+      "calendar_time_pending_move":
+          "هناك تغيير في التقويم يحتاج إلى تأكيد. تحقق منه قبل إجراء تغيير آخر.",
+      "calendar_time_pending_diet":
+          "زامن تعديلات الطعام المعلقة لكلا التاريخين قبل تغيير وقت الوجبة.",
+      "calendar_time_online": "اتصل بالإنترنت لنسخ الوجبات أو تغيير موعدها.",
+      "calendar_time_reload": "أعد تحميل الوجبة قبل المحاولة مجدداً.",
+      "calendar_time_reload_button": "إعادة تحميل الوجبة",
+      "calendar_time_conflict":
+          "تغيرت الوجبة أو لا توجد خانة وجبة متاحة في التاريخ المحدد. أعد التحميل وراجع التاريخ قبل الحفظ.",
+      "calendar_time_rejected":
+          "لم يتم قبول تغيير الوقت. أعد تحميل الوجبة وتحقق من التاريخ والوقت والمنطقة الزمنية.",
+      "calendar_time_load_error": "تعذر تحميل تفاصيل وقت الوجبة. حاول مجدداً.",
+      "calendar_time_unavailable": "تعديل الوقت غير متاح لهذه الوجبة حالياً.",
+      "calendar_time_account_changed":
+          "تغير حسابك. أغلق المحرر وافتح التقويم مجدداً.",
+      "calendar_time_storage_error":
+          "تعذر الاحتفاظ بالتغيير لإعادة المحاولة بأمان. لم يتم إرسال شيء. حاول مجدداً.",
       "day_timeline_set_activity_time": "تحديد وقت النشاط",
       "day_timeline_hour": "الساعة (00–23)",
       "day_timeline_minute": "الدقيقة (00–59)",
