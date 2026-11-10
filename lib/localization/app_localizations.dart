@@ -2925,7 +2925,7 @@ class AppLocalizations {
       "dash_calories_goal_title": "Calories burn goal",
       "dash_kcal_per_day": "kcal per day",
       "dash_intro_message":
-          "Get ready and start logging your workouts and caloric intake for the week",
+          "Start logging your workouts and calories this week.",
       "dash_go_to_training": "GO TO TRAINING",
       "dash_go_to_diet": "GO TO DIET",
       "body_card_title": "Body",

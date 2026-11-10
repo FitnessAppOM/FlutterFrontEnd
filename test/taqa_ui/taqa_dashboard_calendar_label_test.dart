@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_dashboard_intro_card.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_streak_tag.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_weekdays_row.dart';
 import 'package:taqaproject/TaqaUI/styles/taqa_ui_scale.dart';
 import 'package:taqaproject/localization/app_localizations.dart';
@@ -40,7 +41,8 @@ void main() {
                 body: Padding(
                   padding: const EdgeInsets.all(20),
                   child: TaqaDashboardIntroCard(
-                  userName: 'Ali',
+                    userName: 'Ali',
+                    streakDays: 7,
                     profilePicture: const ColoredBox(color: Colors.grey),
                     selectedDate: DateTime(2026, 11, 10),
                     todayReference: DateTime(2026, 11, 10),
@@ -59,6 +61,10 @@ void main() {
           arabic ? 'التقويم' : 'Calendar',
         );
         expect(label, findsOneWidget);
+        final content = find.descendant(of: button, matching: find.byType(Row));
+        final streak = tester.getRect(find.byType(TaqaStreakTag));
+        expect(tester.getRect(content).right, closeTo(streak.right, 1));
+        expect(tester.getRect(content).top, greaterThan(streak.bottom));
         expect(
           find.descendant(
             of: button,

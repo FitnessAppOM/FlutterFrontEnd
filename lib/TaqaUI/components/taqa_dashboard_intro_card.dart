@@ -186,7 +186,8 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                         foregroundColor: colors.textPrimary,
                         disabledForegroundColor: colors.textSecondary,
                         minimumSize: const Size(0, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.only(left: 6),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
