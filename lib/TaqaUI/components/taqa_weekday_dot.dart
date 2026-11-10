@@ -47,6 +47,8 @@ class TaqaWeekdayDot extends StatelessWidget {
           SizedBox(height: TaqaUiScale.h(8)),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TaqaUiStyles.weekdayLabel.copyWith(
               color: colors.textPrimary,
             ),

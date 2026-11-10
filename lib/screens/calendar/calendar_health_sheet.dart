@@ -376,7 +376,13 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          t(start ? 'calendar_health_start' : 'calendar_health_end'),
+          t(
+            _isSleep
+                ? (start
+                      ? 'calendar_health_sleep_start'
+                      : 'calendar_health_sleep_end')
+                : (start ? 'calendar_health_start' : 'calendar_health_end'),
+          ),
           style: Theme.of(context).textTheme.titleMedium,
         ),
         Wrap(
@@ -517,6 +523,7 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
                                   'swim',
                                   'hike',
                                   'yoga',
+                                  'weightlifting',
                                   'other',
                                 ])
                         DropdownMenuItem(

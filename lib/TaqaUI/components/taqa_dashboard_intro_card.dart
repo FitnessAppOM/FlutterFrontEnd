@@ -78,14 +78,23 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         );
         final weekdaysWidth = TaqaUiStyles.weekdayTrackWidth * layoutScale;
         final weekdayDotSize = TaqaUiStyles.weekdayDotSize * layoutScale;
-        // The label and gap keep their screen-scaled font metrics even when
-        // the card layout shrinks. Reserve one logical pixel of rounding room
-        // so the weekday Column never overflows by a fractional device pixel.
-        final weekdaysHeight = weekdayDotSize + TaqaUiScale.h(21);
+        // Leave room for the weekday text when system text size is increased.
+        final weekdaysHeight =
+            weekdayDotSize +
+            TaqaUiScale.h(8) +
+            MediaQuery.textScalerOf(
+                  context,
+                ).scale(TaqaUiStyles.weekdayLabel.fontSize ?? 8) *
+                1.5 +
+            1;
         final buttonsTop = TaqaUiScale.h(172) * layoutScale;
         final buttonRowWidth = TaqaUiScale.w(329) * layoutScale;
         final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;
         final streakTagGap = TaqaUiScale.w(8) * layoutScale;
+        final calendarWidth = math.min(
+          cardWidth * .42,
+          TaqaUiScale.w(112) * layoutScale,
+        );
 
         return Align(
           alignment: Alignment.centerLeft,
@@ -149,7 +158,10 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     top: descriptionTop,
                     width: math.min(
                       descriptionWidth,
-                      cardWidth - (leftInset * 2) - TaqaUiScale.w(56),
+                      cardWidth -
+                          (leftInset * 2) -
+                          calendarWidth -
+                          TaqaUiScale.w(8),
                     ),
                     height: descriptionHeight,
                     child: Text(
@@ -167,12 +179,34 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                   Positioned(
                     right: leftInset,
                     top: nameTop + nameHeight,
-                    child: IconButton(
-                      tooltip: t('training_calendar'),
+                    width: calendarWidth,
+                    child: TextButton(
                       onPressed: onCalendarTap,
-                      icon: Icon(
-                        Icons.calendar_month_outlined,
-                        color: colors.textPrimary,
+                      style: TextButton.styleFrom(
+                        foregroundColor: colors.textPrimary,
+                        disabledForegroundColor: colors.textSecondary,
+                        minimumSize: const Size(0, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.calendar_month_outlined, size: 18),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                t('training_calendar'),
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: TaqaUiScale.sp(11) * layoutScale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

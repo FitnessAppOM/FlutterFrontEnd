@@ -123,6 +123,10 @@ void main() {
       await http.runWithClient(
         () async {
           await pump(tester);
+          expect(find.text('Start time'), findsOneWidget);
+          expect(find.text('End time'), findsOneWidget);
+          expect(find.text('Bedtime'), findsNothing);
+          expect(find.text('Wake time'), findsNothing);
           expect(find.text('Timezone'), findsNothing);
           await tester.ensureVisible(find.byType(TextField));
           await tester.enterText(find.byType(TextField), '2.125');
@@ -151,6 +155,10 @@ void main() {
     await http.runWithClient(
       () async {
         await pump(tester, kind: 'sleep');
+        expect(find.text('Bedtime'), findsOneWidget);
+        expect(find.text('Wake time'), findsOneWidget);
+        expect(find.text('Start time'), findsNothing);
+        expect(find.text('End time'), findsNothing);
         await tap(tester, 'Save session');
       },
       () => MockClient((r) async {
@@ -171,6 +179,50 @@ void main() {
       isNull,
     );
   });
+  for (final editing in [false, true]) {
+    testWidgets(
+      'weightlifting can be saved from the activity form, editing: $editing',
+      (tester) async {
+        final session = {
+          ...healthSession(kind: 'activity'),
+          'activity_kind': 'weightlifting',
+        };
+        Map? sent;
+        await http.runWithClient(
+          () async {
+            await pump(tester, session: editing ? session : null);
+            if (!editing) {
+              await tester.tap(
+                find.byType(DropdownButtonFormField<String>).first,
+              );
+              await tester.pumpAndSettle();
+              await tester.ensureVisible(find.text('Weightlifting').last);
+              await tester.tap(find.text('Weightlifting').last);
+              await tester.pumpAndSettle();
+            }
+            expect(find.text('Weightlifting'), findsOneWidget);
+            await tap(tester, 'Save session');
+          },
+          () => MockClient((r) async {
+            if (r.method == 'GET') {
+              return http.Response(
+                jsonEncode(healthDay(sessions: editing ? [session] : [])),
+                200,
+              );
+            }
+            sent = jsonDecode(r.body) as Map;
+            return healthCommitted(r);
+          }),
+        );
+        expect(sent!['action'], editing ? 'update' : 'create');
+        expect(sent!['session']['activity_kind'], 'weightlifting');
+        expect(sent!['session']['kind'], 'activity');
+        expect(sent!['session'].containsKey('sleep_kind'), false);
+        expect(sent!['session'].containsKey('program_id'), false);
+      },
+    );
+  }
+
   testWidgets('edit loads latest revision and delete requires confirmation', (
     tester,
   ) async {

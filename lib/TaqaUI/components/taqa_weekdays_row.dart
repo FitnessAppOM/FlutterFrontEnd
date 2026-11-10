@@ -135,7 +135,7 @@ class _TaqaWeekdaysRowState extends State<TaqaWeekdaysRow> {
                         ? null
                         : () => widget.onDateTap!(dayDate),
                   );
-                  return dot;
+                  return Expanded(child: dot);
                 }),
               );
             },
