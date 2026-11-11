@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'calendar_action_style.dart';
 import 'package:intl/intl.dart';
 
-import '../../TaqaUI/Typography/taqa_ui_typography.dart';
-import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_calendar_ui.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
@@ -350,10 +349,8 @@ class _CalendarPageState extends State<CalendarPage> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: TaqaUiScale.insetsLTRB(20, 12, 20, 28),
             children: [
-              _buildMonthHeader(context),
-              SizedBox(height: TaqaUiScale.h(12)),
               _buildCalendar(context),
-              SizedBox(height: TaqaUiScale.h(18)),
+              SizedBox(height: TaqaUiScale.h(14)),
               _buildLegend(context),
               SizedBox(height: TaqaUiScale.h(18)),
               _buildSelectedDay(context),
@@ -364,72 +361,8 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _buildMonthHeader(BuildContext context) {
-    final t = AppLocalizations.of(context);
-    final colors = context.taqaColors;
-    return Row(
-      children: [
-        IconButton(
-          onPressed: _loading ? null : () => _changeMonth(-1),
-          tooltip: t.translate('training_calendar_previous_month'),
-          icon: const Icon(Icons.chevron_left),
-          color: colors.textPrimary,
-        ),
-        Expanded(
-          child: Text(
-            DateFormat.yMMMM(t.locale.languageCode).format(_visibleMonth),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: TaqaUiFontFamilies.interTight,
-              color: colors.textPrimary,
-              fontSize: TaqaUiScale.sp(21),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        IconButton(
-          onPressed: _loading ? null : () => _changeMonth(1),
-          tooltip: t.translate('training_calendar_next_month'),
-          icon: const Icon(Icons.chevron_right),
-          color: colors.textPrimary,
-        ),
-      ],
-    );
-  }
-
   Widget _buildCalendar(BuildContext context) {
     final t = AppLocalizations.of(context);
-    final colors = context.taqaColors;
-    if (_loading) {
-      return SizedBox(
-        height: TaqaUiScale.h(310),
-        child: Center(child: CircularProgressIndicator(color: colors.accent)),
-      );
-    }
-    if (_error != null) {
-      return SizedBox(
-        height: TaqaUiScale.h(260),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary),
-              ),
-              const SizedBox(height: 10),
-              TextButton(
-                style: calendarActionStyle(context),
-                onPressed: _loadMonth,
-                child: Text(t.translate('generating_retry')),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
     final first = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
     final daysInMonth = DateTime(
       _visibleMonth.year,
@@ -443,57 +376,28 @@ class _CalendarPageState extends State<CalendarPage> {
       final monday = addCalendarDays(DateTime(2024, 1, 1), index);
       return DateFormat.E(t.locale.languageCode).format(monday);
     });
+    final days = List<TaqaCalendarDayData>.generate(
+      cellCount,
+      (index) => _calendarDayData(context, addCalendarDays(gridStart, index)),
+    );
 
-    return Container(
-      padding: TaqaUiScale.insetsLTRB(10, 14, 10, 12),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: TaqaUiScale.radius(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: weekdayLabels
-                .map(
-                  (label) => Expanded(
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: TaqaUiScale.sp(10),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
-          SizedBox(height: TaqaUiScale.h(8)),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cellCount,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 7,
-              mainAxisExtent:
-                  (MediaQuery.textScalerOf(context).scale(TaqaUiScale.sp(12)) *
-                              1.5 +
-                          20)
-                      .clamp(48.0, 120.0),
-            ),
-            itemBuilder: (context, index) {
-              final date = addCalendarDays(gridStart, index);
-              return _buildDayCell(context, date);
-            },
-          ),
-        ],
-      ),
+    return TaqaCalendarMonthCard(
+      monthLabel: DateFormat.yMMMM(t.locale.languageCode).format(_visibleMonth),
+      weekdayLabels: weekdayLabels,
+      days: days,
+      loading: _loading,
+      error: _error,
+      retryLabel: t.translate('generating_retry'),
+      previousMonthTooltip: t.translate('training_calendar_previous_month'),
+      nextMonthTooltip: t.translate('training_calendar_next_month'),
+      onPreviousMonth: () => _changeMonth(-1),
+      onNextMonth: () => _changeMonth(1),
+      onRetry: _loadMonth,
+      onDayTap: _selectCalendarDate,
     );
   }
 
-  Widget _buildDayCell(BuildContext context, DateTime rawDate) {
+  TaqaCalendarDayData _calendarDayData(BuildContext context, DateTime rawDate) {
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
     final date = _day(rawDate);
@@ -513,35 +417,13 @@ class _CalendarPageState extends State<CalendarPage> {
     final hasDailyActivity =
         _hasDailyActivity(metrics) ||
         ((_healthDays[date]?['activity_count'] as num?) ?? 0) > 0;
-    final dots = <Color>[
-      if (hasStrength) TaqaUiColors.calendarStrength,
-      if (hasCardio) TaqaUiColors.calendarCardio,
-      if (!hasStrength && entry?.isTraining == true) colors.accent,
-      if (entry?.isRest == true) colors.textSecondary,
-      if (hasMeals) TaqaUiColors.calendarMeal,
-      if (hasPlannedMeals && !hasMeals) TaqaUiColors.calendarMeal,
-      if (hasSleep) TaqaUiColors.calendarSleep,
-      if (hasDailyActivity) TaqaUiColors.calendarActivity,
-    ];
-    void selectDate() {
-      if (!inMonth) {
-        _changeMonth(
-          date.isBefore(DateTime(_visibleMonth.year, _visibleMonth.month))
-              ? -1
-              : 1,
-          selected: date,
-        );
-      } else {
-        setState(() => _selectedDate = date);
-        unawaited(_loadSelectedHealth());
-      }
-    }
 
-    return Semantics(
-      button: true,
+    return TaqaCalendarDayData(
+      date: date,
+      inVisibleMonth: inMonth,
       selected: selected,
-      onTap: selectDate,
-      label: [
+      today: isToday,
+      semanticsLabel: [
         DateFormat.yMMMMEEEEd(t.locale.languageCode).format(date),
         if (isToday) t.translate('training_calendar_today'),
         if (hasStrength) t.translate('training_workout'),
@@ -551,101 +433,64 @@ class _CalendarPageState extends State<CalendarPage> {
         if (hasSleep) t.translate('training_calendar_sleep'),
         if (hasDailyActivity) t.translate('training_calendar_daily_activity'),
       ].join(', '),
-      excludeSemantics: true,
-      child: InkWell(
-        borderRadius: TaqaUiScale.radius(12),
-        onTap: selectDate,
-        child: Container(
-          margin: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: selected ? colors.accent : Colors.transparent,
-            borderRadius: TaqaUiScale.radius(12),
-            border: isToday && !selected
-                ? Border.all(color: colors.accent, width: 1.5)
-                : null,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  '${date.day}',
-                  maxLines: 1,
-                  softWrap: false,
-                  style: TextStyle(
-                    color: selected
-                        ? colors.onAccent
-                        : inMonth
-                        ? colors.textPrimary
-                        : colors.textSecondary.withValues(alpha: 0.38),
-                    fontSize: TaqaUiScale.sp(12),
-                    fontWeight: isToday || selected
-                        ? FontWeight.w800
-                        : FontWeight.w500,
-                  ),
-                ),
-              ),
-              SizedBox(height: TaqaUiScale.h(4)),
-              SizedBox(
-                height: TaqaUiScale.h(5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: dots
-                      .take(6)
-                      .map(
-                        (color) => Container(
-                          width: TaqaUiScale.w(3.5),
-                          height: TaqaUiScale.w(3.5),
-                          margin: const EdgeInsets.symmetric(horizontal: 0.7),
-                          decoration: BoxDecoration(
-                            color: selected ? colors.onAccent : color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      indicatorColors: [
+        if (hasStrength) TaqaUiColors.calendarStrength,
+        if (hasCardio) TaqaUiColors.calendarCardio,
+        if (!hasStrength && entry?.isTraining == true) colors.accent,
+        if (entry?.isRest == true) colors.textSecondary,
+        if (hasMeals || hasPlannedMeals) TaqaUiColors.calendarMeal,
+        if (hasSleep) TaqaUiColors.calendarSleep,
+        if (hasDailyActivity) TaqaUiColors.calendarActivity,
+      ],
     );
+  }
+
+  void _selectCalendarDate(DateTime rawDate) {
+    final date = _day(rawDate);
+    final inMonth = date.month == _visibleMonth.month;
+    if (!inMonth) {
+      _changeMonth(
+        date.isBefore(DateTime(_visibleMonth.year, _visibleMonth.month))
+            ? -1
+            : 1,
+        selected: date,
+      );
+      return;
+    }
+    setState(() => _selectedDate = date);
+    unawaited(_loadSelectedHealth());
   }
 
   Widget _buildLegend(BuildContext context) {
     final t = AppLocalizations.of(context);
     final colors = context.taqaColors;
-    return Wrap(
-      spacing: TaqaUiScale.w(14),
-      runSpacing: TaqaUiScale.h(8),
-      children: [
-        _LegendItem(
+    return TaqaCalendarLegend(
+      items: [
+        TaqaCalendarLegendItem(
           color: TaqaUiColors.calendarStrength,
           label: t.translate('training_completed'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: TaqaUiColors.calendarCardio,
           label: t.translate('training_calendar_cardio'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: colors.accent,
           label: t.translate('training_calendar_planned'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: colors.textSecondary,
           label: t.translate('training_calendar_rest_day'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: TaqaUiColors.calendarMeal,
           label: t.translate('training_calendar_meals'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: TaqaUiColors.calendarSleep,
           label: t.translate('training_calendar_sleep'),
         ),
-        _LegendItem(
+        TaqaCalendarLegendItem(
           color: TaqaUiColors.calendarActivity,
           label: t.translate('training_calendar_daily_activity'),
         ),
@@ -665,13 +510,13 @@ class _CalendarPageState extends State<CalendarPage> {
     final programDay = _programDayFor(entry);
     final today = _day(DateTime.now());
     final isPast = _selectedDate.isBefore(today);
-    final items = <_DaySummaryItem>[];
+    final items = <TaqaCalendarSummaryItem>[];
     final manualCount =
         ((_healthDays[_selectedDate]?['activity_count'] as num?) ?? 0) +
         ((_healthDays[_selectedDate]?['sleep_count'] as num?) ?? 0);
     if (manualCount > 0) {
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.history,
           color: TaqaUiColors.calendarActivity,
           title: t.translate('calendar_health_count'),
@@ -681,7 +526,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
     for (final row in strength) {
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.fitness_center,
           color: TaqaUiColors.calendarStrength,
           title: row['label']?.toString() ?? t.translate('training_workout'),
@@ -695,7 +540,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ? (row['duration_seconds'] as num).toInt()
           : 0;
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.directions_run,
           color: TaqaUiColors.calendarCardio,
           title:
@@ -709,7 +554,7 @@ class _CalendarPageState extends State<CalendarPage> {
     }
     if (strength.isEmpty && entry != null) {
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: entry.isRest ? Icons.hotel_outlined : Icons.event_available,
           color: entry.isRest ? colors.textSecondary : colors.accent,
           title: entry.isRest
@@ -739,7 +584,7 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       }
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.restaurant_outlined,
           color: TaqaUiColors.calendarMeal,
           title: t.translate('training_calendar_meals'),
@@ -755,7 +600,7 @@ class _CalendarPageState extends State<CalendarPage> {
       final hours = sleepMinutes ~/ 60;
       final minutes = sleepMinutes % 60;
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.bed_outlined,
           color: colors.textPrimary,
           title: t.translate('training_calendar_sleep'),
@@ -790,7 +635,7 @@ class _CalendarPageState extends State<CalendarPage> {
         );
       }
       items.add(
-        _DaySummaryItem(
+        TaqaCalendarSummaryItem(
           icon: Icons.directions_walk,
           color: TaqaUiColors.calendarActivity,
           title: t.translate('training_calendar_daily_activity'),
@@ -799,44 +644,16 @@ class _CalendarPageState extends State<CalendarPage> {
       );
     }
 
-    return Container(
-      padding: TaqaUiScale.insetsLTRB(16, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: TaqaUiScale.radius(16),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            DateFormat.yMMMMEEEEd(t.locale.languageCode).format(_selectedDate),
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: TaqaUiScale.sp(16),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          SizedBox(height: TaqaUiScale.h(14)),
-          if (items.isEmpty)
-            Padding(
-              padding: EdgeInsets.only(bottom: TaqaUiScale.h(14)),
-              child: Text(
-                t.translate('training_calendar_no_activity'),
-                style: TextStyle(color: colors.textSecondary),
-              ),
-            )
-          else
-            ...items.map((item) => _DaySummaryRow(item: item)),
-          SizedBox(height: TaqaUiScale.h(10)),
-          TaqaFilledButton(
-            label: isPast
-                ? t.translate('calendar_modify_your_day')
-                : t.translate('calendar_plan_your_day'),
-            onTap: () => unawaited(_openDayTimeline(_selectedDate)),
-          ),
-        ],
-      ),
+    return TaqaCalendarDaySummaryCard(
+      dateLabel: DateFormat.yMMMMEEEEd(
+        t.locale.languageCode,
+      ).format(_selectedDate),
+      items: items,
+      emptyLabel: t.translate('training_calendar_no_activity'),
+      actionLabel: isPast
+          ? t.translate('calendar_modify_your_day')
+          : t.translate('calendar_plan_your_day'),
+      onAction: () => unawaited(_openDayTimeline(_selectedDate)),
     );
   }
 
@@ -854,95 +671,5 @@ class _CalendarPageState extends State<CalendarPage> {
         (metrics.activeMinutes ?? 0) > 0 ||
         (metrics.workoutMinutes ?? 0) > 0 ||
         (metrics.calories ?? 0) > 0;
-  }
-}
-
-class _LegendItem extends StatelessWidget {
-  const _LegendItem({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.taqaColors;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: TextStyle(color: colors.textSecondary, fontSize: 11),
-        ),
-      ],
-    );
-  }
-}
-
-class _DaySummaryItem {
-  const _DaySummaryItem({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-}
-
-class _DaySummaryRow extends StatelessWidget {
-  const _DaySummaryRow({required this.item});
-
-  final _DaySummaryItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.taqaColors;
-    return Padding(
-      padding: EdgeInsets.only(bottom: TaqaUiScale.h(10)),
-      child: Row(
-        children: [
-          Container(
-            width: TaqaUiScale.w(38),
-            height: TaqaUiScale.w(38),
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.14),
-              borderRadius: TaqaUiScale.radius(10),
-            ),
-            child: Icon(item.icon, color: item.color, size: 19),
-          ),
-          SizedBox(width: TaqaUiScale.w(11)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  item.subtitle,
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: TaqaUiScale.sp(11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
