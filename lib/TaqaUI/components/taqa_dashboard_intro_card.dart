@@ -6,6 +6,7 @@ import '../taqa_ui_colors.dart';
 import '../styles/taqa_ui_scale.dart';
 import '../styles/taqa_ui_styles.dart';
 import 'taqa_adaptive_name_text.dart';
+import 'taqa_dashboard_calendar_tag.dart';
 import 'taqa_intro_actions_row.dart';
 import 'taqa_profile_avatar.dart';
 import 'taqa_streak_tag.dart';
@@ -92,8 +93,8 @@ class TaqaDashboardIntroCard extends StatelessWidget {
         final buttonHeight = TaqaUiStyles.actionButtonHeight * layoutScale;
         final streakTagGap = TaqaUiScale.w(8) * layoutScale;
         final calendarWidth = math.min(
-          cardWidth * .42,
-          TaqaUiScale.w(112) * layoutScale,
+          cardWidth * .36,
+          TaqaUiScale.w(92) * layoutScale,
         );
 
         return Align(
@@ -180,35 +181,10 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                     right: leftInset,
                     top: nameTop + nameHeight,
                     width: calendarWidth,
-                    child: TextButton(
-                      onPressed: onCalendarTap,
-                      style: TextButton.styleFrom(
-                        foregroundColor: colors.textPrimary,
-                        disabledForegroundColor: colors.textSecondary,
-                        minimumSize: const Size(0, 48),
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(left: 6),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.calendar_month_outlined, size: 18),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                t('training_calendar'),
-                                maxLines: 1,
-                                style: TextStyle(
-                                  fontSize: TaqaUiScale.sp(11) * layoutScale,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    child: TaqaDashboardCalendarTag(
+                      label: t('training_calendar'),
+                      width: calendarWidth,
+                      onTap: onCalendarTap,
                     ),
                   ),
                   Positioned(

@@ -48,11 +48,13 @@ class TaqaOutlineTagButton extends StatelessWidget {
             children: [
               icon!,
               const SizedBox(width: 4),
-              Text(
-                taqaUppercase(label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: resolvedTextStyle,
+              Flexible(
+                child: Text(
+                  taqaUppercase(label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: resolvedTextStyle,
+                ),
               ),
             ],
           );

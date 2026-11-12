@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_dashboard_calendar_tag.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_dashboard_intro_card.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_streak_tag.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_weekdays_row.dart';
@@ -55,16 +56,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final label = find.text(arabic ? 'التقويم' : 'Calendar');
-        final button = find.widgetWithText(
-          TextButton,
-          arabic ? 'التقويم' : 'Calendar',
-        );
+        final label = find.text(arabic ? 'التقويم' : 'CALENDAR');
+        final button = find.byType(TaqaDashboardCalendarTag);
         expect(label, findsOneWidget);
-        final content = find.descendant(of: button, matching: find.byType(Row));
         final streak = tester.getRect(find.byType(TaqaStreakTag));
-        expect(tester.getRect(content).right, closeTo(streak.right, 1));
-        expect(tester.getRect(content).top, greaterThan(streak.bottom));
+        final calendar = tester.getRect(button);
+        expect(calendar.right, closeTo(streak.right, 1));
+        expect(calendar.top, greaterThan(streak.bottom));
+        expect(calendar.height, closeTo(streak.height, 1));
         expect(
           find.descendant(
             of: button,
