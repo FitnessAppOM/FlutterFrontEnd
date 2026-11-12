@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_calendar_icon.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_popup_guard.dart';
 import '../../TaqaUI/components/taqa_timeline.dart';
@@ -32,6 +33,7 @@ import 'calendar_details_sheet.dart';
 import 'calendar_health_sheet.dart';
 import 'calendar_health_banner.dart';
 import '../../services/calendar/calendar_health_api.dart';
+import '../../services/calendar/calendar_activity_types.dart';
 import '../../services/calendar/calendar_time_zone.dart';
 import '../../services/calendar/calendar_food_commands.dart';
 
@@ -145,13 +147,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
               for (final kind in ['food', 'activity', 'sleep'])
                 ListTile(
                   title: Text(t.translate('calendar_health_$kind')),
-                  leading: Icon(
-                    kind == 'food'
-                        ? Icons.restaurant
-                        : kind == 'activity'
-                        ? Icons.directions_walk
-                        : Icons.bedtime_outlined,
-                  ),
+                  leading: TaqaCalendarIcon(kind: kind),
                   onTap: () => Navigator.pop(context, kind),
                 ),
             ],
@@ -1037,17 +1033,25 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         anchor,
         TaqaTimelineSummaryCard(
           icon: asleep ? Icons.bedtime_outlined : Icons.directions_walk,
+          iconWidget: TaqaCalendarIcon(
+            kind: asleep ? 'sleep' : 'activity',
+            activityKind: row['activity_kind'] as String?,
+            color: asleep
+                ? TaqaUiColors.calendarSleep
+                : TaqaUiColors.calendarActivity,
+          ),
           color: asleep
               ? TaqaUiColors.calendarSleep
               : TaqaUiColors.calendarActivity,
-          title:
-              '${t.translate('calendar_health_manual')} · ${t.translate('calendar_health_${asleep ? row['sleep_kind'] : row['activity_kind']}')}',
+          title: t.translate(
+            'calendar_health_${asleep ? row['sleep_kind'] : row['activity_kind']}',
+          ),
           value: _durationLabel(
             context,
             ((row['duration_seconds'] as num) / 60).round(),
           ),
           detail:
-              '${DateFormat.MMMd(t.locale.languageCode).add_jm().format(start)} → ${DateFormat.MMMd(t.locale.languageCode).add_jm().format(end)} (${row['timezone']})${row['distance_km'] == null ? '' : '\n${row['distance_km']} ${t.translate('calendar_health_km')}'}',
+              '${DateFormat.MMMd(t.locale.languageCode).add_jm().format(start)} → ${DateFormat.MMMd(t.locale.languageCode).add_jm().format(end)} (${row['timezone']})${!calendarActivityHasDistance(row['activity_kind'] as String?) || row['distance_km'] == null ? '' : '\n${row['distance_km']} ${t.translate('calendar_health_km')}'}',
           onEdit: (row['capabilities'] as List).contains('update')
               ? () => _openHealth(kind: row['kind'] as String, session: row)
               : null,
@@ -1064,6 +1068,9 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         plannedActivityTime,
         TaqaTimelineEventCard(
           icon: isRest ? Icons.hotel_outlined : Icons.fitness_center,
+          iconWidget: isRest
+              ? null
+              : TaqaCalendarIcon(kind: 'training', color: colors.accent),
           color: isRest ? colors.textSecondary : colors.accent,
           title: isRest
               ? t.translate('training_calendar_rest_day')
@@ -1138,6 +1145,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         SizedBox(height: TaqaUiScale.h(12)),
         TaqaFilledButton(
           label: t.translate('day_timeline_log_food'),
+          icon: const TaqaCalendarIcon(kind: 'food'),
           onTap: _savingMeal || _bulkOpening ? null : _addMeal,
           loading: _savingMeal,
         ),
@@ -1148,23 +1156,31 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
             child: Text(t.translate('calendar_health_load_error')),
           ),
         if (_health != null && _canLogSleep)
-          Wrap(
-            spacing: 12,
+          Column(
             children: [
-              TextButton.icon(
-                style: calendarActionStyle(context),
-                onPressed: () => _openHealth(kind: 'activity'),
-                icon: const Icon(Icons.directions_walk),
-                label: Text(t.translate('calendar_health_activity')),
+              SizedBox(height: TaqaUiScale.h(10)),
+              TaqaFilledButton(
+                onTap: () => _openHealth(kind: 'activity'),
+                icon: const TaqaCalendarIcon(kind: 'activity'),
+                label: t.translate('calendar_health_activity'),
               ),
-              TextButton.icon(
-                style: calendarActionStyle(context),
-                onPressed: () => _openHealth(kind: 'sleep'),
-                icon: const Icon(Icons.bedtime_outlined),
-                label: Text(t.translate('calendar_health_sleep')),
+              SizedBox(height: TaqaUiScale.h(10)),
+              TaqaFilledButton(
+                onTap: () => _openHealth(kind: 'sleep'),
+                icon: const TaqaCalendarIcon(kind: 'sleep'),
+                label: t.translate('calendar_health_sleep'),
               ),
             ],
           ),
+        if (_canEditTraining && data.plannedActivity == null) ...[
+          SizedBox(height: TaqaUiScale.h(10)),
+          TaqaFilledButton(
+            label: t.translate('calendar_health_schedule'),
+            icon: const TaqaCalendarIcon(kind: 'training'),
+            onTap: _savingActivity ? null : _addOrChangeActivity,
+            loading: _savingActivity,
+          ),
+        ],
         SizedBox(height: TaqaUiScale.h(18)),
         TimelineNutritionHeader(date: _date, refreshRevision: _loadRequest),
         if (_canLogLegacySleep) ...[
@@ -1189,14 +1205,6 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
           ),
         ),
         SizedBox(height: TaqaUiScale.h(10)),
-        if (_canEditTraining && data.plannedActivity == null) ...[
-          SizedBox(height: TaqaUiScale.h(10)),
-          TaqaFilledButton(
-            label: t.translate('calendar_health_schedule'),
-            onTap: _savingActivity ? null : _addOrChangeActivity,
-            loading: _savingActivity,
-          ),
-        ],
         SizedBox(height: TaqaUiScale.h(4)),
         Text(
           data.events.isEmpty && (_health?['sessions'] as List? ?? []).isEmpty
@@ -1240,10 +1248,16 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
         .toList();
     String count(int value) =>
         NumberFormat.decimalPattern(t.locale.languageCode).format(value);
-    void addEvents(String label, IconData icon, List<DayTimelineEvent> events) {
+    void addEvents(
+      String label,
+      IconData icon,
+      List<DayTimelineEvent> events,
+      String kind,
+    ) {
       cards.add(
         TaqaTimelineSummaryCard(
           icon: icon,
+          iconWidget: TaqaCalendarIcon(kind: kind, color: colors.textPrimary),
           color: colors.textPrimary,
           title: t.translate(label),
           value: count(events.length),
@@ -1254,15 +1268,21 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       );
     }
 
-    addEvents('calendar_summary_meals', Icons.restaurant, meals);
+    addEvents('calendar_summary_meals', Icons.restaurant, meals, 'food');
     if (plannedMeals.isNotEmpty) {
       addEvents(
         'calendar_summary_planned_meals',
         Icons.restaurant_menu,
         plannedMeals,
+        'food',
       );
     }
-    addEvents('calendar_summary_workouts', Icons.fitness_center, workouts);
+    addEvents(
+      'calendar_summary_workouts',
+      Icons.fitness_center,
+      workouts,
+      'training',
+    );
     if (plan != null) {
       final isRest = plan['schedule_type'] == 'rest';
       cards.add(
@@ -1491,6 +1511,11 @@ class _TimelineEventContent extends StatelessWidget {
     final color = _color();
     return TaqaTimelineEventCard(
       icon: _icon(),
+      iconWidget: event.type == 'meal' || event.type == 'planned_meal'
+          ? TaqaCalendarIcon(kind: 'food', color: color)
+          : event.type == 'strength'
+          ? TaqaCalendarIcon(kind: 'training', color: color)
+          : null,
       color: color,
       title: event.title,
       subtitle: _subtitle(context),

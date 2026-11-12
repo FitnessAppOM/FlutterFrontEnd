@@ -6,11 +6,13 @@ import 'package:intl/intl.dart';
 
 import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
+import '../../TaqaUI/components/taqa_calendar_icon.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/styles/taqa_ui_scale.dart';
 import '../../TaqaUI/taqa_ui_colors.dart';
 import '../../core/account_storage.dart';
 import '../../localization/app_localizations.dart';
+import '../../services/calendar/calendar_activity_types.dart';
 import '../../services/diet/diet_calendar_service.dart';
 import '../../services/calendar/calendar_source_loader.dart';
 import '../../services/calendar/calendar_health_api.dart';
@@ -666,16 +668,40 @@ class _CalendarPageState extends State<CalendarPage> {
     final today = _day(DateTime.now());
     final isPast = _selectedDate.isBefore(today);
     final items = <_DaySummaryItem>[];
-    final manualCount =
-        ((_healthDays[_selectedDate]?['activity_count'] as num?) ?? 0) +
-        ((_healthDays[_selectedDate]?['sleep_count'] as num?) ?? 0);
-    if (manualCount > 0) {
+    final activityCount =
+        (_healthDays[_selectedDate]?['activity_count'] as num?) ?? 0;
+    final sessions = _selectedHealth?['sessions'] as List?;
+    if (sessions != null) {
+      for (final session in sessions.where((s) => s['kind'] == 'activity')) {
+        final activityKind = session['activity_kind'] as String;
+        final totalMinutes = (session['duration_seconds'] as num).toInt() ~/ 60;
+        final hours = totalMinutes ~/ 60;
+        final minutes = totalMinutes % 60;
+        final duration = hours == 0
+            ? '$minutes${t.translate('training_calendar_minutes_short')}'
+            : '$hours${t.translate('training_calendar_hours_short')} $minutes${t.translate('training_calendar_minutes_short')}';
+        items.add(
+          _DaySummaryItem(
+            icon: Icons.directions_walk,
+            iconWidget: TaqaCalendarIcon(
+              kind: 'activity',
+              activityKind: activityKind,
+              color: TaqaUiColors.calendarActivity,
+            ),
+            color: TaqaUiColors.calendarActivity,
+            title: t.translate('calendar_health_$activityKind'),
+            subtitle:
+                '$duration${!calendarActivityHasDistance(activityKind) || session['distance_km'] == null ? '' : ' · ${session['distance_km']} ${t.translate('calendar_health_km')}'}',
+          ),
+        );
+      }
+    } else if (activityCount > 0) {
       items.add(
         _DaySummaryItem(
-          icon: Icons.history,
+          icon: Icons.directions_walk,
           color: TaqaUiColors.calendarActivity,
-          title: t.translate('calendar_health_count'),
-          subtitle: '$manualCount',
+          title: t.translate('calendar_summary_activities'),
+          subtitle: '$activityCount',
         ),
       );
     }
@@ -683,6 +709,10 @@ class _CalendarPageState extends State<CalendarPage> {
       items.add(
         _DaySummaryItem(
           icon: Icons.fitness_center,
+          iconWidget: TaqaCalendarIcon(
+            kind: 'training',
+            color: TaqaUiColors.calendarStrength,
+          ),
           color: TaqaUiColors.calendarStrength,
           title: row['label']?.toString() ?? t.translate('training_workout'),
           subtitle:
@@ -741,6 +771,10 @@ class _CalendarPageState extends State<CalendarPage> {
       items.add(
         _DaySummaryItem(
           icon: Icons.restaurant_outlined,
+          iconWidget: TaqaCalendarIcon(
+            kind: 'food',
+            color: TaqaUiColors.calendarMeal,
+          ),
           color: TaqaUiColors.calendarMeal,
           title: t.translate('training_calendar_meals'),
           subtitle: mealParts.join(' · '),
@@ -890,12 +924,14 @@ class _DaySummaryItem {
     required this.color,
     required this.title,
     required this.subtitle,
+    this.iconWidget,
   });
 
   final IconData icon;
   final Color color;
   final String title;
   final String subtitle;
+  final Widget? iconWidget;
 }
 
 class _DaySummaryRow extends StatelessWidget {
@@ -917,7 +953,11 @@ class _DaySummaryRow extends StatelessWidget {
               color: item.color.withValues(alpha: 0.14),
               borderRadius: TaqaUiScale.radius(10),
             ),
-            child: Icon(item.icon, color: item.color, size: 19),
+            child: Center(
+              child:
+                  item.iconWidget ??
+                  Icon(item.icon, color: item.color, size: 19),
+            ),
           ),
           SizedBox(width: TaqaUiScale.w(11)),
           Expanded(

@@ -13,6 +13,7 @@ class TaqaFilledButton extends StatelessWidget {
     this.height = 48,
     this.fontSize = 11,
     this.fontWeight = FontWeight.w700,
+    this.icon,
   });
 
   final String label;
@@ -21,11 +22,23 @@ class TaqaFilledButton extends StatelessWidget {
   final double height;
   final double fontSize;
   final FontWeight fontWeight;
+  final Widget? icon;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.taqaColors;
     final disabled = onTap == null || loading;
+    final text = Text(
+      taqaUppercase(label),
+      style: TextStyle(
+        fontFamily: TaqaUiFontFamilies.interTight,
+        fontSize: TaqaUiScale.sp(fontSize),
+        fontWeight: fontWeight,
+        height: 12 / fontSize,
+        letterSpacing: 0,
+        color: colors.onAccent,
+      ),
+    );
     return Material(
       color: disabled ? colors.accent.withValues(alpha: 0.4) : colors.accent,
       borderRadius: TaqaUiScale.radius(5),
@@ -45,15 +58,25 @@ class TaqaFilledButton extends StatelessWidget {
                       color: colors.onAccent,
                     ),
                   )
-                : Text(
-                    taqaUppercase(label),
-                    style: TextStyle(
-                      fontFamily: TaqaUiFontFamilies.interTight,
-                      fontSize: TaqaUiScale.sp(fontSize),
-                      fontWeight: fontWeight,
-                      height: 12 / fontSize,
-                      letterSpacing: 0,
-                      color: colors.onAccent,
+                : icon == null
+                ? text
+                : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (icon != null) ...[
+                          IconTheme.merge(
+                            data: IconThemeData(
+                              color: colors.onAccent,
+                              size: 18,
+                            ),
+                            child: icon!,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        Flexible(child: text),
+                      ],
                     ),
                   ),
           ),

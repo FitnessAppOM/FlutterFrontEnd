@@ -6,6 +6,7 @@ import '../../localization/app_localizations.dart';
 import '../../services/calendar/calendar_food_commands.dart';
 import '../../services/calendar/calendar_health_api.dart';
 import '../../services/calendar/calendar_time_zone.dart';
+import '../../services/calendar/calendar_activity_types.dart';
 
 Future<bool?> showCalendarHealth(
   BuildContext context, {
@@ -60,6 +61,7 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
   bool _manualZone = false;
   String t(String key) => AppLocalizations.of(context).translate(key);
   bool get _isSleep => widget.kind == 'sleep';
+  bool get _hasDistance => !_isSleep && calendarActivityHasDistance(_activity);
 
   @override
   void initState() {
@@ -264,13 +266,15 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
     if (seconds < 60 || seconds > 86400 || end.isAfter(DateTime.now())) {
       return null;
     }
-    var distance = _distance.text.trim().replaceAll('٫', '.');
+    var distance = _hasDistance
+        ? _distance.text.trim().replaceAll('٫', '.')
+        : '';
     for (var digit = 0; digit < 10; digit++) {
       distance = distance
           .replaceAll('٠١٢٣٤٥٦٧٨٩'[digit], '$digit')
           .replaceAll('۰۱۲۳۴۵۶۷۸۹'[digit], '$digit');
     }
-    if (!_isSleep &&
+    if (_hasDistance &&
         distance.isNotEmpty &&
         (!RegExp(r'^\d+(\.\d{1,3})?$').hasMatch(distance) ||
             double.tryParse(distance) == null ||
@@ -292,7 +296,7 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
       'timezone': _zone,
       if (_isSleep) 'sleep_kind': _sleep,
       if (!_isSleep) 'activity_kind': _activity,
-      if (!_isSleep && distance.isNotEmpty) 'distance_km': distance,
+      if (_hasDistance && distance.isNotEmpty) 'distance_km': distance,
     };
   }
 
@@ -538,6 +542,7 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
                               _sleep = v!;
                             } else {
                               _activity = v!;
+                              if (!_hasDistance) _distance.clear();
                             }
                           }),
                   ),
@@ -581,7 +586,7 @@ class _CalendarHealthSheetState extends State<CalendarHealthSheet> {
                       children: [_timeFields(true), _timeFields(false)],
                     ),
                   ),
-                  if (!_isSleep)
+                  if (_hasDistance)
                     TextField(
                       controller: _distance,
                       enabled: !_saving,

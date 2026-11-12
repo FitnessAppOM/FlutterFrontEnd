@@ -21,6 +21,7 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
     required this.value,
     this.detail,
     this.onEdit,
+    this.iconWidget,
   });
 
   final IconData icon;
@@ -29,6 +30,7 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
   final String value;
   final String? detail;
   final VoidCallback? onEdit;
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +52,9 @@ class TaqaTimelineSummaryCard extends StatelessWidget {
               color: color.withValues(alpha: 0.14),
               borderRadius: TaqaUiScale.radius(10),
             ),
-            child: Icon(icon, color: color, size: 19),
+            child: Center(
+              child: iconWidget ?? Icon(icon, color: color, size: 19),
+            ),
           ),
           SizedBox(width: TaqaUiScale.w(11)),
           Expanded(
@@ -110,6 +114,7 @@ class TaqaTimelineEventCard extends StatelessWidget {
     required this.subtitle,
     required this.details,
     this.onEdit,
+    this.iconWidget,
   });
 
   final IconData icon;
@@ -118,6 +123,7 @@ class TaqaTimelineEventCard extends StatelessWidget {
   final String subtitle;
   final Widget details;
   final VoidCallback? onEdit;
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +146,9 @@ class TaqaTimelineEventCard extends StatelessWidget {
               color: color.withValues(alpha: 0.14),
               borderRadius: TaqaUiScale.radius(9),
             ),
-            child: Icon(icon, color: color, size: 18),
+            child: Center(
+              child: iconWidget ?? Icon(icon, color: color, size: 18),
+            ),
           ),
           title: Row(
             children: [

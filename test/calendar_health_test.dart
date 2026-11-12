@@ -18,6 +18,7 @@ import 'package:taqaproject/core/account_storage.dart';
 import 'package:taqaproject/screens/calendar/calendar_page.dart';
 import 'package:taqaproject/services/calendar/calendar_food_commands.dart';
 import 'package:taqaproject/TaqaUI/components/taqa_timeline.dart';
+import 'package:taqaproject/TaqaUI/components/taqa_filled_button.dart';
 import 'services/calendar/calendar_health_api_test.dart'
     show healthSession, healthDay, healthCommitted;
 
@@ -186,6 +187,7 @@ void main() {
         final session = {
           ...healthSession(kind: 'activity'),
           'activity_kind': 'weightlifting',
+          'distance_km': 5,
         };
         Map? sent;
         await http.runWithClient(
@@ -201,6 +203,7 @@ void main() {
               await tester.pumpAndSettle();
             }
             expect(find.text('Weightlifting'), findsOneWidget);
+            expect(find.byType(TextField), findsNothing);
             await tap(tester, 'Save session');
           },
           () => MockClient((r) async {
@@ -219,9 +222,110 @@ void main() {
         expect(sent!['session']['kind'], 'activity');
         expect(sent!['session'].containsKey('sleep_kind'), false);
         expect(sent!['session'].containsKey('program_id'), false);
+        expect(sent!['session'].containsKey('distance_km'), false);
       },
     );
   }
+
+  testWidgets(
+    'switching distance activity types clears hidden input and restores an empty field',
+    (tester) async {
+      Map? sent;
+      await http.runWithClient(
+        () async {
+          await pump(tester);
+          await tester.ensureVisible(find.byType(TextField));
+          await tester.enterText(find.byType(TextField), 'invalid');
+          Future<void> choose(String label) async {
+            final kind = find.byType(DropdownButtonFormField<String>).first;
+            await tester.ensureVisible(kind);
+            await tester.tap(kind);
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(find.text(label).last);
+            await tester.tap(find.text(label).last);
+            await tester.pumpAndSettle();
+          }
+
+          await choose('Yoga');
+          expect(find.byType(TextField), findsNothing);
+          await choose('Running');
+          expect(find.byType(TextField), findsOneWidget);
+          expect(
+            tester.widget<TextField>(find.byType(TextField)).controller!.text,
+            isEmpty,
+          );
+          await tester.ensureVisible(find.byType(TextField));
+          await tester.enterText(find.byType(TextField), '2.5');
+          await choose('Other activity');
+          expect(find.byType(TextField), findsNothing);
+          await tap(tester, 'Save session');
+        },
+        () => MockClient((r) async {
+          if (r.method == 'GET') {
+            return http.Response(jsonEncode(healthDay()), 200);
+          }
+          sent = jsonDecode(r.body) as Map;
+          return healthCommitted(r);
+        }),
+      );
+      expect(sent!['session']['activity_kind'], 'other');
+      expect(sent!['session'].containsKey('distance_km'), false);
+    },
+  );
+
+  testWidgets(
+    'primary logging actions share the filled style and open the health forms',
+    (tester) async {
+      await http.runWithClient(
+        () async {
+          await tester.pumpWidget(
+            healthApp(
+              DayTimelinePage(
+                date: DateTime(2026, 1, 5),
+                program: const {},
+                canEditTrainingPlan: true,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          for (final label in [
+            'Log food',
+            'Log activity',
+            'Log timed sleep',
+            'Schedule a workout',
+          ]) {
+            expect(
+              find.byWidgetPredicate(
+                (w) => w is TaqaFilledButton && w.label == label,
+              ),
+              findsOneWidget,
+            );
+          }
+          await tester.ensureVisible(find.text('LOG ACTIVITY'));
+          await tester.tap(find.text('LOG ACTIVITY'));
+          await tester.pumpAndSettle();
+          expect(find.text('Start time'), findsOneWidget);
+          await tap(tester, 'Close');
+          await tester.ensureVisible(find.text('LOG TIMED SLEEP'));
+          await tester.tap(find.text('LOG TIMED SLEEP'));
+          await tester.pumpAndSettle();
+          expect(find.text('Bedtime'), findsOneWidget);
+        },
+        () => MockClient((r) async {
+          if (r.url.path.endsWith('/sessions')) {
+            return http.Response(jsonEncode(healthDay()), 200);
+          }
+          if (r.url.path.endsWith('/day')) {
+            return http.Response(
+              '{"entry_date":"2026-01-05","events":[]}',
+              200,
+            );
+          }
+          return http.Response('{}', 404);
+        }),
+      );
+    },
+  );
 
   testWidgets('edit loads latest revision and delete requires confirmation', (
     tester,
@@ -669,7 +773,7 @@ void main() {
               ),
             );
             await tester.pumpAndSettle();
-            expect(find.text('Log timed sleep'), findsOneWidget);
+            expect(find.text('LOG TIMED SLEEP'), findsOneWidget);
             await tester.tap(find.text('Daily summary'));
             await tester.pumpAndSettle();
             final sleepCard = find.byWidgetPredicate(
@@ -695,11 +799,11 @@ void main() {
             expect(find.text('EDIT SLEEP'), findsNothing);
             expect(find.text('LOG SLEEP'), findsNothing);
             await tester.scrollUntilVisible(
-              find.text('Log timed sleep'),
+              find.text('LOG TIMED SLEEP'),
               -150,
               scrollable: find.byType(Scrollable).first,
             );
-            await tester.tap(find.text('Log timed sleep'));
+            await tester.tap(find.text('LOG TIMED SLEEP'));
             await tester.pumpAndSettle();
             expect(find.byType(CalendarHealthSheet), findsOneWidget);
           },
@@ -804,12 +908,13 @@ void main() {
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           await tester.scrollUntilVisible(
-            find.text('الجلسات اليدوية'),
+            find.text('الجري'),
             200,
             scrollable: find.byType(Scrollable).first,
           );
-          expect(find.text('الجلسات اليدوية'), findsOneWidget);
-          expect(find.text('2'), findsWidgets);
+          expect(find.text('الجري'), findsOneWidget);
+          expect(find.text('الجلسات اليدوية'), findsNothing);
+          expect(find.text('30د'), findsOneWidget);
           await tester.scrollUntilVisible(
             find.textContaining('نوم WHOOP'),
             150,
@@ -832,7 +937,18 @@ void main() {
           if (r.url.path.endsWith('/sessions')) {
             return http.Response(
               jsonEncode({
-                ...healthDay(),
+                ...healthDay(
+                  sessions: [
+                    {
+                      ...healthSession(kind: 'activity'),
+                      'entry_date': date,
+                      'activity_kind': 'run',
+                      'started_at': '${date}T12:00:00Z',
+                      'ended_at': '${date}T12:30:00Z',
+                      'duration_seconds': 1800,
+                    },
+                  ],
+                ),
                 'entry_date': date,
                 'sleep_summary': {
                   'origin': 'whoop',
