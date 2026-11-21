@@ -180,7 +180,6 @@ class TaqaDashboardIntroCard extends StatelessWidget {
                   Positioned(
                     right: leftInset,
                     top: nameTop + nameHeight,
-                    width: calendarWidth,
                     child: TaqaDashboardCalendarTag(
                       label: t('training_calendar'),
                       width: calendarWidth,

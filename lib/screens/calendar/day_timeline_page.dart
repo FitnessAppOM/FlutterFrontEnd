@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'calendar_action_style.dart';
 import 'package:intl/intl.dart';
 
-import '../../TaqaUI/Typography/taqa_ui_typography.dart';
 import '../../TaqaUI/components/taqa_filled_button.dart';
 import '../../TaqaUI/components/taqa_calendar_icon.dart';
+import '../../TaqaUI/components/taqa_date_carousel_switcher.dart';
 import '../../TaqaUI/components/taqa_page_app_bar.dart';
 import '../../TaqaUI/components/taqa_popup_guard.dart';
 import '../../TaqaUI/components/taqa_timeline.dart';
@@ -89,8 +89,11 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       _date = DateUtils.dateOnly(day);
       _summaryExpanded = false;
     });
-    unawaited(_load());
+    unawaited(_load(allowRecentCache: true));
   }
+
+  /// Date switches may reuse a just-prefetched day; edits always refetch.
+  static const Duration _switchCacheAge = Duration(seconds: 30);
 
   Future<void> _checkHealth(int user, int request) async {
     try {
@@ -103,6 +106,7 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       }
     } catch (_) {
       if (mounted && request == _loadRequest) {
+        if (_healthChecked) return; // cached health still shown
         setState(() => _healthFailed = true);
       }
     }
@@ -171,26 +175,16 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool allowRecentCache = false}) async {
     final request = ++_loadRequest;
     _dueMealRefreshTimer?.cancel();
-    if (mounted) {
-      setState(() {
-        _loading = true;
-        _bulkAvailable = false;
-        _recipesAvailable = false;
-        _health = null;
-        _healthFailed = false;
-        _healthChecked = false;
-        _data = null;
-        _error = null;
-      });
-    }
     final userId = await AccountStorage.getUserId();
     if (!mounted || request != _loadRequest) return;
     if (_pageUser != null && userId != _pageUser) {
       setState(() {
         _loading = false;
+        _data = null;
+        _health = null;
         _error = AppLocalizations.of(
           context,
         ).translate('calendar_time_account_changed');
@@ -201,12 +195,35 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
     if (userId == null || userId <= 0) {
       setState(() {
         _loading = false;
+        _data = null;
+        _health = null;
         _error = AppLocalizations.of(context).translate('error_generic');
       });
       return;
     }
+    final date = _date;
+    final cached = await DayTimelineService.readCached(
+      userId: userId,
+      date: date,
+    );
+    final cachedHealth = await CalendarHealthApi.readCachedDay(userId, date);
+    if (!mounted || request != _loadRequest) return;
+    setState(() {
+      _bulkAvailable = false;
+      _recipesAvailable = false;
+      _healthFailed = false;
+      _error = null;
+      _data = cached;
+      _loading = cached == null;
+      _health = cachedHealth?.json;
+      _healthChecked = cachedHealth != null;
+    });
     try {
-      final data = await DayTimelineService.fetch(userId: userId, date: _date);
+      final data = await DayTimelineService.fetch(
+        userId: userId,
+        date: date,
+        maxAge: allowRecentCache ? _switchCacheAge : null,
+      );
       if (!mounted || request != _loadRequest) return;
       setState(() {
         _data = data;
@@ -216,14 +233,34 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       unawaited(_checkBulk(data, userId, request));
       unawaited(_checkRecipes(userId, request));
       unawaited(_checkHealth(userId, request));
+      unawaited(_prefetchNeighbours(userId, date));
     } catch (_) {
       if (!mounted || request != _loadRequest) return;
+      // Keep showing the cached day if the refresh fails.
+      if (cached != null) return;
       setState(() {
         _loading = false;
         _error = AppLocalizations.of(
           context,
         ).translate('day_timeline_load_error');
       });
+    }
+  }
+
+  /// Warms the shared cache for the days the switcher can move to next.
+  Future<void> _prefetchNeighbours(int userId, DateTime date) async {
+    for (final offset in const [-1, 1]) {
+      final day = DateTime(date.year, date.month, date.day + offset);
+      if (!mounted || DateUtils.isSameDay(day, _date)) continue;
+      if (await DayTimelineService.readCached(userId: userId, date: day) !=
+          null) {
+        continue;
+      }
+      try {
+        await DayTimelineService.fetch(userId: userId, date: day);
+      } catch (_) {
+        /* Prefetch is best-effort. */
+      }
     }
   }
 
@@ -1100,45 +1137,26 @@ class _DayTimelinePageState extends State<DayTimelinePage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: TaqaUiScale.insetsLTRB(20, 12, 20, 32),
       children: [
-        Text(
-          DateFormat.yMMMMEEEEd(t.locale.languageCode).format(_date),
-          style: TextStyle(
-            fontFamily: TaqaUiFontFamilies.interTight,
-            color: colors.textPrimary,
-            fontSize: TaqaUiScale.sp(23),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 8,
-          children: [
-            IconButton(
-              tooltip: t.translate('calendar_health_previous'),
-              onPressed: _navigationBusy
-                  ? null
-                  : () => _changeDay(
-                      DateTime(_date.year, _date.month, _date.day - 1),
-                    ),
-              icon: const Icon(Icons.chevron_left),
-            ),
-            TextButton(
-              style: calendarActionStyle(context),
-              onPressed: _navigationBusy
-                  ? null
-                  : () => _changeDay(DateTime.now()),
-              child: Text(t.translate('training_calendar_today')),
-            ),
-            IconButton(
-              tooltip: t.translate('calendar_health_next'),
-              onPressed: _navigationBusy
-                  ? null
-                  : () => _changeDay(
-                      DateTime(_date.year, _date.month, _date.day + 1),
-                    ),
-              icon: const Icon(Icons.chevron_right),
-            ),
-          ],
+        TaqaDateCarouselSwitcher(
+          previousDate: DateTime(_date.year, _date.month, _date.day - 1),
+          selectedDate: _date,
+          nextDate: DateTime(_date.year, _date.month, _date.day + 1),
+          onPrevious: _navigationBusy
+              ? null
+              : () => _changeDay(
+                  DateTime(_date.year, _date.month, _date.day - 1),
+                ),
+          onSelected:
+              _navigationBusy || DateUtils.isSameDay(_date, DateTime.now())
+              ? null
+              : () => _changeDay(DateTime.now()),
+          onNext: _navigationBusy
+              ? null
+              : () => _changeDay(
+                  DateTime(_date.year, _date.month, _date.day + 1),
+                ),
+          previousTooltip: t.translate('calendar_health_previous'),
+          nextTooltip: t.translate('calendar_health_next'),
         ),
         SizedBox(height: TaqaUiScale.h(12)),
         _buildDaySummary(context, data),

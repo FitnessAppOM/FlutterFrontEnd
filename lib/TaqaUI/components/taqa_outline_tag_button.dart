@@ -8,17 +8,23 @@ class TaqaOutlineTagButton extends StatelessWidget {
   const TaqaOutlineTagButton({
     super.key,
     required this.label,
-    required this.width,
+    this.width,
     this.height,
     this.onTap,
     this.icon,
     this.borderColor,
     this.textStyle,
+    this.padding,
   });
 
   final String label;
-  final double width;
+
+  /// Fixed width; when null the tag hugs its content with [padding].
+  final double? width;
   final double? height;
+
+  /// Horizontal padding used when the tag sizes itself to its content.
+  final double? padding;
   final VoidCallback? onTap;
 
   /// Optional small leading icon (e.g. a bell) shown before the label.
@@ -66,7 +72,10 @@ class TaqaOutlineTagButton extends StatelessWidget {
         child: Container(
           width: width,
           height: height ?? TaqaUiStyles.streakTagHeight,
-          alignment: Alignment.center,
+          alignment: width == null ? null : Alignment.center,
+          padding: width == null
+              ? EdgeInsets.symmetric(horizontal: padding ?? 6)
+              : null,
           decoration: BoxDecoration(
             color: colors.isDark ? colors.surfaceElevated : Colors.transparent,
             border: Border.all(
@@ -79,7 +88,9 @@ class TaqaOutlineTagButton extends StatelessWidget {
             ),
             borderRadius: TaqaUiStyles.streakTagRadius,
           ),
-          child: content,
+          child: width == null
+              ? Center(widthFactor: 1, child: content)
+              : content,
         ),
       ),
     );

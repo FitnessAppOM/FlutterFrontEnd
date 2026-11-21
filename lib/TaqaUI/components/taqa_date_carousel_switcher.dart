@@ -17,6 +17,8 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
     required this.onNext,
     this.loading = false,
     this.textColor,
+    this.previousTooltip,
+    this.nextTooltip,
   });
 
   final DateTime previousDate;
@@ -27,6 +29,8 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
   final VoidCallback? onNext;
   final bool loading;
   final Color? textColor;
+  final String? previousTooltip;
+  final String? nextTooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +39,9 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
       required DateTime date,
       required VoidCallback? onTap,
       required double opacity,
+      String? tooltip,
     }) {
-      return Opacity(
+      final button = Opacity(
         opacity: opacity,
         child: Material(
           color: Colors.transparent,
@@ -47,7 +52,10 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
               height: TaqaUiScale.h(32),
               child: Center(
                 child: Text(
-                  DateFormat('dd MMM').format(date).toUpperCase(),
+                  DateFormat(
+                    'dd MMM',
+                    Localizations.localeOf(context).languageCode,
+                  ).format(date).toUpperCase(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: resolvedTextColor,
@@ -63,6 +71,9 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
           ),
         ),
       );
+      return tooltip == null
+          ? button
+          : Tooltip(message: tooltip, child: button);
     }
 
     return SizedBox(
@@ -77,6 +88,7 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
               date: previousDate,
               onTap: onPrevious,
               opacity: 0.5,
+              tooltip: previousTooltip,
             ),
           ),
           Align(
@@ -101,7 +113,12 @@ class TaqaDateCarouselSwitcher extends StatelessWidget {
           Positioned(
             right: TaqaUiScale.w(-11),
             top: TaqaUiScale.h(4),
-            child: dateButton(date: nextDate, onTap: onNext, opacity: 0.5),
+            child: dateButton(
+              date: nextDate,
+              onTap: onNext,
+              opacity: 0.5,
+              tooltip: nextTooltip,
+            ),
           ),
         ],
       ),

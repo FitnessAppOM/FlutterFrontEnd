@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../core/day_cache.dart';
 import '../core/network_status_service.dart';
 import 'calendar_food_commands.dart';
 import 'day_timeline_service.dart';
@@ -25,8 +26,23 @@ class CalendarHealthApi {
     return raw == null ? null : jsonDecode(raw) as Map<String, dynamic>;
   }
 
+  static final DayCache _dayCache = DayCache('calendar_health_day_v1');
+
   static Future<Map<String, dynamic>?> day(int user, DateTime date) =>
-      _read(user, 'sessions?entry_date=${calendarDate(date)}');
+      _dayCache.dedupe(user, date, () async {
+        final data = await _read(
+          user,
+          'sessions?entry_date=${calendarDate(date)}',
+        );
+        await _dayCache.write(user, date, data);
+        return data;
+      });
+
+  /// Last stored health day for instant paint; `null` entry = never loaded.
+  static Future<DayCacheEntry?> readCachedDay(int user, DateTime date) =>
+      _dayCache.read(user, date);
+
+  static void clearCache() => _dayCache.clearMemory();
 
   static Future<Map<String, dynamic>?> range(
     int user,

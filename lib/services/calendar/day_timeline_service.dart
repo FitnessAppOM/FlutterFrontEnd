@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/base_url.dart';
 import '../../core/account_storage.dart';
+import '../core/day_cache.dart';
 import 'calendar_diet_refresh.dart';
 
 class DayTimelineEvent {
@@ -88,10 +89,52 @@ class DayTimelineService {
     return '${local.toIso8601String()}$sign$hours:$minutes';
   }
 
-  static Future<DayTimelineData> fetch({
+  static final DayCache _cache = DayCache('calendar_day_v1');
+
+  /// Last stored timeline for the day (memory, then disk), for instant paint.
+  /// Callers should still [fetch] to revalidate: past days remain editable.
+  static Future<DayTimelineData?> readCached({
     required int userId,
     required DateTime date,
   }) async {
+    final json = (await _cache.read(userId, date))?.json;
+    if (json == null) return null;
+    try {
+      return DayTimelineData.fromJson(json);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static void clearCache() => _cache.clearMemory();
+
+  /// Loads the day from the network and stores it in the shared cache.
+  ///
+  /// With [maxAge], a cached copy younger than that is returned without a
+  /// request (used for date switching right after a prefetch). Reloads after
+  /// edits omit it so they always hit the network.
+  static Future<DayTimelineData> fetch({
+    required int userId,
+    required DateTime date,
+    Duration? maxAge,
+  }) async {
+    if (maxAge != null) {
+      final entry = await _cache.read(userId, date);
+      final json = entry?.json;
+      if (json != null &&
+          DateTime.now().difference(entry!.cachedAt) <= maxAge) {
+        try {
+          return DayTimelineData.fromJson(json);
+        } catch (_) {}
+      }
+    }
+    return _fetchNetwork(userId: userId, date: date);
+  }
+
+  static Future<DayTimelineData> _fetchNetwork({
+    required int userId,
+    required DateTime date,
+  }) => _cache.dedupe(userId, date, () async {
     final uri = Uri.parse(
       '${ApiConfig.baseUrl}/calendar/$userId/day',
     ).replace(queryParameters: {'entry_date': _dateParam(date)});
@@ -103,10 +146,11 @@ class DayTimelineService {
     if (response.statusCode != 200) {
       throw Exception('Failed to load day timeline (${response.statusCode})');
     }
-    return DayTimelineData.fromJson(
-      jsonDecode(response.body) as Map<String, dynamic>,
-    );
-  }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final data = DayTimelineData.fromJson(json);
+    await _cache.write(userId, date, json);
+    return data;
+  });
 
   static String newEntryKey(int userId) {
     final now = DateTime.now().microsecondsSinceEpoch;

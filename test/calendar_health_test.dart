@@ -984,7 +984,11 @@ void main() {
           expect(find.byTooltip('Previous day'), findsOneWidget);
           await tester.tap(find.byTooltip('Next day'));
           await tester.pumpAndSettle();
-          expect(dates, ['2026-01-31', '2026-02-01']);
+          // Opening a day prefetches its neighbours; switching to an
+          // already-prefetched day must not fetch it a second time.
+          expect(dates.first, '2026-01-31');
+          expect(dates.where((d) => d == '2026-02-01'), hasLength(1));
+          expect(dates.where((d) => d == '2026-01-31'), hasLength(1));
           expect(
             find.text('Could not load activity and sleep logs. Tap to retry.'),
             findsOneWidget,
@@ -1004,7 +1008,10 @@ void main() {
           );
           await tester.tap(find.byTooltip('Previous day'));
           await tester.pumpAndSettle();
-          expect(dates, ['2026-01-31', '2026-02-01', '2026-01-31']);
+          // Returning within the switch window reuses the cached day.
+          expect(dates.where((d) => d == '2026-01-31'), hasLength(1));
+          expect(find.text('Saturday, January 31, 2026'), findsNothing);
+          expect(find.text('31 JAN'), findsOneWidget);
         },
         () => MockClient((r) async {
           if (r.url.path.endsWith('/day')) {
