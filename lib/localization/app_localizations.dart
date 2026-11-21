@@ -169,6 +169,8 @@ class AppLocalizations {
           'Your profile was saved, but your training update failed. This is your previous plan.',
       'training_update_review':
           'A training update was not completed. Please review your current plan with your coach.',
+      'training_update_review_banner':
+          'This update couldn’t finish because your plan changed or the request is outdated. Check with your coach. Tap × to dismiss.',
       'training_update_check': 'Check update',
       'welcome_tagline': 'Your Taqa, tracked.',
       'welcome_tagline_sub': 'All in one place',
@@ -3108,6 +3110,8 @@ class AppLocalizations {
           'تم حفظ ملفك، لكن تعذّر تحديث خطة التدريب. هذه خطتك السابقة.',
       'training_update_review':
           'لم يكتمل تحديث التدريب. يرجى مراجعة خطتك الحالية مع مدربك.',
+      'training_update_review_banner':
+          'تعذّر إكمال هذا التحديث لأن خطتك تغيّرت أو لأن الطلب قديم. راجع مدربك. اضغط على × لإخفاء الرسالة.',
       'training_update_check': 'متابعة التحديث',
       'welcome_tagline': 'طاقتك، مُتابَعة.',
       'welcome_tagline_sub': 'كل شيء في مكان واحد',
